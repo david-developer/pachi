@@ -6,6 +6,15 @@
 # Logs
 *.log
 
+# Dependencies and build output
+node_modules/
+dist/
+.next/
+.expo/
+web-build/
+coverage/
+.turbo/
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -13,3 +22,4 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+node_modules

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Pachi",
+    "slug": "pachi",
+    "version": "0.1.0",
+    "scheme": "pachi",
+    "experiments": { "typedRoutes": true },
+    "plugins": ["expo-router"],
+    "ios": { "supportsTablet": true },
+    "android": { "package": "com.pachi.app" }
+  }
+}
