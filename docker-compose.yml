@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: pachi_local
+      POSTGRES_USER: pachi
+      POSTGRES_PASSWORD: pachi_local_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - pachi-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pachi -d pachi_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pachi-postgres:
