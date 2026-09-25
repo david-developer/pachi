@@ -170,9 +170,15 @@ importers:
       '@nestjs/platform-express':
         specifier: 11.1.6
         version: 11.1.6(@nestjs/common@11.1.6(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.6)(supports-color@8.1.1)
+      '@pachi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@pachi/database':
         specifier: workspace:*
         version: link:../../packages/database
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -288,6 +294,18 @@ importers:
       tsx:
         specifier: 4.20.5
         version: 4.20.5
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/contracts:
+    devDependencies:
+      '@pachi/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@pachi/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -3457,6 +3475,9 @@ packages:
 
   jimp-compact@0.16.1:
     resolution: {integrity: sha512-dZ6Ra7u1G8c4Letq/B5EzAxj4tLFHL+cGtdpR+PVm4yzPDj+lCk+AbivWt1eOM+ikzkowtyV7qSqX6qr3t71Ww==}
+
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -8346,6 +8367,8 @@ snapshots:
       supports-color: 8.1.1
 
   jimp-compact@0.16.1: {}
+
+  jose@6.2.12: {}
 
   js-tokens@4.0.0: {}
 
