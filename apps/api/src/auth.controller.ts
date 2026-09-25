@@ -1,11 +1,11 @@
-import { Body, Controller, Post, Headers } from '@nestjs/common';
+import { Body, Controller, Headers, Inject, Post } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { IdentityStore } from '@pachi/database';
 import type { AuthBootstrapResponse } from '@pachi/contracts';
 
 @Controller('auth')
 export class AuthController {
-  public constructor(private readonly auth: AuthService, private readonly store: IdentityStore) {}
+  public constructor(@Inject('AUTH_SERVICE') private readonly auth: AuthService, private readonly store: IdentityStore) {}
 
   @Post('bootstrap')
   public async bootstrap(@Headers('authorization') authorization: string | undefined, @Body() body: { device_label?: unknown }): Promise<AuthBootstrapResponse> {

@@ -8,10 +8,13 @@ import { webAuthSessionStore } from '@/lib/server-auth';
 export async function GET(request: Request) {
   const session = await webSession();
   const url = new URL(request.url);
-  if (url.origin !== new URL(redirectUri()).origin || url.pathname !== new URL(redirectUri()).pathname) return NextResponse.json({ error: 'invalid_callback_destination' }, { status: 400 });
-  if (!session.oidcState || !session.oidcNonce || !session.pkceVerifier) return NextResponse.redirect(new URL('/?auth_error=missing_transaction', request.url));
-  if (url.searchParams.get('error')) return NextResponse.redirect(new URL('/?auth_error=provider', request.url));
+  const callbackRequestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
+  const diagnostic = (stage: string, error?: unknown) => console.error(JSON.stringify({ event: 'web_auth_callback', request_id: callbackRequestId, stage, error: error instanceof Error ? error.name : undefined }));
+  if (url.origin !== new URL(redirectUri()).origin || url.pathname !== new URL(redirectUri()).pathname) { diagnostic('callback_destination'); return NextResponse.json({ error: 'invalid_callback_destination' }, { status: 400 }); }
+  if (!session.oidcState || !session.oidcNonce || !session.pkceVerifier) { diagnostic('transaction_missing'); return NextResponse.redirect(new URL('/?auth_error=missing_transaction', request.url)); }
+  if (url.searchParams.get('error')) { diagnostic('provider_error'); return NextResponse.redirect(new URL('/?auth_error=provider', request.url)); }
   try {
+    diagnostic('authorization_code_exchange_start');
     const configuration = await oidcConfiguration();
     const tokens = await oidc.authorizationCodeGrant(configuration, url, {
       pkceCodeVerifier: session.pkceVerifier,
@@ -19,7 +22,10 @@ export async function GET(request: Request) {
       expectedNonce: session.oidcNonce
     });
     if (!tokens.access_token) throw new Error('missing_access_token');
+    diagnostic('authorization_code_exchange_complete');
+    diagnostic('api_bootstrap_start');
     const account = await bootstrap(tokens.access_token);
+    diagnostic('api_bootstrap_complete');
     session.id = await webAuthSessionStore.create(account.user_id, tokens.access_token, tokens.refresh_token, new Date(Date.now() + (tokens.expires_in ?? 300) * 1000));
     session.userId = account.user_id;
     session.accountState = account.account_state;
@@ -28,8 +34,10 @@ export async function GET(request: Request) {
     const returnTo = session.returnTo ?? '/';
     delete session.oidcState; delete session.oidcNonce; delete session.pkceVerifier; delete session.returnTo;
     await session.save();
+    diagnostic('web_session_persistence_complete');
     return NextResponse.redirect(new URL(returnTo, request.url));
-  } catch {
+  } catch (error) {
+    diagnostic('callback_failed', error);
     session.destroy();
     return NextResponse.redirect(new URL('/?auth_error=callback', request.url));
   }
