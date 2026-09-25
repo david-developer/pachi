@@ -64,6 +64,20 @@ Phone ownership uses `POST /v1/account/phone/request` and
 production SMS is intentionally not configured until the documented E02 gate.
 The request response never contains an OTP.
 
+For local-only phone testing, use the synthetic Cameroon number
+`+237690000001` after signing in and requesting a code in the web account
+screen. Copy the returned `challengeId`, then retrieve the in-memory sink code
+from the loopback-only development endpoint:
+
+```bash
+curl http://localhost:3001/v1/dev/local-sms/CHALLENGE_ID
+```
+
+This endpoint exists only when `NODE_ENV=development` and the request comes
+from loopback. It is not available in production, and OTPs are not returned
+by normal phone APIs, rendered in the web UI, or written to logs. Restarting
+the API clears the in-memory sink.
+
 ## Web authentication setup
 
 The web shell uses server-side `openid-client` Authorization Code + PKCE and

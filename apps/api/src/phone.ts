@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Controller, HttpException, HttpStatus, Injectable, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, ConflictException, Controller, Get, HttpException, HttpStatus, Inject, Injectable, NotFoundException, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { IdentityError, PhoneVerificationStore } from '@pachi/database';
 import type { PhoneConfirmResponse, PhoneRequestResponse } from '@pachi/contracts';
 import type { AuthenticatedRequest } from './auth.guard.js';
@@ -16,6 +16,11 @@ export class LocalSmsSink implements SmsProvider {
   public async sendOtp(input: { destination: string; purpose: 'PHONE_OWNERSHIP'; code: string; expiresInMinutes: number; idempotencyKey: string }): Promise<void> {
     if (input.destination === '+237000000000') throw new Error('synthetic delivery failure');
     this.deliveries.push({ destination: input.destination, code: input.code, idempotencyKey: input.idempotencyKey });
+  }
+
+  public delivery(challengeId: string): { destination: string; code: string } | null {
+    const item = this.deliveries.find((delivery) => delivery.idempotencyKey === challengeId);
+    return item ? { destination: item.destination, code: item.code } : null;
   }
 }
 
@@ -83,5 +88,25 @@ export class PhoneVerificationController {
     if (!request.principal) throw new UnauthorizedException('Authentication required');
     return this.verification.confirm(request.principal.userId, body?.phone, body?.challenge_id, body?.code);
   }
+}
+
+@Controller('dev/local-sms')
+export class LocalSmsDevelopmentController {
+  public constructor(@Inject('SMS_PROVIDER') private readonly sink: LocalSmsSink) {}
+
+  @Get(':challengeId')
+  public delivery(@Req() request: AuthenticatedRequest): { destination: string; code: string } {
+    if (process.env.NODE_ENV !== 'development' || !isLoopback(request)) throw new NotFoundException();
+    const challengeId = request.params.challengeId;
+    if (typeof challengeId !== 'string' || !/^[0-9a-f-]{36}$/.test(challengeId)) throw new NotFoundException();
+    const delivery = this.sink.delivery(challengeId);
+    if (!delivery) throw new NotFoundException();
+    return delivery;
+  }
+}
+
+function isLoopback(request: AuthenticatedRequest): boolean {
+  const address = request.socket.remoteAddress ?? '';
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
 }
 
