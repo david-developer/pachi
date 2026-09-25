@@ -73,7 +73,7 @@ export class PhoneVerificationService {
 @Controller('account/phone')
 @UseGuards(AuthGuard)
 export class PhoneVerificationController {
-  public constructor(private readonly verification: PhoneVerificationService) {}
+  public constructor(@Inject('PHONE_VERIFICATION_SERVICE') private readonly verification: PhoneVerificationService) {}
 
   @Post('request')
   public async request(@Req() request: AuthenticatedRequest): Promise<PhoneRequestResponse> {

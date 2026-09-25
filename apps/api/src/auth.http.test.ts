@@ -20,6 +20,8 @@ void test('protected HTTP account route returns 401 without or with invalid cred
     assert.equal(invalid.status, 401);
     const bootstrap = await fetch(`${baseUrl}/v1/auth/bootstrap`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     assert.equal(bootstrap.status, 401);
+    const phoneRequest = await fetch(`${baseUrl}/v1/account/phone/request`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '+237690000001' }) });
+    assert.equal(phoneRequest.status, 401);
     const live = await fetch(`${baseUrl}/v1/health/live`);
     assert.equal(live.status, 200);
   } finally {

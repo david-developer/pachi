@@ -34,6 +34,7 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
   { provide: 'AUTH_SERVICE', useFactory: () => new AuthService(store, verifier) },
   { provide: AuthService, useExisting: 'AUTH_SERVICE' },
   AuthGuard,
-  { provide: PhoneVerificationService, useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) }
+  { provide: 'PHONE_VERIFICATION_SERVICE', useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) },
+  { provide: PhoneVerificationService, useExisting: 'PHONE_VERIFICATION_SERVICE' }
 ], exports: [AuthService] })
 export class AuthModule {}
