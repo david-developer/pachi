@@ -104,7 +104,7 @@ http://localhost:3000
 ```
 
 Copy `.env.example` to `.env` and set `COGNITO_ISSUER`,
-`COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `WEB_SESSION_SECRET`, and
+`COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `WEB_SESSION_SECRET`, and
 `PACHI_API_URL`. Cognito managed-login, real credentials, cloud resources,
 and real SMS are not provisioned by this repository. Real Cognito sign-in has
 been confirmed against the temporary development sandbox; Google/Apple
