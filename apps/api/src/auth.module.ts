@@ -25,7 +25,8 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
   : null;
 
 @Module({ controllers: [AuthController, AccountController, PhoneVerificationController], providers: [
-  { provide: IdentityStore, useValue: store },
+  { provide: 'IDENTITY_STORE', useValue: store },
+  { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: PhoneVerificationStore, useValue: phoneStore },
   { provide: 'SMS_PROVIDER', useValue: smsProvider },
   { provide: CognitoAccessTokenVerifier, useValue: verifier },

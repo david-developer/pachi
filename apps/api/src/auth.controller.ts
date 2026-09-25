@@ -5,7 +5,7 @@ import type { AuthBootstrapResponse } from '@pachi/contracts';
 
 @Controller('auth')
 export class AuthController {
-  public constructor(@Inject('AUTH_SERVICE') private readonly auth: AuthService, private readonly store: IdentityStore) {}
+  public constructor(@Inject('AUTH_SERVICE') private readonly auth: AuthService, @Inject('IDENTITY_STORE') private readonly store: IdentityStore) {}
 
   @Post('bootstrap')
   public async bootstrap(@Headers('authorization') authorization: string | undefined, @Body() body: { device_label?: unknown }): Promise<AuthBootstrapResponse> {

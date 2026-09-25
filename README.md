@@ -102,6 +102,10 @@ settings match, start Postgres/API/web, and open `http://localhost:3000`.
 Real Cognito sign-in and real SMS remain untested until those actions are
 completed.
 
+This local Cognito configuration is a temporary standalone AWS Free-plan
+sandbox in Ireland using localhost callbacks. It does not provide the planned
+staging/production AWS account separation or production readiness evidence.
+
 Run the foundation checks with `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, and `pnpm build`. These checks do not replace the documented
 G1-G6 evidence gates.
