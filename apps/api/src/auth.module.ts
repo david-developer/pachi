@@ -29,7 +29,8 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
   { provide: PhoneVerificationStore, useValue: phoneStore },
   { provide: 'SMS_PROVIDER', useValue: smsProvider },
   { provide: CognitoAccessTokenVerifier, useValue: verifier },
-  { provide: AuthService, useFactory: () => new AuthService(store, verifier) },
+  { provide: 'AUTH_SERVICE', useFactory: () => new AuthService(store, verifier) },
+  { provide: AuthService, useExisting: 'AUTH_SERVICE' },
   AuthGuard,
   { provide: PhoneVerificationService, useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) }
 ], exports: [AuthService] })

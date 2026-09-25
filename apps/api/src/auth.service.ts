@@ -1,7 +1,8 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { IdentityError, IdentityStore, type AuthenticatedPrincipal } from '@pachi/database';
 import { CognitoAccessTokenVerifier, TokenVerificationError } from './token-verifier.js';
 
+@Injectable()
 export class AuthService {
   public constructor(private readonly store: IdentityStore, private readonly verifier: CognitoAccessTokenVerifier | null) {}
 
