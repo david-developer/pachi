@@ -24,3 +24,19 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .secondary { margin-top: 18px; padding: 11px 14px; color: var(--success); background: transparent; border: 1px solid #7cb49f; }
 .linkButton { padding: 3px 0; color: var(--accent-dark); background: transparent; text-decoration: underline; }
 @media (max-width: 520px) { .panel { box-shadow: 7px 8px 0 rgba(23, 33, 43, .08); } }
+.workspace { max-width: 1120px; margin: 0 auto; padding: 32px 20px 72px; }
+.workspace nav { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 72px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.workspace nav a { color: var(--muted); text-decoration: none; }
+.workspace nav a.active { color: var(--accent-dark); font-weight: 700; }
+.workspace header { max-width: 620px; margin-bottom: 36px; }
+.workspace header h1 { max-width: 12ch; }
+.workspaceGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 20px 0; }
+.tool { padding: 24px; background: var(--panel); border: 1px solid var(--line); }
+.tool h2 { margin-top: 0; }
+.tool ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.tool li { display: grid; gap: 4px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.tool li span { color: var(--muted); font-size: 14px; }
+.draftItem { width: 100%; display: grid; gap: 5px; text-align: left; color: inherit; background: transparent; border: 0; padding: 8px 0; cursor: pointer; }
+.draftItem:hover strong, .draftItem:focus-visible strong { color: var(--accent-dark); }
+.successMessage { color: var(--success); font-weight: 700; }
+@media (max-width: 760px) { .workspaceGrid { grid-template-columns: 1fr; } .workspace nav { margin-bottom: 42px; } }

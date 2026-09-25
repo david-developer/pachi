@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: Pachi Identity API
+  title: Pachi API
   version: 0.1.0
-  description: Identity and session foundation. Cognito access tokens only; no login UI or marketplace operations.
+  description: Identity foundation and private individual-provider property/listing draft operations. Listings remain unpublished drafts.
 paths:
   /v1/auth/bootstrap:
     post:
@@ -53,6 +53,66 @@ paths:
                 bio: { type: string, maxLength: 1000 }
                 service_area: { type: string, maxLength: 240 }
       responses: { '201': { description: Draft individual provider onboarding result, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderOverviewResponse' } } } }, '409': { description: Account is not ACTIVE and phone-confirmed or input is invalid } }
+  /v1/account/properties:
+    get:
+      summary: List properties and provider declarations owned by the current provider
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current provider property records and their separate relationship declarations, content: { application/json: { schema: { type: object, required: [properties], properties: { properties: { type: array, items: { $ref: '#/components/schemas/PropertyDraftResponse' } } } } } } }
+        '409': { description: Provider profile is not eligible for private workspace access }
+    post:
+      summary: Create a property and its provider relationship declaration
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PropertyCreateRequest' }
+      responses:
+        '201': { description: Created property and DECLARED provider relationship, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyDraftResponse' } } } }
+        '401': { description: Authentication required }
+        '409': { description: Provider is ineligible or property input is invalid }
+  /v1/account/listing-drafts:
+    get:
+      summary: List the current provider's private listing drafts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Private listing draft snapshots with current listing revision and offering version, content: { application/json: { schema: { type: object, required: [drafts], properties: { drafts: { type: array, items: { $ref: '#/components/schemas/ListingDraftResponse' } } } } } } }
+        '409': { description: Provider profile is not eligible for private workspace access }
+    post:
+      summary: Create a private listing draft with an initial revision and offering version
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingDraftCreateRequest' }
+      responses:
+        '201': { description: Unpublished draft and current XAF offering terms, content: { application/json: { schema: { $ref: '#/components/schemas/ListingDraftResponse' } } } }
+        '401': { description: Authentication required }
+        '409': { description: Provider eligibility, property ownership, purpose, or offering terms rejected }
+  /v1/account/listing-drafts/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Reopen one current-provider private listing draft
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current draft revision and offering version, content: { application/json: { schema: { $ref: '#/components/schemas/ListingDraftResponse' } } } }
+        '401': { description: Authentication required }
+        '404': { description: Draft does not exist or is outside the current provider scope }
+    patch:
+      summary: Create a new listing revision and offering version for a private draft
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingDraftUpdateRequest' }
+      responses:
+        '200': { description: Updated private draft with incremented revision and offering versions, content: { application/json: { schema: { $ref: '#/components/schemas/ListingDraftResponse' } } } }
+        '401': { description: Authentication required }
+        '409': { description: Draft outside provider scope or invalid purpose-specific offering terms }
   /v1/account/phone/request:
     post:
       summary: Request a PHONE_OWNERSHIP OTP
@@ -156,3 +216,108 @@ components:
         display_name: { type: string }
         bio: { type: [string, 'null'] }
         service_area: { type: [string, 'null'] }
+    PropertyCreateRequest:
+      type: object
+      required: [property_type, region, city, neighborhood, relationship_type]
+      properties:
+        property_type: { type: string, enum: [HOUSE, APARTMENT, ROOM, LAND, COMMERCIAL] }
+        region: { type: string, enum: [Southwest, Littoral] }
+        city: { type: string, minLength: 1, maxLength: 120 }
+        neighborhood: { type: string, minLength: 1, maxLength: 160 }
+        relationship_type: { type: string, enum: [OWNER, AUTHORIZED_AGENT, PROPERTY_MANAGER] }
+        landmark: { type: string }
+        bedrooms: { type: integer, minimum: 0 }
+        bathrooms: { type: integer, minimum: 0 }
+        size_sqm: { type: number, exclusiveMinimum: 0 }
+        furnishing: { type: string, enum: [FURNISHED, UNFURNISHED, PARTLY_FURNISHED] }
+    PropertyDraftResponse:
+      type: object
+      required: [id, property_type, region, city, neighborhood, relationship_id, relationship_type, authorization_status]
+      properties:
+        id: { type: string, format: uuid }
+        property_type: { type: string, enum: [HOUSE, APARTMENT, ROOM, LAND, COMMERCIAL] }
+        region: { type: string, enum: [Southwest, Littoral] }
+        city: { type: string }
+        neighborhood: { type: string }
+        relationship_id: { type: string, format: uuid }
+        relationship_type: { type: string, enum: [OWNER, AUTHORIZED_AGENT, PROPERTY_MANAGER] }
+        authorization_status: { const: DECLARED }
+        landmark: { type: [string, 'null'] }
+        bedrooms: { type: [integer, 'null'] }
+        bathrooms: { type: [integer, 'null'] }
+        size_sqm: { type: [string, 'null'] }
+        furnishing: { type: [string, 'null'] }
+    ListingDraftCreateRequest:
+      type: object
+      required: [property_id, purpose]
+      properties:
+        property_id: { type: string, format: uuid }
+        purpose: { type: string, enum: [RENT, SALE, SHORT_LET] }
+        title: { type: string, maxLength: 160 }
+        description: { type: string, maxLength: 5000 }
+        amount_minor: { type: integer, minimum: 0 }
+        pricing_period: { type: string, enum: [MONTHLY, TOTAL, NIGHTLY] }
+        negotiable: { type: boolean }
+        deposit_amount_minor: { type: integer, minimum: 0 }
+        advance_months: { type: integer, minimum: 0 }
+        minimum_lease_months: { type: integer, exclusiveMinimum: 0 }
+        utilities_included: { type: boolean }
+        service_charge_amount_minor: { type: integer, minimum: 0 }
+        weekly_amount_minor: { type: integer, minimum: 0 }
+        minimum_nights: { type: integer, exclusiveMinimum: 0 }
+        guest_limit: { type: integer, exclusiveMinimum: 0 }
+        check_in_time: { type: string, format: time }
+        check_out_time: { type: string, format: time }
+        cleaning_fee_minor: { type: integer, minimum: 0 }
+        available_from: { type: string, format: date }
+    ListingDraftUpdateRequest:
+      type: object
+      properties:
+        title: { type: [string, 'null'], maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        amount_minor: { type: [integer, 'null'], minimum: 0 }
+        pricing_period: { type: string, enum: [MONTHLY, TOTAL, NIGHTLY] }
+        negotiable: { type: boolean }
+        deposit_amount_minor: { type: [integer, 'null'], minimum: 0 }
+        advance_months: { type: [integer, 'null'], minimum: 0 }
+        minimum_lease_months: { type: [integer, 'null'], exclusiveMinimum: 0 }
+        utilities_included: { type: [boolean, 'null'] }
+        service_charge_amount_minor: { type: [integer, 'null'], minimum: 0 }
+        weekly_amount_minor: { type: [integer, 'null'], minimum: 0 }
+        minimum_nights: { type: [integer, 'null'], exclusiveMinimum: 0 }
+        guest_limit: { type: [integer, 'null'], exclusiveMinimum: 0 }
+        check_in_time: { type: [string, 'null'], format: time }
+        check_out_time: { type: [string, 'null'], format: time }
+        cleaning_fee_minor: { type: [integer, 'null'], minimum: 0 }
+        available_from: { type: [string, 'null'], format: date }
+    ListingDraftResponse:
+      type: object
+      required: [id, property_id, provider_account_id, purpose, publication_status, revision_id, version, offering_id, offering_version_id, currency, pricing_period, negotiable]
+      properties:
+        id: { type: string, format: uuid }
+        property_id: { type: string, format: uuid }
+        provider_account_id: { type: string, format: uuid }
+        purpose: { type: string, enum: [RENT, SALE, SHORT_LET] }
+        publication_status: { const: DRAFT }
+        revision_id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        offering_id: { type: string, format: uuid }
+        offering_version_id: { type: string, format: uuid }
+        currency: { const: XAF }
+        title: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        amount_minor: { type: [integer, 'null'] }
+        pricing_period: { type: string, enum: [MONTHLY, TOTAL, NIGHTLY] }
+        negotiable: { type: boolean }
+        deposit_amount_minor: { type: [integer, 'null'] }
+        advance_months: { type: [integer, 'null'] }
+        minimum_lease_months: { type: [integer, 'null'] }
+        utilities_included: { type: [boolean, 'null'] }
+        service_charge_amount_minor: { type: [integer, 'null'] }
+        weekly_amount_minor: { type: [integer, 'null'] }
+        minimum_nights: { type: [integer, 'null'] }
+        guest_limit: { type: [integer, 'null'] }
+        check_in_time: { type: [string, 'null'], format: time }
+        check_out_time: { type: [string, 'null'], format: time }
+        cleaning_fee_minor: { type: [integer, 'null'] }
+        available_from: { type: [string, 'null'], format: date }

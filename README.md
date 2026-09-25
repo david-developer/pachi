@@ -5,7 +5,7 @@
 > **Updated:** 2026-09-24  
 > Acceptance establishes the design to implement; it does not certify implementation, testing, vendor readiness, or launch readiness.
 
-This repository contains the revised canonical documentation and the local implementation foundation. It does not claim production readiness, cloud deployment, authentication, marketplace behavior, or executed production migrations.
+This repository contains the canonical product documentation and an incrementally implemented local foundation. Current local slices include Cognito-backed web authentication, phone-confirmation test delivery, individual provider onboarding, and private property/listing-draft preparation. None of these slices imply production readiness, public listing publication, cloud provisioning, or executed production migrations.
 
 Start with [docs/README.md](docs/README.md). Replace the corresponding files in your repository's `docs/` directory, inspect the diff, preserve unrelated files and make a separate documentation commit. This package README is delivery guidance; merge any useful notes into the existing repository README rather than overwriting unrelated project instructions.
 
@@ -77,6 +77,35 @@ This endpoint exists only when `NODE_ENV=development` and the request comes
 from loopback. It is not available in production, and OTPs are not returned
 by normal phone APIs, rendered in the web UI, or written to logs. Restarting
 the API clears the in-memory sink.
+
+## Private property and listing drafts
+
+The individual provider workspace is available at `http://localhost:3000/provider`.
+For a local walkthrough, sign in at `http://localhost:3000`, confirm the
+synthetic phone number using the development SMS sink above, and complete the
+individual provider profile from the account page. Then open the provider
+workspace, create a property, and select its relationship declaration
+(`OWNER`, `AUTHORIZED_AGENT`, or `PROPERTY_MANAGER`). The property and its
+provider relationship are persisted as separate records.
+
+Create a private listing draft by selecting one of the saved properties and a
+purpose. The form stores listing copy as a listing revision and XAF commercial
+terms as an offering version. Rent drafts accept monthly price, deposit,
+advance months, minimum lease length, utilities, service charge and availability;
+sale drafts accept total price, negotiability and availability; short-let drafts
+accept nightly and optional weekly rates, minimum nights, guest limit,
+check-in/check-out times, cleaning fee and availability. Select a saved draft
+to reopen its current values, edit listing copy or purpose-specific terms, and
+save. Each save creates a new immutable revision/version; returning to the
+draft list reloads the persisted current version.
+
+These routes are authenticated and provider-scoped. The API requires an ACTIVE,
+phone-confirmed user and an eligible individual provider profile; provider
+identity verification is not claimed by this local slice. Drafts remain
+`DRAFT`: there is no submission, publication, public search, moderation, media,
+payment, or property-edit workflow here. API paths and schemas are described in
+`apps/api/openapi.yaml`; TypeScript request and response types live in
+`packages/contracts`.
 
 ## Web authentication setup
 
