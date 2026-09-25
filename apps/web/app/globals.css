@@ -19,6 +19,7 @@ input { width: 100%; padding: 13px 14px; color: var(--ink); background: #fff; bo
 input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--accent); }
 .primary, .secondary, .linkButton { cursor: pointer; border: 0; }
 .primary { width: 100%; padding: 14px 18px; color: #fff; background: var(--accent); font-weight: 700; }
+.workspaceLink { display: inline-block; width: auto; margin-top: 12px; text-align: center; text-decoration: none; }
 .primary:hover { background: var(--accent-dark); }
 .primary:disabled { cursor: wait; opacity: .6; }
 .secondary { margin-top: 18px; padding: 11px 14px; color: var(--success); background: transparent; border: 1px solid #7cb49f; }
