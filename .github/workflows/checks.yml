@@ -4,22 +4,13 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgis/postgis:17-3.5
-        env:
-          POSTGRES_DB: pachi_local
-          POSTGRES_USER: pachi
-          POSTGRES_PASSWORD: pachi_local_only
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U pachi -d pachi_local"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
       postgres-test:
         image: postgis/postgis:17-3.5
         env:
@@ -33,8 +24,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://pachi:pachi_local_only@localhost:5432/pachi_local
       DATABASE_TEST_URL: postgresql://pachi_test:pachi_test_only@localhost:5433/pachi_test
+      DATABASE_URL: postgresql://pachi_test:pachi_test_only@localhost:5433/pachi_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,8 +33,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @pachi/database db:migrate
       - run: pnpm --filter @pachi/database db:migrate:test
+      - run: pnpm --filter @pachi/database build
+      - run: pnpm --filter @pachi/contracts build
       - run: pnpm --filter @pachi/database test:integration
       - run: pnpm --filter @pachi/api test:integration
       - run: pnpm lint
