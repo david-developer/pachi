@@ -7,6 +7,7 @@
     { "idx": 2, "version": "7", "when": 1758931200000, "tag": "0002_phone_ownership", "breakpoints": true },
     { "idx": 3, "version": "7", "when": 1759017600000, "tag": "0003_phone_e164_constraint", "breakpoints": true },
     { "idx": 4, "version": "7", "when": 1759104000000, "tag": "0004_phone_contact_e164_constraint", "breakpoints": true },
-    { "idx": 5, "version": "7", "when": 1759190400000, "tag": "0005_phone_abuse_fingerprint", "breakpoints": true }
+    { "idx": 5, "version": "7", "when": 1759190400000, "tag": "0005_phone_abuse_fingerprint", "breakpoints": true },
+    { "idx": 6, "version": "7", "when": 1759276800000, "tag": "0006_web_auth_sessions", "breakpoints": true }
   ]
 }
