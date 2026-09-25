@@ -13,6 +13,7 @@ import { ProviderStore } from '@pachi/database';
 
 const config = loadConfig();
 const { client } = createDatabase();
+export const authDatabaseClient = client;
 const store = new IdentityStore(client);
 const phoneStore = new PhoneVerificationStore(client, config.PHONE_OTP_HMAC_SECRET);
 const smsProvider = new LocalSmsSink(config.NODE_ENV);

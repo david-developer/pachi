@@ -20,8 +20,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      postgres-test:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: pachi_test
+          POSTGRES_USER: pachi_test
+          POSTGRES_PASSWORD: pachi_test_only
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pachi_test -d pachi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://pachi:pachi_local_only@localhost:5432/pachi_local
+      DATABASE_TEST_URL: postgresql://pachi_test:pachi_test_only@localhost:5433/pachi_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,8 +42,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate
+      - run: pnpm --filter @pachi/database db:migrate
+      - run: pnpm --filter @pachi/database db:migrate:test
       - run: pnpm --filter @pachi/database test:integration
+      - run: pnpm --filter @pachi/api test:integration
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

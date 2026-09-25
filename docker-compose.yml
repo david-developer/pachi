@@ -14,6 +14,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+  postgres-test:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: pachi_test
+      POSTGRES_USER: pachi_test
+      POSTGRES_PASSWORD: pachi_test_only
+    ports:
+      - "5433:5432"
+    volumes:
+      - pachi-postgres-test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pachi_test -d pachi_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pachi-postgres:
+  pachi-postgres-test:

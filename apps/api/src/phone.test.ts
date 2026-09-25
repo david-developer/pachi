@@ -21,4 +21,7 @@ void test('local SMS sink is forbidden in production and exposes synthetic deliv
   process.env.NODE_ENV = 'development';
   try { assert.deepEqual(controller.delivery(request), { destination: '+237690000001', code: '123456' }); }
   finally { if (previousEnvironment) process.env.NODE_ENV = previousEnvironment; }
+  const remoteRequest = { params: { challengeId }, socket: { remoteAddress: '10.0.0.8' }, headers: { 'x-forwarded-for': '127.0.0.1' } } as never;
+  process.env.NODE_ENV = 'development';
+  assert.throws(() => controller.delivery(remoteRequest));
 });

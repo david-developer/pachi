@@ -47,8 +47,9 @@ export default function MarketplaceShell() {
   async function logout(all: boolean) {
     const csrfToken = state?.csrfToken;
     if (!csrfToken) return;
-    await fetch(`/api/auth/logout${all ? '?all=true' : ''}`, { method: 'POST', headers: { origin: window.location.origin, 'x-csrf-token': csrfToken } });
-    window.location.href = '/';
+    const response = await fetch(`/api/auth/logout${all ? '?all=true' : ''}`, { method: 'POST', headers: { origin: window.location.origin, 'x-csrf-token': csrfToken } });
+    const result = await response.json() as { logout_url?: string };
+    window.location.href = result.logout_url ?? '/';
   }
 
   if (!state) return <main className="shell"><section className="panel"><p className="eyebrow">PACHI / MARKETPLACE</p><h1>Checking your session</h1><p className="muted">Authentication status is loading.</p></section></main>;

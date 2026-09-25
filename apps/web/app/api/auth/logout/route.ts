@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const destination = new URL(logoutUrl);
     destination.searchParams.set('client_id', process.env.COGNITO_CLIENT_ID);
     destination.searchParams.set('logout_uri', new URL('/', request.url).toString());
-    return NextResponse.redirect(destination);
+    return NextResponse.json({ status: 'ok', logout_url: destination.toString() });
   }
   return NextResponse.json({ status: 'ok' });
 }
