@@ -1,0 +1,4 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": { "module": "ESNext", "moduleResolution": "Bundler", "target": "ES2022", "jsx": "preserve", "lib": ["DOM", "DOM.Iterable", "ES2022"] }
+}

@@ -1,0 +1,12 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    { "idx": 0, "version": "7", "when": 1758758400000, "tag": "0000_foundation_metadata", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1758844800000, "tag": "0001_identity_sessions", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1758931200000, "tag": "0002_phone_ownership", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1759017600000, "tag": "0003_phone_e164_constraint", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1759104000000, "tag": "0004_phone_contact_e164_constraint", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1759190400000, "tag": "0005_phone_abuse_fingerprint", "breakpoints": true }
+  ]
+}

@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Pachi Identity API
+  version: 0.1.0
+  description: Identity and session foundation. Cognito access tokens only; no login UI or marketplace operations.
+paths:
+  /v1/auth/bootstrap:
+    post:
+      summary: Resolve an access-token identity and register its session
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BootstrapRequest' }
+      responses:
+        '201': { description: Bootstrap result, content: { application/json: { schema: { $ref: '#/components/schemas/BootstrapResponse' } } } }
+        '401': { description: Invalid, expired, wrong-type, wrong-client, or insufficient-scope token }
+  /v1/account/me:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current account, content: { application/json: { schema: { $ref: '#/components/schemas/AccountResponse' } } } }
+  /v1/account/sessions:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Safe current-user sessions, content: { application/json: { schema: { $ref: '#/components/schemas/SessionListResponse' } } } }
+  /v1/account/logout:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Current session revoked } }
+  /v1/account/logout-all:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: All current-user sessions revoked } }
+  /v1/account/phone/request:
+    post:
+      summary: Request a PHONE_OWNERSHIP OTP
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties: { phone: { type: string, description: Cameroon E.164 number } }
+      responses:
+        '201': { description: Accepted for isolated delivery, content: { application/json: { schema: { $ref: '#/components/schemas/PhoneRequestResponse' } } } }
+        '400': { description: Invalid Cameroon phone number }
+        '429': { description: Cooldown or hourly send limit }
+  /v1/account/phone/confirm:
+    post:
+      summary: Confirm PHONE_OWNERSHIP with an OTP
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, challenge_id, code]
+              properties:
+                phone: { type: string }
+                challenge_id: { type: string, format: uuid }
+                code: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+      responses:
+        '201': { description: Verified, content: { application/json: { schema: { $ref: '#/components/schemas/PhoneConfirmResponse' } } } }
+        '401': { description: Invalid, expired, superseded, reused, or exhausted code }
+        '409': { description: Account restricted or phone already owned }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    BootstrapRequest:
+      type: object
+      properties: { device_label: { type: string, maxLength: 120 } }
+    Participation:
+      oneOf:
+        - type: object
+          required: [allowed]
+          properties: { allowed: { const: true } }
+        - type: object
+          required: [allowed, reason]
+          properties: { allowed: { const: false }, reason: { const: PHONE_REQUIRED } }
+    BootstrapResponse:
+      type: object
+      required: [user_id, session_id, account_state, participation]
+      properties:
+        user_id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        account_state: { type: string }
+        participation: { $ref: '#/components/schemas/Participation' }
+    AccountResponse:
+      type: object
+      required: [id, account_state, participation]
+      properties:
+        id: { type: string, format: uuid }
+        account_state: { type: string }
+        participation: { $ref: '#/components/schemas/Participation' }
+    SafeSessionResponse:
+      type: object
+      required: [id, authenticated_at, last_seen_at, expires_at, revoked_at, current]
+      properties:
+        id: { type: string, format: uuid }
+        authenticated_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        current: { type: boolean }
+    SessionListResponse:
+      type: object
+      required: [sessions]
+      properties: { sessions: { type: array, items: { $ref: '#/components/schemas/SafeSessionResponse' } } }
+    PhoneRequestResponse:
+      type: object
+      required: [status, challengeId]
+      properties:
+        status: { const: accepted }
+        challengeId: { type: string, format: uuid }
+    PhoneConfirmResponse:
+      type: object
+      required: [status, activated]
+      properties:
+        status: { const: verified }
+        activated: { type: boolean }
