@@ -9,7 +9,9 @@ const schema = z.object({
   COGNITO_JWKS_URI: z.preprocess((value) => value === '' ? undefined : value, z.string().url().optional()),
   COGNITO_CLIENT_IDS: z.string().default('').transform((value) => value.split(',').map((item) => item.trim()).filter(Boolean)),
   AUTH_REQUIRED_SCOPES: z.string().default('').transform((value) => value.split(/\s+/).map((item) => item.trim()).filter(Boolean)),
-  AUTH_ALLOW_TEST_ISSUER: z.enum(['true', 'false']).default('false').transform((value) => value === 'true')
+  AUTH_ALLOW_TEST_ISSUER: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  PHONE_OTP_HMAC_SECRET: z.string().default('local-only-phone-otp-secret'),
+  SMS_PROVIDER: z.enum(['local', 'aws']).default('local')
 }).superRefine((config, context) => {
   if (config.NODE_ENV === 'production') {
     if (!config.COGNITO_ISSUER || !config.COGNITO_JWKS_URI || config.COGNITO_CLIENT_IDS.length === 0) {
@@ -20,6 +22,12 @@ const schema = z.object({
     }
     if (config.AUTH_REQUIRED_SCOPES.length === 0) {
       context.addIssue({ code: 'custom', message: 'Production requires at least one API scope', path: ['AUTH_REQUIRED_SCOPES'] });
+    }
+    if (config.SMS_PROVIDER !== 'aws') {
+      context.addIssue({ code: 'custom', message: 'Production requires the approved SMS provider', path: ['SMS_PROVIDER'] });
+    }
+    if (config.PHONE_OTP_HMAC_SECRET === 'local-only-phone-otp-secret') {
+      context.addIssue({ code: 'custom', message: 'Production requires a configured OTP digest secret', path: ['PHONE_OTP_HMAC_SECRET'] });
     }
   }
 });

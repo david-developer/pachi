@@ -26,3 +26,5 @@ export type SafeSessionResponse = {
 
 export type SessionListResponse = { sessions: SafeSessionResponse[] };
 export type OperationStatusResponse = { status: 'ok' };
+export type PhoneRequestResponse = { status: 'accepted'; challengeId: string };
+export type PhoneConfirmResponse = { status: 'verified'; activated: boolean };

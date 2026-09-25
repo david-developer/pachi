@@ -4,6 +4,7 @@ import { createDatabase } from './client.js';
 import { IdentityError, IdentityStore, type VerifiedTokenClaims } from './identity.js';
 
 const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl && process.env.CI === 'true') throw new Error('DATABASE_URL is required for CI database integration tests');
 const integrationTest = databaseUrl ? test : test.skip;
 
 void integrationTest('bootstraps one user and session under concurrency', async () => {

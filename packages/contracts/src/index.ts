@@ -4,5 +4,7 @@ export type {
   OperationStatusResponse,
   ParticipationProjection,
   SafeSessionResponse,
-  SessionListResponse
+  SessionListResponse,
+  PhoneConfirmResponse,
+  PhoneRequestResponse
 } from './identity.js';

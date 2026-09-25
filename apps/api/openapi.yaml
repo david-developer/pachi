@@ -33,6 +33,41 @@ paths:
     post:
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: All current-user sessions revoked } }
+  /v1/account/phone/request:
+    post:
+      summary: Request a PHONE_OWNERSHIP OTP
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties: { phone: { type: string, description: Cameroon E.164 number } }
+      responses:
+        '201': { description: Accepted for isolated delivery, content: { application/json: { schema: { $ref: '#/components/schemas/PhoneRequestResponse' } } } }
+        '400': { description: Invalid Cameroon phone number }
+        '429': { description: Cooldown or hourly send limit }
+  /v1/account/phone/confirm:
+    post:
+      summary: Confirm PHONE_OWNERSHIP with an OTP
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, challenge_id, code]
+              properties:
+                phone: { type: string }
+                challenge_id: { type: string, format: uuid }
+                code: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+      responses:
+        '201': { description: Verified, content: { application/json: { schema: { $ref: '#/components/schemas/PhoneConfirmResponse' } } } }
+        '401': { description: Invalid, expired, superseded, reused, or exhausted code }
+        '409': { description: Account restricted or phone already owned }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -77,3 +112,15 @@ components:
       type: object
       required: [sessions]
       properties: { sessions: { type: array, items: { $ref: '#/components/schemas/SafeSessionResponse' } } }
+    PhoneRequestResponse:
+      type: object
+      required: [status, challengeId]
+      properties:
+        status: { const: accepted }
+        challengeId: { type: string, format: uuid }
+    PhoneConfirmResponse:
+      type: object
+      required: [status, activated]
+      properties:
+        status: { const: verified }
+        activated: { type: boolean }
