@@ -6,5 +6,7 @@ export type {
   SafeSessionResponse,
   SessionListResponse,
   PhoneConfirmResponse,
-  PhoneRequestResponse
+  PhoneRequestResponse,
+  ProviderOnboardingResponse,
+  ProviderType
 } from './identity.js';

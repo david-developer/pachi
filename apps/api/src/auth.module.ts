@@ -8,6 +8,8 @@ import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { LocalSmsDevelopmentController, LocalSmsSink, PhoneVerificationController, PhoneVerificationService } from './phone.js';
+import { ProviderController } from './provider.controller.js';
+import { ProviderStore } from '@pachi/database';
 
 const config = loadConfig();
 const { client } = createDatabase();
@@ -24,9 +26,11 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
     })
   : null;
 
-@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController], providers: [
+@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController], providers: [
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
+  { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },
+  { provide: ProviderStore, useExisting: 'PROVIDER_STORE' },
   { provide: PhoneVerificationStore, useValue: phoneStore },
   { provide: 'SMS_PROVIDER', useValue: smsProvider },
   { provide: LocalSmsSink, useValue: smsProvider },

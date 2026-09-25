@@ -106,15 +106,16 @@ http://localhost:3000
 Copy `.env.example` to `.env` and set `COGNITO_ISSUER`,
 `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `WEB_SESSION_SECRET`, and
 `PACHI_API_URL`. Cognito managed-login, real credentials, cloud resources,
-and real SMS are not provisioned by this repository. Google/Apple federation
-and production callback domains require separate approved environment setup.
+and real SMS are not provisioned by this repository. Real Cognito sign-in has
+been confirmed against the temporary development sandbox; Google/Apple
+federation and production callback domains require separate approved setup.
 
 Before the first real nonproduction sign-in, create the Cognito User Pool/app
 client and resource-server scope, configure the callback and sign-out URLs
 above, set the web environment values, ensure the API issuer/client/scope
 settings match, start Postgres/API/web, and open `http://localhost:3000`.
-Real Cognito sign-in and real SMS remain untested until those actions are
-completed.
+Real Cognito sign-in is confirmed; phone ownership remains simulated through
+the development SMS sink and is not proof of control of a real phone number.
 
 This local Cognito configuration is a temporary standalone AWS Free-plan
 sandbox in Ireland using localhost callbacks. It does not provide the planned
