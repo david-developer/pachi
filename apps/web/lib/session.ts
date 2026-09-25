@@ -26,5 +26,6 @@ export const sessionOptions = {
 };
 
 export async function webSession(): Promise<IronSession<WebSession>> {
+  if (process.env.NODE_ENV === 'production' && (!process.env.WEB_SESSION_SECRET || process.env.WEB_SESSION_SECRET.length < 32)) throw new Error('WEB_SESSION_SECRET must be configured in production');
   return getIronSession<WebSession>(await cookies(), sessionOptions);
 }

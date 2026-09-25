@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { csrfValid, sameOrigin } from './csrf.js';
-import { safeReturnTo } from './oidc.js';
+import { safeReturnTo, WEB_AUTH_SCOPE } from './oidc.js';
 import { sessionOptions } from './session.js';
 
 void test('rejects open redirects and accepts local relative return paths', () => {
@@ -25,4 +25,9 @@ void test('session cookie is encrypted, HttpOnly, SameSite, and path scoped', ()
   assert.equal(sessionOptions.cookieOptions.httpOnly, true);
   assert.equal(sessionOptions.cookieOptions.sameSite, 'lax');
   assert.equal(sessionOptions.cookieOptions.path, '/');
+});
+
+void test('requests the API-required participation scope', () => {
+  assert.match(WEB_AUTH_SCOPE, /openid/);
+  assert.match(WEB_AUTH_SCOPE, /pachi\/account/);
 });

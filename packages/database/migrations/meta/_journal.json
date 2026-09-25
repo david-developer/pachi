@@ -9,5 +9,6 @@
     { "idx": 4, "version": "7", "when": 1759104000000, "tag": "0004_phone_contact_e164_constraint", "breakpoints": true },
     { "idx": 5, "version": "7", "when": 1759190400000, "tag": "0005_phone_abuse_fingerprint", "breakpoints": true },
     { "idx": 6, "version": "7", "when": 1759276800000, "tag": "0006_web_auth_sessions", "breakpoints": true }
+    ,{ "idx": 7, "version": "7", "when": 1759363200000, "tag": "0007_web_auth_session_expiry", "breakpoints": true }
   ]
 }

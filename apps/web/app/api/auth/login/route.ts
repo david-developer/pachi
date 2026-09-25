@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as oidc from 'openid-client';
 import { webSession } from '@/lib/session';
-import { oidcConfigured, oidcConfiguration, redirectUri, safeReturnTo } from '@/lib/oidc';
+import { oidcConfigured, oidcConfiguration, redirectUri, safeReturnTo, WEB_AUTH_SCOPE } from '@/lib/oidc';
 
 export async function GET(request: Request) {
   if (!oidcConfigured()) return NextResponse.redirect(new URL('/?auth_error=configuration', request.url));
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   await session.save();
   const configuration = await oidcConfiguration();
   const authorizationUrl = oidc.buildAuthorizationUrl(configuration, {
-    redirect_uri: redirectUri(), response_type: 'code', scope: 'openid email profile', state, nonce,
+    redirect_uri: redirectUri(), response_type: 'code', scope: WEB_AUTH_SCOPE, state, nonce,
     code_challenge: codeChallenge, code_challenge_method: 'S256'
   });
   return NextResponse.redirect(authorizationUrl);

@@ -1,5 +1,7 @@
 import * as oidc from 'openid-client';
 
+export const WEB_AUTH_SCOPE = 'openid email profile pachi/account';
+
 export function oidcConfigured(): boolean {
   return Boolean(process.env.COGNITO_ISSUER && process.env.COGNITO_CLIENT_ID && process.env.COGNITO_CLIENT_SECRET && process.env.COGNITO_REDIRECT_URI);
 }

@@ -1,28 +1,38 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import type postgres from 'postgres';
 
-export type WebAuthSession = { id: string; userId: string; accessToken: string; refreshToken?: string; expiresAt: Date };
+export type WebAuthSession = { id: string; userId: string; accessToken: string; refreshToken?: string; expiresAt: Date; idleExpiresAt: Date; absoluteExpiresAt: Date };
 
 export class WebAuthSessionStore {
   private readonly key: Buffer;
   public constructor(private readonly client: postgres.Sql, secret: string) { this.key = createHash('sha256').update(secret).digest(); }
 
-  public async create(userId: string, accessToken: string, refreshToken: string | undefined, expiresAt: Date): Promise<string> {
+  public async create(userId: string, accessToken: string, refreshToken: string | undefined, expiresAt: Date, now = new Date()): Promise<string> {
     const access = encrypt(accessToken, this.key);
     const refresh = refreshToken ? encrypt(refreshToken, this.key) : null;
-    const rows = await this.client<{ id: string }[]>`INSERT INTO web_auth_sessions (user_id, access_token_ciphertext, refresh_token_ciphertext, token_expires_at) VALUES (${userId}, ${access}, ${refresh}, ${expiresAt.toISOString()}) RETURNING id`;
+    const rows = await this.client<{ id: string }[]>`INSERT INTO web_auth_sessions (user_id, access_token_ciphertext, refresh_token_ciphertext, token_expires_at, idle_expires_at, absolute_expires_at) VALUES (${userId}, ${access}, ${refresh}, ${expiresAt.toISOString()}, ${(new Date(now.getTime() + 7 * 86400000)).toISOString()}, ${(new Date(now.getTime() + 30 * 86400000)).toISOString()}) RETURNING id`;
     const row = rows[0];
     if (!row) throw new Error('web_session_create_failed');
     return row.id;
   }
 
   public async read(id: string): Promise<WebAuthSession | null> {
-    const rows = await this.client<{ id: string; user_id: string; access_token_ciphertext: Buffer; refresh_token_ciphertext: Buffer | null; token_expires_at: Date | string }[]>`SELECT id, user_id, access_token_ciphertext, refresh_token_ciphertext, token_expires_at FROM web_auth_sessions WHERE id = ${id} AND revoked_at IS NULL`;
+    const rows = await this.client<{ id: string; user_id: string; access_token_ciphertext: Buffer; refresh_token_ciphertext: Buffer | null; token_expires_at: Date | string; idle_expires_at: Date | string; absolute_expires_at: Date | string }[]>`SELECT id, user_id, access_token_ciphertext, refresh_token_ciphertext, token_expires_at, idle_expires_at, absolute_expires_at FROM web_auth_sessions WHERE id = ${id} AND revoked_at IS NULL`;
     const row = rows[0];
     if (!row) return null;
-    const session: WebAuthSession = { id: row.id, userId: row.user_id, accessToken: decrypt(row.access_token_ciphertext, this.key), expiresAt: new Date(row.token_expires_at) };
+    const idleExpiresAt = new Date(row.idle_expires_at);
+    const absoluteExpiresAt = new Date(row.absolute_expires_at);
+    if (idleExpiresAt <= new Date() || absoluteExpiresAt <= new Date()) { await this.revoke(id); return null; }
+    await this.client`UPDATE web_auth_sessions SET last_seen_at = now(), idle_expires_at = LEAST(now() + interval '7 days', absolute_expires_at) WHERE id = ${id} AND revoked_at IS NULL`;
+    const session: WebAuthSession = { id: row.id, userId: row.user_id, accessToken: decrypt(row.access_token_ciphertext, this.key), expiresAt: new Date(row.token_expires_at), idleExpiresAt, absoluteExpiresAt };
     if (row.refresh_token_ciphertext) session.refreshToken = decrypt(row.refresh_token_ciphertext, this.key);
     return session;
+  }
+
+  public async updateTokens(id: string, accessToken: string, refreshToken: string | undefined, expiresAt: Date): Promise<void> {
+    const access = encrypt(accessToken, this.key);
+    const refresh = refreshToken ? encrypt(refreshToken, this.key) : null;
+    await this.client`UPDATE web_auth_sessions SET access_token_ciphertext = ${access}, refresh_token_ciphertext = COALESCE(${refresh}, refresh_token_ciphertext), token_expires_at = ${expiresAt.toISOString()}, last_seen_at = now(), idle_expires_at = LEAST(now() + interval '7 days', absolute_expires_at) WHERE id = ${id} AND revoked_at IS NULL`;
   }
 
   public async revoke(id: string): Promise<void> { await this.client`UPDATE web_auth_sessions SET revoked_at = now() WHERE id = ${id} AND revoked_at IS NULL`; }
