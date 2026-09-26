@@ -6,6 +6,20 @@ is primary; functional web screens and the unapproved preview are not the visual
 baseline. Current task: repair the provider photo Refresh status action only; preserve the
 working authentication and startup configuration.
 
+## Current result — photo refresh
+
+Implementation commit `a66b406987cc5d01090b97b604138b6efab8d4a9` is pushed on
+`feat/listing-readiness-submission`, without merging. Its exact-commit
+[CI run](https://github.com/david-developer/pachi/actions/runs/36246268465)
+**passed**, including the full build and all four Chromium UI regressions against
+the production server. The latest subsequent checkpoint documents this outcome
+and the local browser installation only; `git rev-parse HEAD` identifies it.
+
+Refresh now shows loading/completion/errors, updates current draft photos without
+reloading form inputs, and discards prior-request/prior-draft/poll responses.
+Processing-to-ready and the originally reproduced race cases pass in Chromium.
+The production auth/API/worker and development records were left unchanged.
+
 ## Login recovery result (previous maintenance task)
 
 Repair commit `2baedb7a85f1cb113f4a5e19f43af844e30c9dc3` is pushed to the same
@@ -23,7 +37,7 @@ The user now reports that after an upload, **Refresh status** does not update th
 displayed status, while a full-page reload does. A follow-up click gives no visible
 response. Current investigation is scoped to this button and its polling/state.
 
-## Photo-refresh repair — verified locally, CI pending
+## Photo-refresh diagnosis and validation
 
 - Arrival branch is unchanged; HEAD `c6a04ba4179417b06fa4730c82adc10ff17a20aa`,
   clean worktree. Its [CI](https://github.com/david-developer/pachi/actions/runs/36238911779)
@@ -66,18 +80,22 @@ response. Current investigation is scoped to this button and its polling/state.
   interception is limited to fresh test contexts; it does not modify app auth,
   server authorization, CSRF, test issuer settings or the running user session.
 - Local autonomous browser command (pinned Node on PATH):
-  `LD_LIBRARY_PATH=/tmp/pachi-browser-check/libs/usr/lib/x86_64-linux-gnu
+  `LD_LIBRARY_PATH="$PWD/.local-dev/browser/libs/usr/lib/x86_64-linux-gnu"
   PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
-  PLAYWRIGHT_BROWSERS_PATH=/tmp/pachi-browser-check/browsers
+  PLAYWRIGHT_BROWSERS_PATH="$PWD/.local-dev/browser/browsers"
   PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser`
   (join these environment assignments on one shell line). Libraries were downloaded
   and extracted locally because this Ubuntu 26.04 host lacks NSS/NSPR/ALSA; the
-  browser uses the compatible Ubuntu 24.04 build. README describes normal install
+  browser uses the compatible Ubuntu 24.04 build. Binaries/libraries were also
+  copied into ignored .local-dev/browser so future sessions do not depend on /tmp.
+  README describes normal install
   and run commands. No credentials/tokens/cookies or real records enter fixtures.
 - No migration/schema changes or database tests needed for this client-only fix.
   Development accounts, drafts, photos, secrets and service startup remain intact.
-  No service restarts were needed. Production build will be verified by exact-commit
-  CI so the running development .next output is not replaced.
+  No service restarts were needed. Production build and browser regressions passed
+  in exact-commit CI; the running development .next output was not replaced.
+  The documented persistent-browser command was smoke-tested successfully with
+  the processing-to-ready/form-preservation case.
 
 ## Arrival evidence — 2026-09-26 (historical snapshot)
 
@@ -186,9 +204,11 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next: commit/push the bounded photo-refresh repair without merging, then record
-CI for that exact commit. The browser regression suite is available for future
-autonomous checks; no additional user credential entry is required for those tests.
+Next: no further implementation is required for this repair. Use the documented
+browser regression suite for future reports. Real-account acceptance is distinct
+from the synthetic UI suite; the user confirmed login/workspace before this fix,
+while this fix's processing transitions were verified autonomously with controlled
+API responses. Do not expand scope or bypass submission gates.
 
 Full build passed in remote CI. Avoid running next build over the active dev
 server's .next files. Services are left running through tool session 74717; if

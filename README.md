@@ -257,6 +257,17 @@ records. Install the pinned test browser once:
 pnpm --filter @pachi/web exec playwright install --with-deps chromium --only-shell
 ```
 
+On this Ubuntu 26.04 development host, the compatible Ubuntu 24.04 browser and
+its required libraries are already installed under ignored `.local-dev/browser/`.
+Use them from the repository root without changing system packages:
+
+```bash
+LD_LIBRARY_PATH="$PWD/.local-dev/browser/libs/usr/lib/x86_64-linux-gnu" \
+PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 \
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.local-dev/browser/browsers" \
+PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser
+```
+
 With the development web already running, use
 `PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser`.
 After a production build, `pnpm --filter @pachi/web test:browser` starts an
