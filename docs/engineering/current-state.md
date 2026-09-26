@@ -37,7 +37,11 @@ preserve working authentication, startup and the completed photo-refresh repair.
   environment-file changes, migrations, database writes or application test runs
   in this setup. Existing service roles/ports, environment locations, migration
   caveat and application/browser evidence below remain historical verified facts,
-  not new probes. Exact-commit CI awaits the separate setup commit.
+  not new probes. Setup commit `482547068a5d820a506c02bcdfb47516071a24be` is
+  pushed without merging; its [CI](https://github.com/david-developer/pachi/actions/runs/36264454762)
+  was in progress at handoff. This subsequent documentation checkpoint records
+  that observation; use `git rev-parse HEAD` for its exact commit and check CI
+  before treating either checkpoint as remotely validated.
 - User clarified: report this setup when complete; staff authentication and
   permissions will follow in a new user prompt. Do not infer or start that scope.
 
