@@ -11,7 +11,10 @@ const schema = z.object({
   AUTH_REQUIRED_SCOPES: z.string().default('').transform((value) => value.split(/\s+/).map((item) => item.trim()).filter(Boolean)),
   AUTH_ALLOW_TEST_ISSUER: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   PHONE_OTP_HMAC_SECRET: z.string().default('local-only-phone-otp-secret'),
-  SMS_PROVIDER: z.enum(['local', 'aws']).default('local')
+  SMS_PROVIDER: z.enum(['local', 'aws']).default('local'),
+  MEDIA_STORAGE_ROOT: z.string().default('../../.local-media'),
+  CLAMAV_HOST: z.string().default('127.0.0.1'),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310)
 }).superRefine((config, context) => {
   if (config.NODE_ENV === 'production') {
     if (!config.COGNITO_ISSUER || !config.COGNITO_JWKS_URI || config.COGNITO_CLIENT_IDS.length === 0) {

@@ -1,0 +1,5 @@
+import { NextResponse } from 'next/server';
+import { webAuthSession } from '@/lib/server-auth';
+const apiBase = process.env.PACHI_API_URL ?? 'http://localhost:3001';
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string; mediaAssetId: string; width: string }> }) { const { auth } = await webAuthSession(); if (!auth) return NextResponse.json({ error: 'authentication_required' }, { status: 401 }); const { id, mediaAssetId, width } = await context.params; const response = await fetch(`${apiBase}/v1/account/listing-drafts/${id}/media/${mediaAssetId}/variants/${width}`, { headers: { authorization: `Bearer ${auth.accessToken}` }, cache: 'no-store' }); if (!response.ok) return NextResponse.json(await response.json(), { status: response.status }); return new NextResponse(await response.arrayBuffer(), { status: 200, headers: { 'content-type': response.headers.get('content-type') ?? 'image/webp', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } }); }

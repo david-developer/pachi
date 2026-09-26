@@ -29,7 +29,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+  clamav:
+    image: clamav/clamav:1.4.6
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - pachi-clamav-signatures:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping=1 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
 volumes:
   pachi-postgres:
   pachi-postgres-test:
+  pachi-clamav-signatures:

@@ -40,4 +40,26 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .draftItem { width: 100%; display: grid; gap: 5px; text-align: left; color: inherit; background: transparent; border: 0; padding: 8px 0; cursor: pointer; }
 .draftItem:hover strong, .draftItem:focus-visible strong { color: var(--accent-dark); }
 .successMessage { color: var(--success); font-weight: 700; }
+.photoManager { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.photoManagerHead { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.photoManagerHead h3 { margin: 0; font-size: 19px; }
+.photoManagerHead p, .photoPrivacy, .photoEmpty { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.photoUploadLabel { margin: 15px 0; }
+.photoUploadLabel input[type="file"] { min-height: 44px; }
+.uploadProgress { display: grid; gap: 6px; margin: 10px 0 16px; font-size: 12px; color: var(--muted); }
+.uploadProgress progress { width: 100%; height: 10px; accent-color: var(--success); }
+.photoList { list-style: none; padding: 0; margin: 0; }
+.photoRow { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.photoThumb { width: 88px; height: 68px; display: grid; place-items: center; overflow: hidden; background: #e8ece7; color: var(--muted); }
+.photoThumb img { width: 100%; height: 100%; object-fit: cover; }
+.photoInfo { min-width: 0; display: grid; gap: 4px; font-size: 13px; }
+.photoInfo span { color: var(--muted); font-size: 11px; }
+.photoInfo .photoFailure { color: #8e2f20; }
+.photoControls { display: flex; flex-wrap: wrap; justify-content: end; align-items: center; gap: 5px; }
+.photoControls button { min-width: 40px; min-height: 40px; padding: 5px 8px; color: var(--ink); background: transparent; border: 1px solid var(--line); cursor: pointer; }
+.photoControls button:disabled { opacity: .45; cursor: not-allowed; }
+.photoControls .coverControl { color: var(--success); font-size: 12px; }
+.photoControls .removePhoto { color: #8e2f20; font-size: 12px; }
+.photoPrivacy { margin-top: 14px; }
 @media (max-width: 760px) { .workspaceGrid { grid-template-columns: 1fr; } .workspace nav { margin-bottom: 42px; } }
+@media (max-width: 520px) { .photoRow { grid-template-columns: 68px minmax(0, 1fr); gap: 9px; } .photoThumb { width: 68px; height: 58px; } .photoControls { grid-column: 1 / -1; justify-content: start; } .photoManagerHead { flex-direction: column; } }

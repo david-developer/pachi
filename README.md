@@ -7,6 +7,11 @@
 
 This repository contains the canonical product documentation and an incrementally implemented local foundation. Current local slices include Cognito-backed web authentication, phone-confirmation test delivery, individual provider onboarding, and private property/listing-draft preparation. None of these slices imply production readiness, public listing publication, cloud provisioning, or executed production migrations.
 
+Design direction note (2026-09-26): `/preview` was a review experiment and is
+not approved as Pachi's visual direction. Keep it isolated from functional
+marketplace/provider screens and native mobile work while the premium mobile
+housing direction is explored separately.
+
 Start with [docs/README.md](docs/README.md). Replace the corresponding files in your repository's `docs/` directory, inspect the diff, preserve unrelated files and make a separate documentation commit. This package README is delivery guidance; merge any useful notes into the existing repository README rather than overwriting unrelated project instructions.
 
 See [reconciliation record](docs/archive/documentation-migration-record.md) for deliberate changes, resolved questions and remaining launch evidence. Historical source material is archived and is not a second implementation specification.
@@ -80,6 +85,11 @@ the API clears the in-memory sink.
 
 ## Private property and listing drafts
 
+Design direction note (2026-09-26): the `/preview` experiment is not approved
+as Pachi's visual direction. Keep it isolated from functional marketplace and
+provider screens and native mobile work; the target remains a premium mobile
+housing app with responsive marketplace web alongside it.
+
 The individual provider workspace is available at `http://localhost:3000/provider`.
 For a local walkthrough, sign in at `http://localhost:3000`, confirm the
 synthetic phone number using the development SMS sink above, and complete the
@@ -102,10 +112,45 @@ draft list reloads the persisted current version.
 These routes are authenticated and provider-scoped. The API requires an ACTIVE,
 phone-confirmed user and an eligible individual provider profile; provider
 identity verification is not claimed by this local slice. Drafts remain
-`DRAFT`: there is no submission, publication, public search, moderation, media,
-payment, or property-edit workflow here. API paths and schemas are described in
+`DRAFT`: there is no submission, publication, public search, moderation
+approval, payment, or property-edit workflow here. Private photo drafts are the
+next bounded slice described below. API paths and schemas are described in
 `apps/api/openapi.yaml`; TypeScript request and response types live in
 `packages/contracts`.
+
+## Private draft photo management
+
+Run the API and web as above, and start the local ClamAV adapter and worker in
+additional terminals:
+
+```bash
+docker compose up -d clamav
+pnpm --filter @pachi/worker dev
+```
+
+The API writes originals to ignored `/.local-media/` quarantine storage. The
+worker scans through the loopback-only ClamAV service, decodes and re-encodes
+JPEG/PNG/WebP uploads with Sharp, strips source metadata, and creates private
+WebP derivatives at 320, 640, 1280 and 1920 pixel bounds. Processing status is
+persisted in PostgreSQL; an unavailable scanner leaves a retryable failed
+status and never marks media READY. Uploads are limited to 15 MiB, 40
+megapixels and 20 photos per listing. The local quota defaults are 1,000
+active/reserved provider assets, 2 GiB reserved/active provider originals,
+five simultaneous upload authorizations and 100 upload authorizations per
+provider per hour. Expired unattached upload intents are cleaned by the worker.
+
+In the authenticated provider workspace, reopen a private listing draft and
+use **Draft photos** to upload, wait for scan/processing, move photos up/down,
+set a processed cover, retry transient failures, or remove a photo. Reloading
+the draft reloads photo order, cover, derivative previews and processing state.
+Photos and derivatives stay behind provider-scoped API checks; `READY` does not
+mean moderation-approved or published. No public media route is enabled.
+
+This is a local filesystem/worker/ClamAV adapter only. Production S3 bucket and
+IAM separation, KMS, scoped presigned upload URLs, SQS/DLQ delivery, malware
+signature operations/monitoring, CloudFront authorization/invalidation,
+retention reconciliation and production orphan deletion controls remain
+unimplemented. This slice is not production-ready and is not G1 evidence.
 
 ## Web authentication setup
 
