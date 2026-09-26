@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Session = { authenticated: boolean; accountState?: string; participationAllowed?: boolean; csrfToken?: string };
 type Property = { id: string; property_type: string; region: string; city: string; neighborhood: string; relationship_type: string };
@@ -16,6 +16,16 @@ export default function ProviderWorkspace() {
   const [draft, setDraft] = useState({ property_id: '', purpose: 'RENT', title: '', description: '', amount_minor: '', pricing_period: 'MONTHLY', negotiable: false, deposit_amount_minor: '', advance_months: '', minimum_lease_months: '', utilities_included: '', service_charge_amount_minor: '', weekly_amount_minor: '', minimum_nights: '', guest_limit: '', check_in_time: '', check_out_time: '', cleaning_fee_minor: '', available_from: '' });
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [csrf, setCsrf] = useState('');
+  const [photoRefreshing, setPhotoRefreshing] = useState(false);
+  const [photoRefreshMessage, setPhotoRefreshMessage] = useState('');
+  const photoScope = useRef({ draftId: null as string | null, generation: 0, request: 0, poll: 0 });
+  function photoScopeCurrent(id: string, generation: number) { return photoScope.current.draftId === id && photoScope.current.generation === generation; }
+  function selectPhotoDraft(id: string | null) {
+    const previous = photoScope.current;
+    photoScope.current = { draftId: id, generation: previous.generation + 1, request: previous.request + 1, poll: previous.poll + 1 };
+    setPhotoRefreshing(false); setPhotoRefreshMessage(''); setPhotoError('');
+  }
+  useEffect(() => () => { photoScope.current.generation += 1; photoScope.current.poll += 1; }, []);
 
   async function load() {
     const sessionResponse = await fetch('/api/session', { cache: 'no-store' });
@@ -34,16 +44,57 @@ export default function ProviderWorkspace() {
   useEffect(() => { void load().catch((loadError: unknown) => { setError(loadError instanceof Error ? loadError.message : 'The provider workspace could not be loaded.'); }); }, []);
 
   async function createProperty(event: React.FormEvent) { event.preventDefault(); setBusy(true); setError(''); setMessage(''); try { const response = await fetch('/api/account/properties', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(property) }); if (!response.ok) throw new Error(); setMessage('Property draft saved.'); await load(); } catch { setError('Property could not be saved. Check the required fields.'); } finally { setBusy(false); } }
-  async function loadPhotos(listingId: string) { const response = await fetch(`/api/account/listing-drafts/${listingId}/media`, { cache: 'no-store' }); const result = await response.json() as { media?: DraftPhoto[] }; if (!response.ok) throw new Error(); const records = result.media ?? []; setPhotos(records); return records; }
-  async function loadReadiness(listingId: string) { const response = await fetch(`/api/account/listing-drafts/${listingId}/readiness`, { cache: 'no-store' }); const result = await response.json() as Readiness; if (!response.ok) throw new Error(); setReadiness(result); return result; }
+  async function loadPhotos(listingId: string): Promise<DraftPhoto[] | null> {
+    if (photoScope.current.draftId !== listingId) return null;
+    const generation = photoScope.current.generation;
+    const request = ++photoScope.current.request;
+    const current = () => photoScopeCurrent(listingId, generation) && photoScope.current.request === request;
+    try {
+      const response = await fetch(`/api/account/listing-drafts/${listingId}/media`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+      if (response.status === 401) throw new Error('Your sign-in session has expired. Sign in again to refresh photos.');
+      if (!response.ok) throw new Error('Photo status could not be refreshed. Try again.');
+      const result = await response.json() as { media: DraftPhoto[] };
+      if (!Array.isArray(result.media)) throw new Error('Photo status could not be refreshed. Try again.');
+      if (!current()) return null;
+      setPhotos(result.media);
+      return result.media;
+    } catch (error) { if (!current()) return null; throw error; }
+  }
+  async function refreshPhotos(listingId: string) {
+    const generation = photoScope.current.generation;
+    photoScope.current.poll += 1; // Manual refresh supersedes the upload poll.
+    setPhotoRefreshing(true); setPhotoRefreshMessage(''); setPhotoError('');
+    try {
+      const records = await loadPhotos(listingId);
+      if (!records || !photoScopeCurrent(listingId, generation)) return;
+      setPhotoRefreshMessage('Photo status refreshed.');
+      if (records.some((photo) => ['UPLOAD_AUTHORIZED', 'UPLOADED_QUARANTINED', 'PROCESSING'].includes(photo.status))) void waitForPhotoProcessing(listingId);
+    } catch (error) {
+      if (photoScopeCurrent(listingId, generation)) setPhotoError(error instanceof Error ? error.message : 'Photo status could not be refreshed. Try again.');
+    } finally { if (photoScopeCurrent(listingId, generation)) setPhotoRefreshing(false); }
+  }
+  async function loadReadiness(listingId: string) { const generation = photoScope.current.generation; const response = await fetch(`/api/account/listing-drafts/${listingId}/readiness`, { cache: 'no-store' }); const result = await response.json() as Readiness; if (!response.ok) throw new Error(); if (photoScopeCurrent(listingId, generation)) setReadiness(result); return result; }
   async function submitDraft() { if (!editingDraftId || !readiness?.can_submit) return; setSubmissionBusy(true); setError(''); try { const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/submissions`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf, 'idempotency-key': crypto.randomUUID() }, body: JSON.stringify({ revision_id: readiness.revision_id, offering_version_id: readiness.offering_version_id }) }); const result = await response.json() as { readiness?: Readiness }; if (result.readiness) { setReadiness(result.readiness); setPublicationStatus(result.readiness.publication_status); } if (!response.ok) throw new Error('Submission was not accepted. Review the checklist and refresh readiness.'); setMessage('Submitted for review. This is not approval or publication.'); await load(); } catch (submitError) { setError(submitError instanceof Error ? submitError.message : 'Submission could not be completed.'); } finally { setSubmissionBusy(false); } }
   function uploadFile(listingId: string, file: File, onProgress: (percent: number) => void): Promise<void> { return new Promise((resolve, reject) => { const request = new XMLHttpRequest(); request.open('POST', `/api/account/listing-drafts/${listingId}/media`); request.setRequestHeader('x-csrf-token', csrf); request.setRequestHeader('content-type', file.type); request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); }; request.onload = () => request.status === 202 ? resolve() : reject(new Error(request.status === 413 ? 'Photo exceeds the 15 MiB limit.' : 'Photo upload failed. Choose a JPEG, PNG, or WebP image and retry.')); request.onerror = () => reject(new Error('Connection interrupted. The photo was not confirmed; check its status before retrying.')); request.send(file); }); }
-  async function waitForPhotoProcessing(listingId: string) { for (let attempt = 0; attempt < 35; attempt += 1) { await new Promise((resolve) => setTimeout(resolve, 1000)); const records = await loadPhotos(listingId); if (records.length > 0 && records.every((photo) => ['READY', 'FAILED', 'REJECTED', 'DELETED'].includes(photo.status))) return; } }
-  async function uploadPhotos(event: React.ChangeEvent<HTMLInputElement>) { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (!editingDraftId || files.length === 0) return; if (photos.length + files.length > 20) { setPhotoError('A draft can contain at most 20 photos.'); return; } if (files.some((file) => file.size > 15 * 1024 * 1024)) { setPhotoError('Each photo must be 15 MiB or smaller.'); return; } if (files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) { setPhotoError('Choose JPEG, PNG, or WebP photos.'); return; } setPhotoBusy(true); setPhotoError(''); try { for (const [index, file] of files.entries()) { await uploadFile(editingDraftId, file, (percent) => setPhotoProgress(Math.round(((index + percent / 100) / files.length) * 100))); } await loadPhotos(editingDraftId); setPhotoProgress(null); void waitForPhotoProcessing(editingDraftId).catch(() => setPhotoError('Photo status could not be refreshed. Retry refresh.')); } catch (uploadError) { setPhotoError(uploadError instanceof Error ? uploadError.message : 'Photo upload failed.'); await loadPhotos(editingDraftId).catch(() => undefined); } finally { setPhotoProgress(null); setPhotoBusy(false); } }
+  async function waitForPhotoProcessing(listingId: string) {
+    if (photoScope.current.draftId !== listingId) return;
+    const generation = photoScope.current.generation;
+    const poll = ++photoScope.current.poll;
+    const current = () => photoScopeCurrent(listingId, generation) && photoScope.current.poll === poll;
+    try {
+      for (let attempt = 0; attempt < 35; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (!current()) return;
+        const records = await loadPhotos(listingId);
+        if (!current() || !records || records.every((photo) => ['READY', 'FAILED', 'REJECTED', 'DELETED'].includes(photo.status))) return;
+      }
+    } catch { if (current()) setPhotoError('Photo status could not be refreshed. Retry refresh.'); }
+  }
+  async function uploadPhotos(event: React.ChangeEvent<HTMLInputElement>) { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (!editingDraftId || files.length === 0) return; if (photos.length + files.length > 20) { setPhotoError('A draft can contain at most 20 photos.'); return; } if (files.some((file) => file.size > 15 * 1024 * 1024)) { setPhotoError('Each photo must be 15 MiB or smaller.'); return; } if (files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) { setPhotoError('Choose JPEG, PNG, or WebP photos.'); return; } setPhotoBusy(true); setPhotoError(''); try { for (const [index, file] of files.entries()) { await uploadFile(editingDraftId, file, (percent) => setPhotoProgress(Math.round(((index + percent / 100) / files.length) * 100))); } await loadPhotos(editingDraftId); setPhotoProgress(null); void waitForPhotoProcessing(editingDraftId); } catch (uploadError) { setPhotoError(uploadError instanceof Error ? uploadError.message : 'Photo upload failed.'); await loadPhotos(editingDraftId).catch(() => undefined); } finally { setPhotoProgress(null); setPhotoBusy(false); } }
   async function reorderPhotos(next: DraftPhoto[], requestedCoverId?: string) { if (!editingDraftId) return; setPhotoBusy(true); setPhotoError(''); try { const readyCover = next.find((photo) => photo.media_asset_id === requestedCoverId && photo.status === 'READY') ?? next.find((photo) => photo.is_cover && photo.status === 'READY') ?? next.find((photo) => photo.status === 'READY'); if (!readyCover) throw new Error('A processed photo is required to choose a cover.'); const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/media/order`, { method: 'PUT', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify({ media_asset_ids: next.map((photo) => photo.media_asset_id), cover_media_asset_id: readyCover.media_asset_id }) }); const result = await response.json() as { media?: DraftPhoto[] }; if (!response.ok) throw new Error('Photo order could not be saved. Refresh the draft and try again.'); setPhotos(result.media ?? []); } catch (orderError) { setPhotoError(orderError instanceof Error ? orderError.message : 'Photo order could not be saved.'); } finally { setPhotoBusy(false); } }
   async function removePhoto(photo: DraftPhoto) { if (!editingDraftId) return; setPhotoBusy(true); setPhotoError(''); try { const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/media/${photo.media_asset_id}`, { method: 'DELETE', headers: { 'x-csrf-token': csrf } }); const result = await response.json() as { media?: DraftPhoto[] }; if (!response.ok) throw new Error('Photo could not be removed. Refresh and try again.'); setPhotos(result.media ?? []); } catch (removeError) { setPhotoError(removeError instanceof Error ? removeError.message : 'Photo could not be removed.'); } finally { setPhotoBusy(false); } }
-  async function retryPhoto(photo: DraftPhoto) { if (!editingDraftId) return; setPhotoBusy(true); setPhotoError(''); try { const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/media/${photo.media_asset_id}/retry`, { method: 'POST', headers: { 'x-csrf-token': csrf } }); if (!response.ok) throw new Error('This photo cannot be retried.'); await loadPhotos(editingDraftId); void waitForPhotoProcessing(editingDraftId).catch(() => setPhotoError('Photo status could not be refreshed. Retry refresh.')); } catch (retryError) { setPhotoError(retryError instanceof Error ? retryError.message : 'Photo retry failed.'); } finally { setPhotoBusy(false); } }
-  async function openDraft(id: string) { setError(''); setPhotos([]); setPhotoError(''); try { const response = await fetch(`/api/account/listing-drafts/${id}`, { cache: 'no-store' }); if (!response.ok) throw new Error(); const saved = await response.json() as Draft; setEditingDraftId(saved.id); setPublicationStatus(saved.publication_status); setDraft({
+  async function retryPhoto(photo: DraftPhoto) { if (!editingDraftId) return; setPhotoBusy(true); setPhotoError(''); try { const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/media/${photo.media_asset_id}/retry`, { method: 'POST', headers: { 'x-csrf-token': csrf } }); if (!response.ok) throw new Error('This photo cannot be retried.'); await loadPhotos(editingDraftId); void waitForPhotoProcessing(editingDraftId); } catch (retryError) { setPhotoError(retryError instanceof Error ? retryError.message : 'Photo retry failed.'); } finally { setPhotoBusy(false); } }
+  async function openDraft(id: string) { selectPhotoDraft(id); const generation = photoScope.current.generation; setReadiness(null); setError(''); setPhotos([]); setPhotoError(''); try { const response = await fetch(`/api/account/listing-drafts/${id}`, { cache: 'no-store' }); if (!response.ok) throw new Error(); const saved = await response.json() as Draft; if (!photoScopeCurrent(id, generation)) return; setEditingDraftId(saved.id); setPublicationStatus(saved.publication_status); setDraft({
     property_id: saved.property_id,
     purpose: saved.purpose,
     title: saved.title ?? '',
@@ -64,9 +115,9 @@ export default function ProviderWorkspace() {
     cleaning_fee_minor: saved.cleaning_fee_minor?.toString() ?? '',
     available_from: saved.available_from ?? '',
   }); await Promise.all([loadPhotos(saved.id), loadReadiness(saved.id)]);
-  } catch { setError('That private draft could not be reopened.'); } }
+  } catch { if (photoScopeCurrent(id, generation)) setError('That private draft could not be reopened.'); } }
   async function saveDraft(event: React.FormEvent) { event.preventDefault(); setBusy(true); setError(''); setMessage(''); const numeric = (value: string) => value === '' ? undefined : Number(value); const updatedNumeric = (value: string) => value === '' ? null : numeric(value); const maybeTime = (value: string) => editingDraftId && !value ? null : value || undefined; const payload = { ...draft, amount_minor: editingDraftId ? updatedNumeric(draft.amount_minor) : numeric(draft.amount_minor), deposit_amount_minor: editingDraftId ? updatedNumeric(draft.deposit_amount_minor) : numeric(draft.deposit_amount_minor), advance_months: editingDraftId ? updatedNumeric(draft.advance_months) : numeric(draft.advance_months), minimum_lease_months: editingDraftId ? updatedNumeric(draft.minimum_lease_months) : numeric(draft.minimum_lease_months), utilities_included: draft.utilities_included === '' ? editingDraftId ? null : undefined : draft.utilities_included === 'true', service_charge_amount_minor: editingDraftId ? updatedNumeric(draft.service_charge_amount_minor) : numeric(draft.service_charge_amount_minor), weekly_amount_minor: editingDraftId ? updatedNumeric(draft.weekly_amount_minor) : numeric(draft.weekly_amount_minor), minimum_nights: editingDraftId ? updatedNumeric(draft.minimum_nights) : numeric(draft.minimum_nights), guest_limit: editingDraftId ? updatedNumeric(draft.guest_limit) : numeric(draft.guest_limit), check_in_time: maybeTime(draft.check_in_time), check_out_time: maybeTime(draft.check_out_time), cleaning_fee_minor: editingDraftId ? updatedNumeric(draft.cleaning_fee_minor) : numeric(draft.cleaning_fee_minor), available_from: editingDraftId && !draft.available_from ? null : draft.available_from || undefined }; try { const response = await fetch(editingDraftId ? `/api/account/listing-drafts/${editingDraftId}` : '/api/account/listing-drafts', { method: editingDraftId ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error(); const saved = await response.json() as Draft; setEditingDraftId(saved.id); setMessage('Private listing draft saved.'); await load(); await openDraft(saved.id); } catch { setError('Listing draft could not be saved. Check the offering terms and property.'); } finally { setBusy(false); } }
-  function startNewDraft() { setEditingDraftId(null); setPublicationStatus('DRAFT'); setReadiness(null); setPhotos([]); setDraft({ property_id: '', purpose: 'RENT', title: '', description: '', amount_minor: '', pricing_period: 'MONTHLY', negotiable: false, deposit_amount_minor: '', advance_months: '', minimum_lease_months: '', utilities_included: '', service_charge_amount_minor: '', weekly_amount_minor: '', minimum_nights: '', guest_limit: '', check_in_time: '', check_out_time: '', cleaning_fee_minor: '', available_from: '' }); }
+  function startNewDraft() { selectPhotoDraft(null); setEditingDraftId(null); setPublicationStatus('DRAFT'); setReadiness(null); setPhotos([]); setDraft({ property_id: '', purpose: 'RENT', title: '', description: '', amount_minor: '', pricing_period: 'MONTHLY', negotiable: false, deposit_amount_minor: '', advance_months: '', minimum_lease_months: '', utilities_included: '', service_charge_amount_minor: '', weekly_amount_minor: '', minimum_nights: '', guest_limit: '', check_in_time: '', check_out_time: '', cleaning_fee_minor: '', available_from: '' }); }
 
   if (!session) return <main className="shell"><section className="panel"><h1>Provider workspace</h1><p className="muted">Loading account state.</p></section></main>;
   if (!session.authenticated) return <main className="shell"><section className="panel"><h1>Provider workspace</h1><p className="muted">Sign in before opening provider tools.</p><a className="primary" href="/api/auth/login?returnTo=/provider">Continue with Pachi</a></section></main>;
@@ -100,13 +151,14 @@ export default function ProviderWorkspace() {
       aria-labelledby="draft-photos-title">
       <div className="photoManagerHead">
         <div><h3 id="draft-photos-title">Draft photos</h3><p>{photos.length}/20 photos · JPEG, PNG or WebP · 15 MiB max each</p></div>
-        <button className="linkButton" type="button" disabled={photoBusy} onClick={() => { void loadPhotos(editingDraftId).catch(() => setPhotoError('Photo status could not be refreshed.')); }}>Refresh status</button>
+        <button className="linkButton" type="button" disabled={photoBusy || photoRefreshing} onClick={() => { void refreshPhotos(editingDraftId); }}>{photoRefreshing ? 'Refreshing…' : 'Refresh status'}</button>
       </div>
       <label className="photoUploadLabel">Add photos<input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photoBusy || photos.length >= 20} onChange={(event) => { void uploadPhotos(event); }} /></label>
       {photoProgress !== null && <div className="uploadProgress" role="status">
         <span>Uploading photos: {photoProgress}%</span>
         <progress max="100" value={photoProgress} />
       </div>}
+      <p role="status" aria-live="polite">{photoRefreshing ? 'Refreshing photo status…' : photoRefreshMessage}</p>
       {photoError && <p className="error" role="alert">{photoError}</p>}
       {photos.length > 0 ? <ol className="photoList">
         {photos.map((photo, index) => <li className="photoRow" key={photo.media_asset_id}>

@@ -3,9 +3,10 @@
 Operational evidence only; [canonical documentation](../README.md) and its
 authority order govern product behavior. Full scope is preserved. Premium mobile
 is primary; functional web screens and the unapproved preview are not the visual
-baseline. Current task: recover real login and durable development startup only.
+baseline. Current task: repair the provider photo Refresh status action only; preserve the
+working authentication and startup configuration.
 
-## Current result
+## Login recovery result (previous maintenance task)
 
 Repair commit `2baedb7a85f1cb113f4a5e19f43af844e30c9dc3` is pushed to the same
 feature branch; no merge or PR was created. Its exact-commit
@@ -13,13 +14,70 @@ feature branch; no merge or PR was created. Its exact-commit
 **succeeded**, including isolated migrations/integration tests, lint, typecheck,
 unit tests and full production build. Worktree after that push was clean. This
 subsequent documentation-only evidence checkpoint changes only this handoff;
-`git rev-parse HEAD` identifies the current checkpoint. No code changes remain
-after the tested repair.
+`git rev-parse HEAD` identifies the current checkpoint. That login repair remains intact; the photo-refresh repair below is a separate
+maintenance checkpoint.
 
-Real Cognito login completed in correlated server evidence, and authenticated
-workspace requests survived a controlled restart. Local checks pass. Direct
-browser/visual confirmation from the user is still pending; do not claim that
-all UI acceptance has been witnessed by an agent.
+User confirmation (2026-09-26): real login works; existing drafts, photos and
+readiness display correctly. This closes the prior visual-confirmation item.
+The user now reports that after an upload, **Refresh status** does not update the
+displayed status, while a full-page reload does. A follow-up click gives no visible
+response. Current investigation is scoped to this button and its polling/state.
+
+## Photo-refresh repair — verified locally, CI pending
+
+- Arrival branch is unchanged; HEAD `c6a04ba4179417b06fa4730c82adc10ff17a20aa`,
+  clean worktree. Its [CI](https://github.com/david-developer/pachi/actions/runs/36238911779)
+  passed. Existing services and ignored environment files are untouched.
+- Button calls `loadPhotos(editingDraftId)`; it has no loading/success feedback and
+  does not clear a previous error on success. Both client fetch and authenticated
+  Next-to-API fetch explicitly use `cache: no-store`. The dynamic route checks the
+  server session; API checks provider ownership then reads current DB lifecycle.
+- Upload/retry polling also calls `loadPhotos`. Every response unconditionally
+  sets the list, without request ordering or draft-switch/unmount cancellation.
+  Controlled Chromium reproduction confirms both races; the user's browser
+  payload is unavailable, so do not claim the exact interleaving of their click.
+- Recent real media reads return 200; no private response payloads inspected.
+  Initially no exposed browser tool or installed browser existed. Installed a
+  temporary Playwright 1.56.1/Chromium harness under /tmp/pachi-browser-check,
+  including locally extracted browser libraries (no system changes). User then
+  explicitly authorized installing tools for autonomous verification.
+- Before editing application code, actual /provider UI with synthetic intercepted
+  API responses reproduced: click issues media GET and updates PROCESSING to
+  READY; no pending feedback; delayed A response replaces B photos; delayed poll
+  replaces manual READY with PROCESSING. Unsaved title survives the simple refresh.
+  Script: /tmp/pachi-browser-check/reproduce.mjs. No development records written.
+  Cause established in client request ordering/draft scope and missing feedback,
+  not a missing handler or observed response cache.
+- Small application fix stays in the provider component: generation/request checks
+  reject stale photo reads; selecting a draft or unmounting invalidates old work;
+  manual refresh supersedes upload polling and resumes one scoped poll while
+  processing continues. Draft-open/readiness responses also respect selection.
+  Refresh never reloads/saves the form, has a ten-second request deadline, and
+  displays loading, completion and errors (including expired sessions).
+- Chromium regressions now live in `apps/web/tests/photo-refresh.spec.ts`, using
+  pinned @playwright/test 1.56.1. 4/4 pass: PROCESSING → READY, preserved unsaved
+  title/description/price, 401/500/network failures + retry, delayed prior-draft
+  response, stale upload poll after manual refresh, and stopping settled polling.
+  Initial harness selector mistakes were corrected before the passing run.
+  Existing web unit tests 7/7, web lint and typecheck pass. Test config is included
+  in typecheck; the optional webServer config was corrected for exact optional types.
+- CI now installs the pinned headless browser and runs these tests against a
+  production server on 3100 after the existing full checks/build. Synthetic API
+  interception is limited to fresh test contexts; it does not modify app auth,
+  server authorization, CSRF, test issuer settings or the running user session.
+- Local autonomous browser command (pinned Node on PATH):
+  `LD_LIBRARY_PATH=/tmp/pachi-browser-check/libs/usr/lib/x86_64-linux-gnu
+  PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
+  PLAYWRIGHT_BROWSERS_PATH=/tmp/pachi-browser-check/browsers
+  PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser`
+  (join these environment assignments on one shell line). Libraries were downloaded
+  and extracted locally because this Ubuntu 26.04 host lacks NSS/NSPR/ALSA; the
+  browser uses the compatible Ubuntu 24.04 build. README describes normal install
+  and run commands. No credentials/tokens/cookies or real records enter fixtures.
+- No migration/schema changes or database tests needed for this client-only fix.
+  Development accounts, drafts, photos, secrets and service startup remain intact.
+  No service restarts were needed. Production build will be verified by exact-commit
+  CI so the running development .next output is not replaced.
 
 ## Arrival evidence — 2026-09-26 (historical snapshot)
 
@@ -128,13 +186,9 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next action requires the user's browser: reload http://localhost:3000/provider,
-reopen an existing draft, and confirm that its saved values, photos and Listing
-readiness remain visible. Report visual failures by hostname/pathname and time
-only, never callback query strings or credentials. If signed out, start a fresh
-login at http://localhost:3000/ using the existing Cognito account. Correlate
-`.local-dev/web.log` callback stages with `.local-dev/api.log` request IDs.
-Do not reopen implementation scope or bypass submission gates.
+Next: commit/push the bounded photo-refresh repair without merging, then record
+CI for that exact commit. The browser regression suite is available for future
+autonomous checks; no additional user credential entry is required for those tests.
 
 Full build passed in remote CI. Avoid running next build over the active dev
 server's .next files. Services are left running through tool session 74717; if

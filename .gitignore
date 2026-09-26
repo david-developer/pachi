@@ -13,6 +13,8 @@ dist/
 .expo/
 web-build/
 coverage/
+test-results/
+playwright-report/
 .turbo/
 /.local-media/
 /.local-dev/

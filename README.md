@@ -248,3 +248,18 @@ staging/production AWS account separation or production readiness evidence.
 Run the foundation checks with `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, and `pnpm build`. These checks do not replace the documented
 G1-G6 evidence gates.
+
+Provider photo-refresh browser regressions use a fresh Chromium profile and
+synthetic API responses; they do not access real accounts or write development
+records. Install the pinned test browser once:
+
+```bash
+pnpm --filter @pachi/web exec playwright install --with-deps chromium --only-shell
+```
+
+With the development web already running, use
+`PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser`.
+After a production build, `pnpm --filter @pachi/web test:browser` starts an
+isolated server on 3100 and stops it afterward. CI runs this suite after build.
+It covers processing-to-ready, unsaved form input, request failures, draft
+switches and upload-poll races. Real-account acceptance remains separate.

@@ -20,8 +20,8 @@ incomplete work honestly. Do not maintain competing progress files.
 - Preserve the full Cameroon housing marketplace scope. The premium mobile app is
   primary; current web screens are functional development interfaces. `/preview`
   is not an approved visual direction.
-- Current authorized work is login recovery and repeatable development startup,
-  not new features. Preserve authentication, authorization, CSRF, and submission
+- Keep work within the user-authorized maintenance scope in the shared handoff;
+  do not start new features without authorization. Preserve authentication, authorization, CSRF, and submission
   gates. Media READY is not approval; identity verification remains required.
 - Preserve existing edits, development data, accounts, secrets, and Cognito
   resources. Do not reset branches or databases to repair startup.
