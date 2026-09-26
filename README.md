@@ -44,12 +44,32 @@ docker compose up -d postgres
 pnpm db:migrate
 ```
 
-Start the API and marketplace web in separate terminals after loading `.env`:
+Start the local API, marketplace web and media worker from the repository root
+after activating the pinned toolchain. Keep this command running in a terminal:
 
 ```bash
-pnpm --filter @pachi/api dev
-pnpm --filter @pachi/web dev
+docker compose up -d postgres clamav
+pnpm dev
 ```
+
+The launcher builds shared packages, reads existing ignored `.env` for API/worker
+and overlays `apps/web/.env` for web. It discards inherited application settings,
+`CI`, `DATABASE_TEST_URL`, test issuers and runtime hooks; it requires the local
+development database and configured Cognito verifier. Do not regenerate secrets
+or overwrite existing files with examples. The web file's client secret takes
+precedence over the root file for web. No migrations are run by startup.
+
+For separate terminals use `pnpm dev api`, `pnpm dev web`, and `pnpm dev worker`.
+The equivalent filtered app `dev` commands use the same launcher. Port conflicts
+and duplicate launchers fail with an explanation; inspect `ss -ltnp` and the
+identified PID's working directory before stopping a stale project process.
+Never use broad `pkill` patterns. Ctrl-C stops only services owned by that launcher.
+Do not run both the combined and individual commands for the same service.
+
+Read/update the shared [engineering handoff](docs/engineering/current-state.md)
+when resuming. It records verified recovery evidence, outstanding work and CI;
+health checks alone do not prove browser login. Authentication diagnostics log
+stage, duration, generated request ID and API status without callback queries.
 
 The API is available at `http://localhost:3001/v1/health/live` and
 `http://localhost:3001/v1/health/ready`. The marketplace shell runs on
@@ -125,7 +145,7 @@ additional terminals:
 
 ```bash
 docker compose up -d clamav
-pnpm --filter @pachi/worker dev
+pnpm dev worker # only if it is not already running through pnpm dev
 ```
 
 The API writes originals to ignored `/.local-media/` quarantine storage. The

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "build": "tsc -p tsconfig.json", "dev": "tsx watch src/main.ts", "start": "node dist/main.js", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "node scripts/test-unit.mjs", "test:integration": "node scripts/test-integration.mjs" },
+  "scripts": { "build": "tsc -p tsconfig.json", "dev": "node ../../scripts/dev.mjs api", "start": "node dist/main.js", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "node scripts/test-unit.mjs", "test:integration": "node scripts/test-integration.mjs" },
   "dependencies": { "@nestjs/common": "11.1.6", "@nestjs/core": "11.1.6", "@nestjs/platform-express": "11.1.6", "@pachi/contracts": "workspace:*", "@pachi/database": "workspace:*", "@pachi/media": "workspace:*", "jose": "6.2.12", "reflect-metadata": "0.2.2", "rxjs": "7.8.2", "zod": "4.1.5" },
   "devDependencies": { "@pachi/eslint-config": "workspace:*", "@pachi/typescript-config": "workspace:*", "@types/express": "5.0.3", "@types/node": "24.5.2", "tsx": "4.20.5", "typescript": "5.9.2" }
 }

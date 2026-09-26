@@ -2,7 +2,7 @@
   "name": "@pachi/web",
   "private": true,
   "version": "0.1.0",
-  "scripts": { "build": "next build", "dev": "next dev --port 3000", "start": "next start --port 3000", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "tsx --test lib/**/*.test.ts" },
+  "scripts": { "build": "next build", "dev": "node ../../scripts/dev.mjs web", "start": "next start --port 3000", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "tsx --test lib/**/*.test.ts" },
   "dependencies": { "@pachi/contracts": "workspace:*", "@pachi/database": "workspace:*", "iron-session": "9.0.1", "jose": "6.2.12", "next": "16.3.6", "openid-client": "6.8.8", "react": "19.2.0", "react-dom": "19.2.0" },
   "devDependencies": { "@pachi/eslint-config": "workspace:*", "@pachi/typescript-config": "workspace:*", "@types/node": "24.5.2", "@types/react": "19.2.2", "@types/react-dom": "19.2.2", "tsx": "4.20.5", "typescript": "5.9.2" }
 }

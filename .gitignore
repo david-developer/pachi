@@ -15,6 +15,7 @@ web-build/
 coverage/
 .turbo/
 /.local-media/
+/.local-dev/
 
 # OS files
 .DS_Store

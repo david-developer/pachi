@@ -2,18 +2,23 @@ import type { AuthBootstrapResponse, PhoneConfirmResponse, PhoneRequestResponse 
 
 const apiBase = process.env.PACHI_API_URL ?? 'http://localhost:3001';
 
+export class ApiError extends Error {
+  constructor(readonly status: number) { super(`API_${status}`); this.name = 'ApiError'; }
+}
+
 async function apiRequest<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}`, ...init?.headers },
-    cache: 'no-store'
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10_000)
   });
-  if (!response.ok) throw new Error(`API_${response.status}`);
+  if (!response.ok) throw new ApiError(response.status);
   return response.json() as Promise<T>;
 }
 
-export function bootstrap(accessToken: string): Promise<AuthBootstrapResponse> {
-  return apiRequest('/v1/auth/bootstrap', accessToken, { method: 'POST', body: '{}' });
+export function bootstrap(accessToken: string, requestId?: string): Promise<AuthBootstrapResponse> {
+  return apiRequest('/v1/auth/bootstrap', accessToken, { method: 'POST', body: '{}', headers: requestId ? { 'x-request-id': requestId } : {} });
 }
 
 export function requestPhone(accessToken: string, phone: string): Promise<PhoneRequestResponse> {

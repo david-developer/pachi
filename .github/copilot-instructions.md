@@ -2,7 +2,18 @@
 
 ## Current repo baseline
 
-This repository is at the documentation + local foundation stage, not at full MVP delivery. As of 2026-09-25, the canonical guidance in [docs/README.md](../docs/README.md) and [README.md](../README.md) states that the repo is establishing the monorepo, pinned toolchain, local Postgres foundation, database migration workflow, health endpoints, contracts, logging, and CI evidence before identity/permissions and the marketplace vertical slice.
+Read [root AGENTS.md](../AGENTS.md) and the single shared
+[engineering handoff](../docs/engineering/current-state.md) before work. Update
+that handoff after meaningful changes/diagnostics and before stopping; distinguish
+verified facts from reports and assumptions, and record exact-commit CI and
+missing browser evidence. Do not create competing progress files.
+
+The repository contains incrementally implemented local slices, including identity,
+provider drafts, photos and blocked submission readiness. The handoff records
+current implementation evidence; [docs/README.md](../docs/README.md) remains the
+canonical authority map. Neither progress notes nor a working slice amend product
+policy or certify full MVP delivery. Current work is real-login recovery and
+repeatable development startup only, without new features.
 
 Do not treat this as production-ready or claim deployment, real auth, cloud provisioning, SMS, or marketplace behavior unless the task explicitly covers that approved slice and the relevant documents authorize it.
 
