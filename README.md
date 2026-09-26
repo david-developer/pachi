@@ -348,7 +348,8 @@ with `SUPER_ADMIN`. This grants no general private evidence/message access.
 Other role ceilings and case/region scope checks live in the staff policy module
 and follow the canonical role matrix. Revoke input is `{operator, grantId, reason}`;
 use the grant ID returned by the provisioning command. All
-successful operations and mapped failures append a staff audit record. The CLI
+successful operations and mapped failures append a staff audit record. Grant
+changes revoke existing staff sessions so the next login regenerates the cookie. The CLI
 is an operator boundary, not a public privilege-management API or dashboard.
 
 Open the admin app and sign in. Confirm eligible identity/role/scope summaries,

@@ -20,6 +20,8 @@ try {
       { user_id: string; role: string; permission_scope: StaffScope }[]
     >`UPDATE staff_grants SET revoked_at=COALESCE(revoked_at,now()),updated_at=now(),version=version+1 WHERE id=${input.grantId} RETURNING user_id,role,permission_scope`;
     const row = rows[0];
+    if (row)
+      await tx`UPDATE staff_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE user_id=${row.user_id}`;
     await new StaffStore(tx as unknown as typeof client).audit(
       input.operator,
       row?.user_id ?? null,

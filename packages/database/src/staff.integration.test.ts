@@ -156,6 +156,20 @@ void integration(
         /AUTH_REQUIRED/,
       );
       await assert.rejects(() => store.read(failedId), /AUTH_REQUIRED/);
+      const privilegeId = await store.register(
+        { ...claims, originJti: randomUUID(), expiresAt: new Date(+now + 300_000) },
+        now,
+        'access',
+        'refresh',
+      );
+      await store.provision({
+        operator: 'test-operator', userId, issuer: claims.issuer, subject,
+        role: 'ANALYST',
+        scope: { kind: 'platform', id: 'pachi', permissions: ['analytics:aggregate'] },
+        reason: 'Explicit additional grant requires a new session',
+        expiresAt: new Date(+now + 86400_000),
+      });
+      await assert.rejects(() => store.read(privilegeId), /AUTH_REQUIRED/);
       const rows = await client`SELECT id FROM staff_access_audit WHERE target_user_id=${userId}`;
       assert.ok(rows.length >= 4);
       await assert.rejects(

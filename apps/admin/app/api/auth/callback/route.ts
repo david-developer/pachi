@@ -80,6 +80,6 @@ export async function GET(request: Request) {
       );
     }
   } catch {
-    return NextResponse.redirect(new URL('/?auth_error=configuration', request.url));
+    return NextResponse.json({ error: 'STAFF_CONFIGURATION' }, { status: 503 });
   }
 }

@@ -27,6 +27,6 @@ export async function POST(request: Request) {
     });
     return NextResponse.redirect(url, 303);
   } catch {
-    return NextResponse.redirect(new URL('/?auth_error=configuration', request.url), 303);
+    return NextResponse.json({ error: 'STAFF_CONFIGURATION' }, { status: 503 });
   }
 }

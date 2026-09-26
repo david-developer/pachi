@@ -52,7 +52,11 @@ permission foundation only; preserve marketplace and submission gates.
 - Setup requires dedicated staff pool/client, local user/TOTP, read-only Cognito
   inspection IAM, admin env, API staff issuer/client, and reviewed dev migration.
   README contains exact steps and operator commands. Real staff login unverified.
-  Latest admin build and both browser checks pass after final changes.
+  Latest admin build and both browser checks pass. Initial implementation commit
+  `fc8e11131207f1f33609e1407b17040584897c75` pushed; CI run 36280754240 started.
+  Subsequent review tightened fixed configuration-error responses and revokes
+  staff sessions on operator grant changes; focused checks pass. The final
+  checkpoint will have its own exact-commit CI; no merge performed.
   Next: commit/push this bounded foundation, check exact-commit CI, then complete
   the documented AWS and real-browser acceptance when configuration/user entry
   is available. G1 and production readiness remain incomplete.

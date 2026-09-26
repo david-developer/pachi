@@ -259,6 +259,7 @@ export class StaffStore {
         const rows = await tx<
           { id: string }[]
         >`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason,active_from) VALUES (${input.userId},${input.role},${JSON.stringify(input.scope)}::jsonb,${input.expiresAt.toISOString()},${input.operator},${input.reason},${this.clock().toISOString()}) RETURNING id`;
+        await tx`UPDATE staff_sessions SET revoked_at=COALESCE(revoked_at,${this.clock().toISOString()}) WHERE user_id=${input.userId}`;
         await store.audit(
           input.operator,
           input.userId,
