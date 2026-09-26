@@ -178,7 +178,9 @@ the current workspace. Do not change verification records manually to make a
 submission succeed. A complete eligible submission walkthrough remains blocked
 until those approved capabilities are implemented; blocked readiness,
 cross-provider scope, stale versions, and duplicate-safe command behavior are
-covered against the disposable test database.
+covered against the disposable test database. If the web session expires or an
+API data request is unauthorized, the account and provider screens show a
+session/data error or sign-in prompt rather than presenting empty collections.
 
 ## Web authentication setup
 

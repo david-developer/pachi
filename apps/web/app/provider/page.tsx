@@ -17,8 +17,21 @@ export default function ProviderWorkspace() {
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [csrf, setCsrf] = useState('');
 
-  async function load() { const s = await fetch('/api/session', { cache: 'no-store' }).then((r) => r.json() as Promise<Session>); setSession(s); setCsrf(s.csrfToken ?? ''); if (s.authenticated && s.participationAllowed) { const [p, d] = await Promise.all([fetch('/api/account/properties').then((r) => r.json() as Promise<{ properties: Property[] }>), fetch('/api/account/listing-drafts').then((r) => r.json() as Promise<{ drafts: Draft[] }>)]); setProperties(p.properties ?? []); setDrafts(d.drafts ?? []); } }
-  useEffect(() => { void load().catch(() => setError('The provider workspace could not be loaded.')); }, []);
+  async function load() {
+    const sessionResponse = await fetch('/api/session', { cache: 'no-store' });
+    if (!sessionResponse.ok) throw new Error('Your sign-in session could not be checked. Sign in again.');
+    const s = await sessionResponse.json() as Session;
+    setSession(s); setCsrf(s.csrfToken ?? '');
+    if (s.authenticated && s.participationAllowed) {
+      const [propertiesResponse, draftsResponse] = await Promise.all([fetch('/api/account/properties'), fetch('/api/account/listing-drafts')]);
+      if (propertiesResponse.status === 401 || draftsResponse.status === 401) throw new Error('Your sign-in session has expired. Sign in again before loading provider data.');
+      if (!propertiesResponse.ok || !draftsResponse.ok) throw new Error('Provider data could not be loaded. Refresh and try again.');
+      const p = await propertiesResponse.json() as { properties: Property[] };
+      const d = await draftsResponse.json() as { drafts: Draft[] };
+      setProperties(p.properties ?? []); setDrafts(d.drafts ?? []);
+    }
+  }
+  useEffect(() => { void load().catch((loadError: unknown) => { setError(loadError instanceof Error ? loadError.message : 'The provider workspace could not be loaded.'); }); }, []);
 
   async function createProperty(event: React.FormEvent) { event.preventDefault(); setBusy(true); setError(''); setMessage(''); try { const response = await fetch('/api/account/properties', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(property) }); if (!response.ok) throw new Error(); setMessage('Property draft saved.'); await load(); } catch { setError('Property could not be saved. Check the required fields.'); } finally { setBusy(false); } }
   async function loadPhotos(listingId: string) { const response = await fetch(`/api/account/listing-drafts/${listingId}/media`, { cache: 'no-store' }); const result = await response.json() as { media?: DraftPhoto[] }; if (!response.ok) throw new Error(); const records = result.media ?? []; setPhotos(records); return records; }

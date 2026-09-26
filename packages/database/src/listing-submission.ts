@@ -75,6 +75,7 @@ export class ListingSubmissionStore {
     add('PROPERTY_LOCATION_REQUIRED', 'property.location', 'Structured location', ['Southwest', 'Littoral'].includes(listing.region) && Boolean(listing.city.trim()) && Boolean(listing.neighborhood.trim()), 'Complete the region, city, and neighborhood for this property.');
     add('PROPERTY_RECORD_UNAVAILABLE', 'property', 'Property record', listing.property_state === 'ACTIVE', 'This property is not in an active record state.');
     add('PROPERTY_RELATIONSHIP_NOT_CURRENT', 'property.relationship', 'Provider-property relationship', ['DECLARED', 'VERIFIED'].includes(listing.relationship_status) && listing.relationship_current, 'Re-establish a current relationship to this property before submission.');
+    add('PROPERTY_AUTHORITY_REVIEW_UNAVAILABLE', 'property.authority', 'Pending authority evidence', listing.relationship_status !== 'PENDING', 'This workspace cannot distinguish pending authority evidence from an adverse or ambiguous relationship state. Submission remains blocked until the authority case reader exists.');
     add('GEOGRAPHIC_REGION_NOT_ENABLED', 'property.region', 'Publishing region', ['Southwest', 'Littoral'].includes(listing.region), 'This region is not enabled for listing submission.');
     const validOffering = listing.offering_purpose === listing.purpose && listing.currency === 'XAF' && Number(listing.amount_minor) > 0 && listing.pricing_period === expectedPeriod && listing.available_from !== null;
     add('OFFERING_TERMS_INCOMPLETE', 'offering', 'Offering terms', validOffering, 'Add a positive price, the purpose-compatible pricing period, and an availability date.');
@@ -85,6 +86,7 @@ export class ListingSubmissionStore {
     add('ACCOUNT_NOT_ELIGIBLE', 'provider.account', 'Account eligibility', provider.user_state === 'ACTIVE' && provider.phone_verified, 'An active, phone-confirmed account is required to submit.');
     add('PROVIDER_NOT_ACTIVE', 'provider.profile', 'Provider profile', provider.profile_state === 'ACTIVE' && provider.account_state === 'ACTIVE', 'An active provider profile and account are required to submit.');
     add('PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE', 'provider.verification', 'Provider identity verification', false, 'The evidence-backed current PROVIDER_IDENTITY verification required for submission is not available in this workspace. Do not change verification status manually.');
+    add('PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE', 'property.risk_hold', 'Authority risk-hold evaluation', false, 'Authority risk holds and adverse decisions are not represented in this workspace. Submission remains blocked until the policy reader exists.');
 
     const submission = submissionRows[0] ? mapSubmission(submissionRows[0]) : null;
     const canSubmit = listing.publication_status === 'DRAFT' && checks.every((check) => check.status === 'READY');
