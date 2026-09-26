@@ -39,7 +39,7 @@ async function requireFreePort(port) {
 }
 
 try {
-  if (services.some((service) => !['api', 'web', 'worker'].includes(service))) throw new Error('Usage: pnpm dev [all|api|web|worker]');
+  if (services.some((service) => !['api', 'web', 'worker', 'admin'].includes(service))) throw new Error('Usage: pnpm dev [all|api|web|worker|admin]');
   const environments = new Map(services.map((service) => [service, developmentEnvironment(root, service)]));
   mkdirSync(new URL('.local-dev/', root), { recursive: true });
   for (const service of services) {
@@ -53,7 +53,7 @@ try {
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     writeFileSync(lock, String(process.pid), { flag: 'wx', mode: 0o600 });
     locks.push(lock);
-    if (service !== 'worker') await requireFreePort(service === 'web' ? 3000 : Number(environments.get(service).API_PORT ?? 3001));
+    if (service !== 'worker') await requireFreePort(service === 'web' ? 3000 : service === 'admin' ? 3002 : Number(environments.get(service).API_PORT ?? 3001));
   }
   // These packages export dist files. Build them before starting any app.
   const build = spawnSync('pnpm', ['--filter', '@pachi/database', '--filter', '@pachi/contracts', '--filter', '@pachi/media', '-r', 'build'], {
@@ -62,8 +62,8 @@ try {
   if (build.status !== 0) throw new Error('Shared-package build failed; services were not started.');
   for (const service of services) {
     const cwd = new URL(`apps/${service}/`, root);
-    const args = service === 'web'
-      ? [fileURLToPath(new URL('node_modules/next/dist/bin/next', cwd)), 'dev', '--port', '3000']
+    const args = ['web','admin'].includes(service)
+      ? [fileURLToPath(new URL('node_modules/next/dist/bin/next', cwd)), 'dev', '--port', service === 'admin' ? '3002' : '3000']
       : [fileURLToPath(new URL('node_modules/tsx/dist/cli.mjs', cwd)), 'watch', '--clear-screen=false', 'src/main.ts'];
     const child = spawn(process.execPath, args, { cwd, env: environments.get(service), stdio: ['inherit', 'pipe', 'pipe'], detached: true });
     const log = createWriteStream(new URL(`.local-dev/${service}.log`, root), { flags: 'a', mode: 0o600 });
@@ -74,7 +74,7 @@ try {
     child.stderr.pipe(log, { end: false });
     child.on('close', () => log.end());
     children.push(child);
-    console.log(JSON.stringify({ event: 'dev_service_started', service, pid: child.pid, environment_files: service === 'web' ? ['.env', 'apps/web/.env'] : ['.env'] }));
+    console.log(JSON.stringify({ event: 'dev_service_started', service, pid: child.pid, environment_files: ['web','admin'].includes(service) ? ['.env', `apps/${service}/.env`] : ['.env'] }));
     child.on('error', () => { console.error(`${service} failed to start.`); stop(1); });
     child.on('exit', (code) => { if (!stopping) { console.error(`${service} exited; stopping this launcher's services.`); stop(code || 1); } });
   }

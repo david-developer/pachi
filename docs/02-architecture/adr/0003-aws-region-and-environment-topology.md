@@ -54,3 +54,8 @@ If the original identity service is unavailable, remain in maintenance/recovery 
 Test Ireland/Paris and reasonable alternatives from actual Cameroon networks when available: repeated TLS/API latency, p95 variability, packet loss, mobile upload and SMS/auth paths. A geographic map alone is insufficient. Record workload, operator/network, times and sample counts. Use current official pricing/configuration when estimating; this document contains no asserted vendor price.
 
 There are no competing architecture choices left for a coding agent to guess. Region suitability, account setup, cost approval and restore performance remain named E03/E04 evidence gates in the [readiness checklist](../../03-operations/production-readiness-checklist.md).
+
+Staff-access implementation uses a dedicated required-TOTP staff pool alongside
+the marketplace pool in each environment, as refined in ADR 0002. It does not
+collapse staging/production isolation or change existing marketplace MFA. Local
+setup documentation is not evidence that these resources have been provisioned.

@@ -3,8 +3,59 @@
 Operational evidence only; [canonical documentation](../README.md) and its
 authority order govern product behavior. Full scope is preserved. Premium mobile
 is primary; functional web screens and the unapproved preview are not the visual
-baseline. Current task: bounded Codex continuity and recurring-workflow setup;
-preserve working authentication, startup and the completed photo-refresh repair.
+baseline. Current task: implement the explicitly requested staff authentication and
+permission foundation only; preserve marketplace and submission gates.
+
+## Staff access foundation — in progress
+
+- Branch `feat/staff-auth-permissions` created from clean functional baseline
+  `3823aeddc1444b425bd06f248d7bd582909f8a65`; its CI passed (run 36264487402).
+  No visual-prototype branch or existing edits incorporated.
+- Read auth/environment ADRs, product permissions, domain model and role matrix.
+  Design: separate admin client, dedicated required-TOTP Cognito pool to avoid
+  changing consumer MFA, separate encrypted staff sessions, current scoped grants,
+  8h absolute/30m idle and independent 15m reauthentication evidence.
+- AWS docs confirm required MFA is pool-wide and prompt=login requires managed
+  login (not classic hosted UI). Server configuration inspection plus validated
+  fresh local identity authentication will establish evidence, not an assumed
+  MFA token claim. No cloud resource changes authorized by implementation alone.
+- Implemented initial staff-only grant/session/transaction/audit migration,
+  required-TOTP policy inspection, OIDC routes, encrypted token rotation under
+  database lock, separate API acceptance and minimal admin status interface.
+  Operator commands create only a new principal for a verified staff subject,
+  then grant to its explicit application ID; no existing-provider linking.
+- Migration 0014 applied only to localhost:5433/pachi_test. Focused staff database
+  and signed-token HTTP tests pass after fixing driver timestamp serialization
+  and normalization. Controlled-clock checks cover idle/absolute/step-up expiry;
+  concurrent refresh runs once and preserves authentication time. Initial admin
+  build and provider-policy unit tests pass. Full lint/typecheck/unit/startup
+  checks pass; isolated database 8/8 and API HTTP integration 4/4 pass. Focused
+  staff checks rerun after final audit/scope changes also pass. OpenAPI parses.
+- Chromium admin checks 2/2 pass against its production build: configuration
+  guidance, safe role/scope summary, access denial and logout error feedback.
+  These are synthetic session API fixtures, not a real staff login. Marketplace
+  photo refresh suite 4/4 passes against existing development web, including
+  processing-to-ready and form preservation; fixtures do not use real accounts.
+  Prior user-confirmed marketplace login/workspace evidence remains separate.
+- Current listeners inspected: marketplace web 3000 PID 379506, API 3001 PID
+  409759 initially, isolated PostgreSQL 5433; admin 3002 free. Final smoke check
+  found API/worker had exited during dependency-tree relinking (redacted API log:
+  missing @nestjs/common/tsx files). Files were restored by dependency installation.
+  Restarted only absent API/worker via `pnpm dev api` / `pnpm dev worker`, detached
+  from tool terminals, with logs `.local-dev/staff-task-{api,worker}-launch.log`.
+  API now listens on 3001 PID 421759; web remains PID 379506. Both new launcher
+  locks are live. API readiness and web return 200; effective API environment has
+  Cognito configuration, localhost:5432/pachi_local and test issuer disabled.
+  Root/web env files untouched; admin .env does not exist. Health evidence is not
+  a new real-account login acceptance test.
+  No development migrations/data/secrets or Cognito resources changed.
+- Setup requires dedicated staff pool/client, local user/TOTP, read-only Cognito
+  inspection IAM, admin env, API staff issuer/client, and reviewed dev migration.
+  README contains exact steps and operator commands. Real staff login unverified.
+  Latest admin build and both browser checks pass after final changes.
+  Next: commit/push this bounded foundation, check exact-commit CI, then complete
+  the documented AWS and real-browser acceptance when configuration/user entry
+  is available. G1 and production readiness remain incomplete.
 
 ## Continuity setup — 2026-09-26
 
@@ -243,8 +294,8 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next: report the bounded continuity setup, then await the user's staff
-authentication and permissions prompt. No further implementation is required for
+Next: complete the authorized staff-access foundation and report exact-commit CI,
+automated evidence and remaining real AWS/browser setup. No further implementation is required for
 the photo-refresh repair. Use the documented
 browser regression suite for future reports. Real-account acceptance is distinct
 from the synthetic UI suite; the user confirmed login/workspace before this fix,

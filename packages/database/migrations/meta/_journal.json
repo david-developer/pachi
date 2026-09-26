@@ -2,19 +2,110 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    { "idx": 0, "version": "7", "when": 1758758400000, "tag": "0000_foundation_metadata", "breakpoints": true },
-    { "idx": 1, "version": "7", "when": 1758844800000, "tag": "0001_identity_sessions", "breakpoints": true },
-    { "idx": 2, "version": "7", "when": 1758931200000, "tag": "0002_phone_ownership", "breakpoints": true },
-    { "idx": 3, "version": "7", "when": 1759017600000, "tag": "0003_phone_e164_constraint", "breakpoints": true },
-    { "idx": 4, "version": "7", "when": 1759104000000, "tag": "0004_phone_contact_e164_constraint", "breakpoints": true },
-    { "idx": 5, "version": "7", "when": 1759190400000, "tag": "0005_phone_abuse_fingerprint", "breakpoints": true },
-    { "idx": 6, "version": "7", "when": 1759276800000, "tag": "0006_web_auth_sessions", "breakpoints": true }
-    ,{ "idx": 7, "version": "7", "when": 1759363200000, "tag": "0007_web_auth_session_expiry", "breakpoints": true },
-    { "idx": 8, "version": "7", "when": 1759449600000, "tag": "0008_individual_provider_onboarding", "breakpoints": true },
-    { "idx": 9, "version": "7", "when": 1759536000000, "tag": "0009_property_listing_drafts", "breakpoints": true },
-    { "idx": 10, "version": "7", "when": 1759622400000, "tag": "0010_purpose_specific_offering_terms", "breakpoints": true },
-    { "idx": 11, "version": "7", "when": 1759708800000, "tag": "0011_private_listing_media", "breakpoints": true },
-    { "idx": 12, "version": "7", "when": 1759795200000, "tag": "0012_media_checksum_failure", "breakpoints": true },
-    { "idx": 13, "version": "7", "when": 1790380800000, "tag": "0013_listing_submission_snapshots", "breakpoints": true }
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1758758400000,
+      "tag": "0000_foundation_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758844800000,
+      "tag": "0001_identity_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758931200000,
+      "tag": "0002_phone_ownership",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759017600000,
+      "tag": "0003_phone_e164_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1759104000000,
+      "tag": "0004_phone_contact_e164_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1759190400000,
+      "tag": "0005_phone_abuse_fingerprint",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1759276800000,
+      "tag": "0006_web_auth_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1759363200000,
+      "tag": "0007_web_auth_session_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1759449600000,
+      "tag": "0008_individual_provider_onboarding",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1759536000000,
+      "tag": "0009_property_listing_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1759622400000,
+      "tag": "0010_purpose_specific_offering_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1759708800000,
+      "tag": "0011_private_listing_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1759795200000,
+      "tag": "0012_media_checksum_failure",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790380800000,
+      "tag": "0013_listing_submission_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790467200000,
+      "tag": "0014_staff_access",
+      "breakpoints": true
+    }
   ]
 }

@@ -11,7 +11,7 @@ export function developmentEnvironment(root, service, inherited = process.env) {
     catch { throw new Error(`Cannot read ${path}; configure the existing ignored development environment.`); }
   };
   Object.assign(environment, read('.env'));
-  if (service === 'web') Object.assign(environment, read('apps/web/.env'));
+  if (['web','admin'].includes(service)) Object.assign(environment, read(`apps/${service}/.env`));
   delete environment.CI;
   delete environment.DATABASE_TEST_URL;
   delete environment.NODE_OPTIONS;
@@ -27,8 +27,14 @@ export function developmentEnvironment(root, service, inherited = process.env) {
     ? ['COGNITO_ISSUER', 'COGNITO_JWKS_URI', 'COGNITO_CLIENT_IDS', 'AUTH_REQUIRED_SCOPES']
     : service === 'web' ? ['COGNITO_ISSUER', 'COGNITO_CLIENT_ID', 'COGNITO_CLIENT_SECRET', 'COGNITO_REDIRECT_URI', 'WEB_SESSION_SECRET', 'PACHI_API_URL'] : [];
   for (const key of required) if (!environment[key]?.trim()) throw new Error(`Missing ${key} in development environment files.`);
-  if (service !== 'worker' && !environment.COGNITO_ISSUER.startsWith('https://cognito-idp.')) throw new Error('Development login requires the configured Cognito issuer.');
+  if (['api','web'].includes(service) && !environment.COGNITO_ISSUER.startsWith('https://cognito-idp.')) throw new Error('Development login requires the configured Cognito issuer.');
   if (service === 'api' && !environment.AUTH_REQUIRED_SCOPES.split(/\s+/).includes('pachi/account')) throw new Error('API requires the pachi/account scope.');
   if (service === 'web' && environment.WEB_SESSION_SECRET.length < 32) throw new Error('WEB_SESSION_SECRET must contain at least 32 characters.');
+  if (service === 'admin') {
+    // AWS SSO/profile resolution remains on the host; never inherit arbitrary
+    // application or test settings from the caller.
+    for (const key of ['AWS_PROFILE','AWS_CONFIG_FILE','AWS_SHARED_CREDENTIALS_FILE']) if (inherited[key]) environment[key] = inherited[key];
+    if (environment.STAFF_COGNITO_ISSUER && !environment.STAFF_COGNITO_ISSUER.startsWith('https://cognito-idp.')) throw new Error('Admin requires a Cognito staff issuer.');
+  }
   return environment;
 }

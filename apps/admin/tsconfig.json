@@ -1,1 +1,21 @@
-{ "extends": "@pachi/typescript-config/nextjs.json", "compilerOptions": { "plugins": [{ "name": "next" }] }, "include": ["next-env.d.ts", ".next/types/**/*.ts", "app/**/*.ts", "app/**/*.tsx", "next.config.ts"] }
+{
+  "extends": "@pachi/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "next.config.ts",
+    "lib/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "playwright.config.ts"
+  ]
+}

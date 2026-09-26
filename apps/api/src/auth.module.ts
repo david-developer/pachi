@@ -1,3 +1,5 @@
+import { StaffStore } from '@pachi/database';
+import { StaffController, StaffAuthService } from './staff.controller.js';
 import { Module } from '@nestjs/common';
 import { createRemoteJWKSet } from 'jose';
 import { createDatabase, IdentityStore, ListingMediaStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
@@ -33,7 +35,10 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
     })
   : null;
 
-@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
+
+@Module({ controllers: [StaffController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+  { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },
