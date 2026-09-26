@@ -5,6 +5,22 @@ authority order govern product behavior. Full scope is preserved. Premium mobile
 is primary; functional web screens and the unapproved preview are not the visual
 baseline. Current task: recover real login and durable development startup only.
 
+## Current result
+
+Repair commit `2baedb7a85f1cb113f4a5e19f43af844e30c9dc3` is pushed to the same
+feature branch; no merge or PR was created. Its exact-commit
+[CI run](https://github.com/david-developer/pachi/actions/runs/36238741087)
+**succeeded**, including isolated migrations/integration tests, lint, typecheck,
+unit tests and full production build. Worktree after that push was clean. This
+subsequent documentation-only evidence checkpoint changes only this handoff;
+`git rev-parse HEAD` identifies the current checkpoint. No code changes remain
+after the tested repair.
+
+Real Cognito login completed in correlated server evidence, and authenticated
+workspace requests survived a controlled restart. Local checks pass. Direct
+browser/visual confirmation from the user is still pending; do not claim that
+all UI acceptance has been witnessed by an agent.
+
 ## Arrival evidence — 2026-09-26 (historical snapshot)
 
 - Branch: `feat/listing-readiness-submission`; arrival HEAD/upstream:
@@ -112,6 +128,15 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next: receive user confirmation of browser workspace/draft/photo/readiness, then
-commit/push the bounded repair without merging and report exact-commit CI. Full build
-will run in CI; avoid running next build over the active dev server's .next files.
+Next action requires the user's browser: reload http://localhost:3000/provider,
+reopen an existing draft, and confirm that its saved values, photos and Listing
+readiness remain visible. Report visual failures by hostname/pathname and time
+only, never callback query strings or credentials. If signed out, start a fresh
+login at http://localhost:3000/ using the existing Cognito account. Correlate
+`.local-dev/web.log` callback stages with `.local-dev/api.log` request IDs.
+Do not reopen implementation scope or bypass submission gates.
+
+Full build passed in remote CI. Avoid running next build over the active dev
+server's .next files. Services are left running through tool session 74717; if
+that terminal no longer exists, inspect listeners/PID files before starting
+`pnpm dev` in a persistent terminal. Unrelated listeners were left untouched.
