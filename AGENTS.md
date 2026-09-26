@@ -7,12 +7,27 @@ before changing behavior. Nested AGENTS.md rules also apply.
 ## Continuity
 
 Use [docs/engineering/current-state.md](docs/engineering/current-state.md) as the
-single engineering handoff. Read it on arrival; update it after meaningful
-changes/diagnostics and before stopping. Separate verified evidence, historical
+single engineering handoff. Read it at the start of every task; update it after
+meaningful progress/diagnostics and before handoff or stopping. Separate verified evidence, historical
 reports, assumptions, blockers, and the next action. Include branch/base/HEAD,
 outstanding edits, environment file locations (never values), services, migrations,
 tests, browser evidence, and exact-commit CI. Commit coherent checkpoints; label
 incomplete work honestly. Do not maintain competing progress files.
+
+Personal Codex memory/configuration stays outside Git. Native memories aid recall;
+they do not replace this handoff or amend canonical product requirements.
+
+## Recurring workflows
+
+Repository skills live in `.agents/skills` and allow normal automatic selection:
+
+- [pachi-runtime-debugging](.agents/skills/pachi-runtime-debugging/SKILL.md) for
+  local startup, configuration, listener and login/API failure diagnosis.
+- [pachi-ui-verification](.agents/skills/pachi-ui-verification/SKILL.md) for
+  reproducing and checking web interactions with the existing browser tests.
+
+They can also be invoked explicitly as `$pachi-runtime-debugging` or
+`$pachi-ui-verification`. Use them when relevant, not for every repository task.
 
 ## Scope and preservation
 

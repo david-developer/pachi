@@ -3,8 +3,43 @@
 Operational evidence only; [canonical documentation](../README.md) and its
 authority order govern product behavior. Full scope is preserved. Premium mobile
 is primary; functional web screens and the unapproved preview are not the visual
-baseline. Current task: repair the provider photo Refresh status action only; preserve the
-working authentication and startup configuration.
+baseline. Current task: bounded Codex continuity and recurring-workflow setup;
+preserve working authentication, startup and the completed photo-refresh repair.
+
+## Continuity setup — 2026-09-26
+
+- Arrival branch `feat/listing-readiness-submission`, clean HEAD
+  `18317c76fbcb54b5b1495430bcf2a6b0c69f5b5e`; local origin/main comparison base
+  remains `6d8f8899498d52010e45646c6ebe16901b9cf291`. Arrival checkpoint
+  [CI](https://github.com/david-developer/pachi/actions/runs/36246456388) passed.
+- Root AGENTS explicitly requires this handoff at every task start and updates
+  after meaningful progress and before handoff/stopping. Copilot uses the same
+  record; canonical specifications retain authority. No competing progress file.
+- Active installed Codex is `0.155.0-alpha.16.3`. Enabled its supported stable
+  `features.memories` in `/home/david/.codex/config.toml`; verified all other
+  parsed settings were preserved and the feature reports enabled. Personal
+  config/memories remain outside Git, with narrow ignore rules as a safeguard.
+  This verifies configuration, not generation or recall of a native memory.
+- Used skill-creator to create exactly two instruction-only repository skills
+  under `.agents/skills`: `pachi-runtime-debugging` and `pachi-ui-verification`.
+  They reference maintained commands/docs, the clean launcher, isolated test
+  runners, installed Playwright and observed startup/UI races. Automatic
+  selection retains its default; explicit `$skill-name` invocation is supported.
+- Both final skill folders pass the bundled validator; all linked local files
+  resolve. Native `skills/list` discovers both as enabled repository skills from
+  root and `apps/web`, with no discovery errors and no explicit-only policy.
+  `debug prompt-input` includes both catalog entries in each directory. It does
+  not expand bodies for dollar-name mentions; no executed model-turn selection
+  test was performed. Description routing was reviewed: runtime failures match
+  runtime-debugging, interaction regressions match ui-verification, and neither
+  implies starting a new staff-auth feature or approving visual designs.
+- Changes are guidance/skills/ignore rules only. No app edits, service restarts,
+  environment-file changes, migrations, database writes or application test runs
+  in this setup. Existing service roles/ports, environment locations, migration
+  caveat and application/browser evidence below remain historical verified facts,
+  not new probes. Exact-commit CI awaits the separate setup commit.
+- User clarified: report this setup when complete; staff authentication and
+  permissions will follow in a new user prompt. Do not infer or start that scope.
 
 ## Current result — photo refresh
 
@@ -204,7 +239,9 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next: no further implementation is required for this repair. Use the documented
+Next: report the bounded continuity setup, then await the user's staff
+authentication and permissions prompt. No further implementation is required for
+the photo-refresh repair. Use the documented
 browser regression suite for future reports. Real-account acceptance is distinct
 from the synthetic UI suite; the user confirmed login/workspace before this fix,
 while this fix's processing transitions were verified autonomously with controlled

@@ -12,8 +12,8 @@ The repository contains incrementally implemented local slices, including identi
 provider drafts, photos and blocked submission readiness. The handoff records
 current implementation evidence; [docs/README.md](../docs/README.md) remains the
 canonical authority map. Neither progress notes nor a working slice amend product
-policy or certify full MVP delivery. Current work is real-login recovery and
-repeatable development startup only, without new features.
+policy or certify full MVP delivery. Follow the current user-authorized scope in
+the shared handoff rather than inferring the next feature from old progress notes.
 
 Do not treat this as production-ready or claim deployment, real auth, cloud provisioning, SMS, or marketplace behavior unless the task explicitly covers that approved slice and the relevant documents authorize it.
 

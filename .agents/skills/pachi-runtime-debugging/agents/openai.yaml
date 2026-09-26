@@ -1,0 +1,3 @@
+interface:
+  display_name: "Pachi Runtime Debugging"
+  short_description: "Trace Pachi startup and live authentication failures"

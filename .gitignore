@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Personal Codex configuration and generated memory (repo skills live in .agents)
+/.codex/config.toml
+/.codex/*.config.toml
+/.codex/memories/
+
 # Logs
 *.log
 
