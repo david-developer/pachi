@@ -111,10 +111,10 @@ draft list reloads the persisted current version.
 
 These routes are authenticated and provider-scoped. The API requires an ACTIVE,
 phone-confirmed user and an eligible individual provider profile; provider
-identity verification is not claimed by this local slice. Drafts remain
-`DRAFT`: there is no submission, publication, public search, moderation
-approval, payment, or property-edit workflow here. Private photo drafts are the
-next bounded slice described below. API paths and schemas are described in
+identity verification is not claimed by this local slice. Draft readiness and
+submission are described below; submission moves only a fully eligible exact
+revision to `PENDING_REVIEW`/`IN_REVIEW`. It does not approve, publish, or
+change market status. API paths and schemas are described in
 `apps/api/openapi.yaml`; TypeScript request and response types live in
 `packages/contracts`.
 
@@ -151,6 +151,34 @@ IAM separation, KMS, scoped presigned upload URLs, SQS/DLQ delivery, malware
 signature operations/monitoring, CloudFront authorization/invalidation,
 retention reconciliation and production orphan deletion controls remain
 unimplemented. This slice is not production-ready and is not G1 evidence.
+
+## Listing readiness and review submission
+
+After preparing a private draft, open it in the provider workspace and use
+**Listing readiness** to refresh the backend-owned checklist. The checklist
+covers current listing content, property specification and location, active
+property state, a current declared/verified relationship, enabled region,
+purpose-compatible XAF terms and availability, processed media and cover, and
+account/provider eligibility. The workspace displays stable blocker codes and
+field-level messages; client checks do not replace the API decision.
+
+When every required capability is available, **Submit for review** binds the
+current listing revision, offering version, ordered media and cover selection in
+an immutable submission snapshot. The command is authorization-checked and
+idempotent, records the existing audit event, and moves only the publication
+axis to `PENDING_REVIEW` while moderation becomes `IN_REVIEW`. Draft edits and
+photo changes are then unavailable until a documented review outcome permits
+correction. Approval, publication and market status remain separate staff or
+domain operations.
+
+This local foundation deliberately reports `MEDIA_APPROVAL_UNAVAILABLE` and
+`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`: `READY` media is not approved
+media, and the evidence-backed `PROVIDER_IDENTITY` capability is not present in
+the current workspace. Do not change verification records manually to make a
+submission succeed. A complete eligible submission walkthrough remains blocked
+until those approved capabilities are implemented; blocked readiness,
+cross-provider scope, stale versions, and duplicate-safe command behavior are
+covered against the disposable test database.
 
 ## Web authentication setup
 

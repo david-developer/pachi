@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Pachi API
   version: 0.1.0
-  description: Identity foundation and private individual-provider property/listing draft operations. Listings remain unpublished drafts.
+  description: Identity foundation and private individual-provider property/listing draft operations. Listings remain private until an eligible revision is submitted for review; approval and publication are separate operations.
 paths:
   /v1/auth/bootstrap:
     post:
@@ -113,6 +113,37 @@ paths:
         '200': { description: Updated private draft with incremented revision and offering versions, content: { application/json: { schema: { $ref: '#/components/schemas/ListingDraftResponse' } } } }
         '401': { description: Authentication required }
         '409': { description: Draft outside provider scope or invalid purpose-specific offering terms }
+  /v1/account/listing-drafts/{id}/readiness:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Evaluate backend-owned readiness for private listing submission
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Field-level readiness checks and current revision/offering snapshot, content: { application/json: { schema: { $ref: '#/components/schemas/ListingReadinessResponse' } } } }
+        '401': { description: Authentication required }
+        '404': { description: Draft does not exist or is outside the current provider scope }
+        '409': { description: Provider is not eligible for private workspace access }
+  /v1/account/listing-drafts/{id}/submissions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: Submit a ready private listing revision for staff review
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: idempotency-key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingSubmissionRequest' }
+      responses:
+        '201': { description: Submitted exact revision for review; this does not approve or publish the listing, content: { application/json: { schema: { $ref: '#/components/schemas/ListingSubmissionCommandResponse' } } } }
+        '200': { description: Idempotent replay of the existing submission, content: { application/json: { schema: { $ref: '#/components/schemas/ListingSubmissionCommandResponse' } } } }
+        '401': { description: Authentication required }
+        '404': { description: Draft does not exist or is outside the current provider scope }
+        '409': { description: Stale revision/offering, invalid lifecycle, or provider scope }
+        '422': { description: Current listing readiness has actionable blockers }
   /v1/account/listing-drafts/{id}/media:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -367,13 +398,14 @@ components:
         available_from: { type: [string, 'null'], format: date }
     ListingDraftResponse:
       type: object
-      required: [id, property_id, provider_account_id, purpose, publication_status, revision_id, version, offering_id, offering_version_id, currency, pricing_period, negotiable]
+      required: [id, property_id, provider_account_id, purpose, publication_status, moderation_status, revision_id, version, offering_id, offering_version_id, currency, pricing_period, negotiable]
       properties:
         id: { type: string, format: uuid }
         property_id: { type: string, format: uuid }
         provider_account_id: { type: string, format: uuid }
         purpose: { type: string, enum: [RENT, SALE, SHORT_LET] }
-        publication_status: { const: DRAFT }
+        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW] }
+        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW] }
         revision_id: { type: string, format: uuid }
         version: { type: integer, minimum: 1 }
         offering_id: { type: string, format: uuid }
@@ -433,3 +465,58 @@ components:
       properties:
         media_asset_ids: { type: array, minItems: 1, maxItems: 20, uniqueItems: true, items: { type: string, format: uuid } }
         cover_media_asset_id: { type: string, format: uuid }
+    ListingReadinessCheck:
+      type: object
+      required: [code, field, label, status, message]
+      properties:
+        code: { type: string }
+        field: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [READY, BLOCKED] }
+        message: { type: [string, 'null'] }
+    ListingSubmissionMediaSnapshot:
+      type: object
+      required: [listing_media_id, media_asset_id, display_order, is_cover]
+      properties:
+        listing_media_id: { type: string, format: uuid }
+        media_asset_id: { type: string, format: uuid }
+        display_order: { type: integer, minimum: 0 }
+        is_cover: { type: boolean }
+    ListingSubmissionResponse:
+      type: object
+      required: [id, listing_id, revision_id, offering_version_id, submitted_at, media_snapshot]
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        revision_id: { type: string, format: uuid }
+        offering_version_id: { type: string, format: uuid }
+        submitted_at: { type: string, format: date-time }
+        media_snapshot: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/ListingSubmissionMediaSnapshot' } }
+    ListingReadinessResponse:
+      type: object
+      required: [listing_id, publication_status, moderation_status, revision_id, revision_version, offering_id, offering_version_id, can_submit, checks, submission]
+      properties:
+        listing_id: { type: string, format: uuid }
+        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW] }
+        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW] }
+        revision_id: { type: string, format: uuid }
+        revision_version: { type: integer, minimum: 1 }
+        offering_id: { type: string, format: uuid }
+        offering_version_id: { type: string, format: uuid }
+        can_submit: { type: boolean }
+        checks: { type: array, items: { $ref: '#/components/schemas/ListingReadinessCheck' } }
+        submission: { anyOf: [{ $ref: '#/components/schemas/ListingSubmissionResponse' }, { type: 'null' }] }
+    ListingSubmissionRequest:
+      type: object
+      required: [revision_id, offering_version_id]
+      properties:
+        revision_id: { type: string, format: uuid }
+        offering_version_id: { type: string, format: uuid }
+    ListingSubmissionCommandResponse:
+      type: object
+      required: [submitted, idempotent, submission, readiness]
+      properties:
+        submitted: { type: boolean }
+        idempotent: { type: boolean }
+        submission: { anyOf: [{ $ref: '#/components/schemas/ListingSubmissionResponse' }, { type: 'null' }] }
+        readiness: { $ref: '#/components/schemas/ListingReadinessResponse' }

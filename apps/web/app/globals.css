@@ -14,6 +14,7 @@ h2 { margin: 0 0 8px; font-size: 26px; }
 .verification { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
 .topline { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
 form { display: grid; gap: 16px; margin-top: 20px; }
+fieldset { min-width: 0; display: grid; gap: 16px; border: 0; padding: 0; margin: 0; }
 label { display: grid; gap: 7px; color: var(--ink); font-size: 15px; }
 input { width: 100%; padding: 13px 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 0; }
 input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--accent); }
@@ -61,5 +62,12 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .photoControls .coverControl { color: var(--success); font-size: 12px; }
 .photoControls .removePhoto { color: #8e2f20; font-size: 12px; }
 .photoPrivacy { margin-top: 14px; }
+.readinessPanel { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.readinessList { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 0; }
+.readinessList li { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(0, 1.2fr); gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.readinessList li span { color: var(--muted); line-height: 1.45; }
+.readinessReady strong { color: var(--success); }
+.readinessBlocked strong { color: var(--accent-dark); }
+@media (max-width: 520px) { .readinessList li { grid-template-columns: 1fr; gap: 4px; } }
 @media (max-width: 760px) { .workspaceGrid { grid-template-columns: 1fr; } .workspace nav { margin-bottom: 42px; } }
 @media (max-width: 520px) { .photoRow { grid-template-columns: 68px minmax(0, 1fr); gap: 9px; } .photoThumb { width: 68px; height: 58px; } .photoControls { grid-column: 1 / -1; justify-content: start; } .photoManagerHead { flex-direction: column; } }

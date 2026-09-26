@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { createRemoteJWKSet } from 'jose';
-import { createDatabase, IdentityStore, ListingMediaStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
+import { createDatabase, IdentityStore, ListingMediaStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
 import { ClamAvScanner, LocalPrivateMediaStorage } from '@pachi/media';
 import { loadConfig } from './config.js';
 import { AccountController } from './account.controller.js';
@@ -19,6 +19,7 @@ export const authDatabaseClient = client;
 const store = new IdentityStore(client);
 const phoneStore = new PhoneVerificationStore(client, config.PHONE_OTP_HMAC_SECRET);
 const mediaStore = new ListingMediaStore(client);
+const listingSubmissionStore = new ListingSubmissionStore(client);
 const mediaStorage = new LocalPrivateMediaStorage(config.MEDIA_STORAGE_ROOT);
 const mediaScanner = new ClamAvScanner(config.CLAMAV_HOST, config.CLAMAV_PORT);
 const smsProvider = new LocalSmsSink(config.NODE_ENV);
@@ -40,6 +41,8 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
   { provide: 'PROPERTY_DRAFT_STORE', useValue: new PropertyDraftStore(client) },
   { provide: 'LISTING_MEDIA_STORE', useValue: mediaStore },
   { provide: ListingMediaStore, useExisting: 'LISTING_MEDIA_STORE' },
+  { provide: 'LISTING_SUBMISSION_STORE', useValue: listingSubmissionStore },
+  { provide: ListingSubmissionStore, useExisting: 'LISTING_SUBMISSION_STORE' },
   { provide: 'LOCAL_PRIVATE_MEDIA_STORAGE', useValue: mediaStorage },
   { provide: LocalPrivateMediaStorage, useExisting: 'LOCAL_PRIVATE_MEDIA_STORAGE' },
   { provide: 'MEDIA_SCANNER', useValue: mediaScanner },
