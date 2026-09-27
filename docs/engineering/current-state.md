@@ -6,7 +6,7 @@ is primary; functional web screens and the unapproved preview are not the visual
 baseline. Current task: implement the explicitly requested staff authentication and
 permission foundation only; preserve marketplace and submission gates.
 
-## Staff access foundation — in progress
+## Staff access foundation — local implementation verified, AWS acceptance pending
 
 - Branch `feat/staff-auth-permissions` created from clean functional baseline
   `3823aeddc1444b425bd06f248d7bd582909f8a65`; its CI passed (run 36264487402).
@@ -52,14 +52,24 @@ permission foundation only; preserve marketplace and submission gates.
 - Setup requires dedicated staff pool/client, local user/TOTP, read-only Cognito
   inspection IAM, admin env, API staff issuer/client, and reviewed dev migration.
   README contains exact steps and operator commands. Real staff login unverified.
-  Latest admin build and both browser checks pass. Initial implementation commit
-  `fc8e11131207f1f33609e1407b17040584897c75` pushed; CI run 36280754240 started.
-  Subsequent review tightened fixed configuration-error responses and revokes
-  staff sessions on operator grant changes; focused checks pass. The final
-  checkpoint will have its own exact-commit CI; no merge performed.
-  Next: commit/push this bounded foundation, check exact-commit CI, then complete
-  the documented AWS and real-browser acceptance when configuration/user entry
-  is available. G1 and production readiness remain incomplete.
+  Latest admin build and both browser checks pass. Implementation commits
+  `fc8e11131207f1f33609e1407b17040584897c75` and
+  `ee3e1c95f19dae328daa345e78177348cd0fc24e` are pushed without merging.
+  Final code commit ee3e1c9 [CI](https://github.com/david-developer/pachi/actions/runs/36280924044)
+  **passed**, including isolated migrations, database/API integration, all lint,
+  typecheck/unit/startup checks, full production build and all six Chromium tests.
+  Review also tightened fixed configuration-error responses and revokes staff
+  sessions on operator grant changes; the latter has a passing regression.
+- This documentation-only checkpoint records final code validation; `git rev-parse
+  HEAD` identifies the latest handoff commit. No real staff pool/client, IAM,
+  identity enrolment or browser login was exercised. Do not describe synthetic
+  checks as real staff acceptance. No staff grant was given to the existing
+  development provider or any development account.
+- Next: await the user's next scope; for real staff acceptance, complete the
+  README's dedicated-pool/client/IAM/env setup, reviewed development migration,
+  operator identity/grant steps and user-entered password/TOTP browser walkthrough.
+  Verify real refresh, idle/absolute/step-up behavior and logout/revocation there.
+  G1 and production readiness remain incomplete.
 
 ## Continuity setup — 2026-09-26
 
@@ -298,8 +308,8 @@ Submission remains blocked by `MEDIA_APPROVAL_UNAVAILABLE` and
 `PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`. Never edit verification records or
 bypass these rules for a successful walkthrough.
 
-Next: complete the authorized staff-access foundation and report exact-commit CI,
-automated evidence and remaining real AWS/browser setup. No further implementation is required for
+Next: await the user’s next prompt. The staff foundation and code CI are complete;
+real AWS/staff-browser acceptance requires the setup recorded above. No further implementation is required for
 the photo-refresh repair. Use the documented
 browser regression suite for future reports. Real-account acceptance is distinct
 from the synthetic UI suite; the user confirmed login/workspace before this fix,
