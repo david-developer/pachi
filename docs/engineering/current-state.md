@@ -1,5 +1,58 @@
 # Engineering handoff
 
+## Development staff policy corrected; fresh login pending — 2026-09-27
+
+- Arrival clean on feat/staff-auth-permissions at
+  `fd61eea65afc42e52f3d3d27fd4098d8d1bfa811`; base unchanged
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Exact arrival CI
+  [36341224376](https://github.com/david-developer/pachi/actions/runs/36341224376)
+  passed. This checkpoint changes documentation only.
+- Before mutation, STS verified pachi-dev-source as account 451475820431,
+  arn:aws:iam::451475820431:user/pachi-david-dev. Read live pool/client, built
+  update requests from all returned writable fields using installed CLI input
+  schemas (including pool Name→PoolName), and applied only authorized changes.
+  Full described before/after comparison, excluding LastModifiedDate, found only
+  Policies.PasswordPolicy.MinimumLength 8→12 and ExplicitAuthFlows reduced to
+  ALLOW_USER_SRP_AUTH. No other described settings changed. Runtime stayed read-only.
+  Private snapshots/requests are outside Git under
+  ~/.local/share/pachi/staff-config-20260927 (directory 0700, files 0600).
+- Runtime SDK identity remains the expected assumed role. All pool/client checks
+  now PASS, including unchanged secret match, required TOTP, managed-login v2,
+  code flow, callbacks/scopes, rotation/revocation and token lifetimes. Existing
+  full attestRequiredTotp still FAILS only at inspected-user MFA state: empty
+  UserMFASettingList, no preferred method. User enabled/CONFIRMED and local.
+- Exact sole dedicated-pool Cognito Username and sub are both
+  b2e594a4-1081-7083-a81b-874d8e4f5d01, issuer
+  https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_7uju5eCyw.
+  Reported at explicit user request. Prior safe callback logs have no subject;
+  sole-pool membership does not establish ownership of the earlier browser
+  attempt. No email match used, identity linked, MFA preference changed or grant
+  written. User confirmation/fresh authenticated evidence remains pending.
+- Inspected admin launcher 471913 and listener 472229 before stopping only that
+  launcher. Restarted via pnpm dev admin with AWS_PROFILE=pachi-staff-runtime;
+  actual launcher profile verified. API/web/worker launchers preserved. Admin
+  page, marketplace page and API readiness return 200. First login POST returned
+  503 (cause not established); independent config/discovery/database checks pass
+  and repeat valid-origin login POST returns 303, wrong-origin POST returns 403.
+  Normal diagnostic login transactions were created; no migrations or resets.
+  Shared-package startup build completed. Environment files/secrets unchanged.
+- Pool/client readiness, not already-completed user enrollment, gates this fresh
+  login attempt. Callback MFA and grant checks remain unchanged. Asked user to
+  open localhost:3002 in a private window, select staff sign-in, use intended
+  dedicated identity and complete any TOTP setup/code prompt only in browser.
+- AWS TOTP documentation describes an interrupted one-time-token enrollment case
+  where managed login cannot resume until MFA is completed; documented recovery
+  uses an InitiateAuth/AdminInitiateAuth MFA_SETUP session with
+  AssociateSoftwareToken, verification and challenge completion. Do not infer
+  this case occurred or reset user/authenticator; inspect actual browser outcome
+  before designing any browser-only recovery. Source:
+  https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa-totp.html
+- Next: after user's attempt, read this same subject's MFA state through runtime
+  credentials and safe callback stage/category logs. Separate successful Cognito
+  authentication/MFA policy from expected access_denied without identity/grant.
+  No real-browser acceptance or G1 claim. No code changes/tests needed; live
+  comparisons/validator/route checks above and git diff --check are validation.
+
 ## Runtime identity verified; Cognito policy mismatches — 2026-09-27
 
 - Arrival clean on `feat/staff-auth-permissions` at

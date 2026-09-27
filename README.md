@@ -426,9 +426,11 @@ Latest verification (2026-09-27): the role now exists. CLI and admin SDK resolve
 `pachi-staff-runtime` to the expected assumed role; trust and one-hour session
 limit are verified. Policy enumeration is denied, so complete role permissions
 remain administrator-reported. All required Cognito reads succeed. The existing
-validator fails on password minimum 8 (requires >=12), additional ALLOW_USER_AUTH
-(requires SRP only), and the inspected user's empty MFA setting list (requires
-SOFTWARE_TOKEN_MFA). No Cognito settings were changed and admin was not restarted.
+pool/client checks now pass after authorized changes to minimum password length
+12 and SRP-only ExplicitAuthFlows; before/after comparisons preserved all other
+settings. The inspected user's MFA list remains empty, so full user attestation
+is pending. Admin was restarted with the runtime profile for a fresh managed-login
+TOTP attempt; callback enforcement is unchanged.
 See the [shared handoff](docs/engineering/current-state.md) for current evidence;
 the provisioning observations below describe the earlier setup attempt.
 
