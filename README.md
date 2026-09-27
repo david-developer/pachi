@@ -290,8 +290,19 @@ Before real staff login, provision a **new nonproduction staff pool**, not a
 change to the existing marketplace pool. ADR 0002 explains the isolation decision.
 Required setup (not performed by the repository):
 
+Required MFA is configured on a user pool, not on an individual app client.
+Enabling it on the marketplace pool would change sign-in requirements for its
+users, so staff must use a dedicated pool. Cognito managed login is available
+from the Essentials tier; with required MFA and TOTP enabled, managed login
+handles first-password setup and TOTP enrollment. See AWS's current guides for
+[pool MFA](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa.html),
+[TOTP](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa-totp.html),
+and [feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/feature-plans-features-essentials.html).
+
 1. In the nonproduction AWS account/region, create a Cognito Essentials-or-higher
-   pool with managed-login domain **version 2**, minimum password length 12,
+   pool with a Cognito domain using
+   [managed-login version 2](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-assign-domain-prefix.html),
+   minimum password length 12,
    admin-created users only, required MFA (`ON`), software TOTP enabled, SMS/email
    MFA disabled, no remembered-device configuration and no external IdPs. Keep
    password-based local authentication (`AllowedFirstAuthFactors: [PASSWORD]`);
@@ -301,7 +312,10 @@ Required setup (not performed by the repository):
    only, scopes `openid email pachi/staff`, token revocation enabled, access-token
    validity **5 minutes**, refresh-token rotation enabled with **10 seconds**
    grace. For explicit SDK flows allow only `ALLOW_USER_SRP_AUTH`; disable
-   `REFRESH_TOKEN_AUTH` and custom auth. Use an 8-hour refresh validity (the app
+   `REFRESH_TOKEN_AUTH` and custom auth; Cognito does not support that refresh
+   flow together with token rotation
+   ([refresh-token guidance](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html)).
+   Use an 8-hour refresh validity (the app
    independently enforces its 8-hour absolute / 30-minute idle maximum).
 3. Allow exactly callback `http://localhost:3002/api/auth/callback` and logout
    `http://localhost:3002`. Assign managed-login branding to this client. Production
@@ -318,13 +332,32 @@ Required setup (not performed by the repository):
    this staff pool where AWS supports resource scoping. It needs no pool mutation
    permission. The operator commands additionally need controlled database write
    access. Keep operator credential access separate from ordinary app users.
-6. Apply migration 0014 with the normal reviewed migration command before use.
-   During automated verification use **only** `db:migrate:test` and
-   localhost:5433/pachi_test. This task does not silently migrate development.
+6. Migration 0014 was applied on 2026-09-27 to the confirmed development target
+   `localhost:5432/pachi_local` with `pnpm db:migrate`. The reviewed migration
+   creates the four staff tables and does not modify existing marketplace rows.
+   Automated verification uses **only** `db:migrate:test` and
+   `localhost:5433/pachi_test`.
 7. Create a local Cognito staff user through the operator-controlled console,
    have that person set their password/enroll TOTP in managed login. Never send
    credentials or TOTP codes through chat. Record the verified **subject**, not
    email. An initial login without a mapped grant is intentionally denied.
+
+Development provisioning status (2026-09-27): no authenticated AWS access was
+available from this workspace, so no nonproduction staff Cognito pool, client,
+resource server, domain, IAM profile or staff identity could be inspected or
+provisioned. Therefore there are no resource identifiers to record, and the
+settings above are the reviewed target configuration, not observed AWS state.
+Root `.env` retains the marketplace configuration and has no staff issuer/client
+entries. `apps/admin/.env` is an
+ignored local copy of its example with blank staff settings; the admin app starts
+on port 3002 and displays configuration guidance. Do not treat a 200 response
+from that app or a 401 from the unconfigured staff API route as real login
+verification. AWS CLI v2.37.4 is installed under ignored `.local-dev/aws-cli/`
+with its AWS-published signature verified; no SSO profile is configured yet.
+After provisioning the pool, configure a named SSO profile with
+`./.local-dev/aws-cli/bin/aws configure sso --profile pachi-staff-nonprod` and
+sign in with `./.local-dev/aws-cli/bin/aws sso login --profile pachi-staff-nonprod`. Complete the browser
+login only on AWS's SSO page; do not send credentials or MFA codes in chat.
 
 For operator commands, load the intended root/admin files explicitly in a clean
 operator shell (Node supports `--env-file`); do not reuse a test shell. From root:

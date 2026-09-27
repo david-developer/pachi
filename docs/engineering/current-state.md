@@ -1,12 +1,88 @@
 # Engineering handoff
 
+## Current setup checkpoint — 2026-09-27
+
+- Task arrival was clean at `feat/staff-auth-permissions`, HEAD
+  `f7651e134f25770c23b6cd44f9aff8ffa175c336`, based on
+  `6d8f8899498d52010e45646c6ebe16901b9cf291` (`origin/main`). The exact starting
+  commit's [CI run](https://github.com/david-developer/pachi/actions/runs/36281158497)
+  passed. This task's tracked changes are limited to `README.md` and this
+  handoff; `apps/admin/.env` is ignored local configuration, not a Git edit.
+- Verified configuration locations: root `.env` and `apps/web/.env` retain the
+  existing marketplace configuration; `apps/admin/.env` was created from its
+  ignored example with staff settings blank. No values are recorded here. API
+  and web are in development mode on ports 3001 and 3000 and use
+  `localhost:5432/pachi_local`; their consumer Cognito issuer/client settings
+  exist and test-issuer mode is disabled. No `STAFF_COGNITO_ISSUER` or
+  `STAFF_COGNITO_CLIENT_ID` is present in the running API environment. API PID
+  437355 listens on port 3001; web PID 379506 listens on port 3000. Worker PID
+  421608 is running without an HTTP listener. Admin launcher PID 437344
+  (server child 437376) is running on port 3002 via `pnpm dev admin` and shows
+  safe configuration guidance.
+  The launcher reads `.env` plus `apps/admin/.env`, checks the port, and filters
+  inherited test settings. The development and test Postgres listeners are on
+  5432 and 5433 respectively.
+- Migration target was parsed without printing URL credentials and confirmed as
+  `localhost:5432/pachi_local` before running the normal `pnpm db:migrate` path.
+  Before: 23 public tables, `users` present, and all four staff tables absent.
+  After: 27 public tables; `staff_grants`, `staff_sessions`,
+  `staff_auth_transactions` and `staff_access_audit` exist. Drizzle records 15
+  migrations and the SHA-256 for `0014_staff_access.sql` is present. The reviewed
+  migration only creates staff tables/index/trigger/function; it does not modify
+  existing marketplace rows. User records were not read or reset. Test migrations
+  and HTTP integration tests used only the CI's isolated `localhost:5433/pachi_test`
+  URL; test fixtures were cleared by the integration harness only in that test DB.
+- Current checks pass: admin unit tests 4/4; API unit tests 14/14; API HTTP
+  integration tests 4/4; admin/API typecheck and lint; admin Chromium tests 2/2.
+  The browser tests cover unconfigured guidance and synthetic session summary,
+  denial and logout error behavior. They do not prove Cognito, TOTP or real
+  session persistence. Local smoke requests returned admin root 200 and
+  unauthenticated staff-session 401; neither proves login. The user confirmed
+  marketplace login/workspace in the prior task, but there was no authenticated
+  marketplace or staff browser run in this task.
+- Current AWS state is **unverified**, not assumed absent: AWS CLI v2.37.4 was
+  installed in ignored `.local-dev/aws-cli/` using the official user-local
+  installer, whose published signature verified. No AWS environment
+  credentials/profile or standard AWS credential files are available, and no
+  console/browser control tool is exposed here. Therefore no account/region,
+  pool, client, resource server, domain, IAM role,
+  staff identity/subject or grant could be discovered, created or recorded.
+  The reviewed target is a dedicated nonproduction Cognito pool with required
+  TOTP, Essentials-or-higher managed login v2, admin-created password users,
+  resource-server scope `pachi/staff`, a confidential authorization-code client,
+  the exact localhost callback/logout URLs and token rotation described in the
+  README. Required MFA is pool-wide, so applying it to the marketplace pool
+  would alter consumer sign-in. Code requires staff tokens to match the separate
+  staff issuer/client and `pachi/staff`; consumer tokens continue to use their
+  existing issuer/client allowlist and `pachi/account`.
+- The intended narrow initial permission-management grant, if authorized for
+  the explicitly identified operator, is `SUPER_ADMIN` with platform scope
+  `pachi` and only `admin:permissions_manage`; policy allows that permission
+  only on the platform scope. No identity was selected or promoted, and no grant
+  was written. The UI displays reauthentication freshness and login requests
+  `prompt=login`, but there is no separate step-up action/route; step-up behavior
+  remains unverified. Provider verification, media approval, moderation and
+  publication remain out of scope. G1 and production readiness are not claimed.
+- **Blocking action / next:** the user must provision the dedicated staff pool,
+  client, domain, `pachi/staff` scope and a local account in the intended
+  nonproduction AWS account using the README settings, and create a short-lived
+  AWS SSO profile for the app's read-only Cognito inspection and audited grant
+  commands using the installed `.local-dev/aws-cli/bin/aws`. Enter Cognito IDs,
+  client secret and random staff-session secret only into the ignored local
+  environment files, never chat. The user must then
+  finish their own temporary-password and TOTP setup in the browser. After that,
+  rerun inspection, map only the explicitly identified identity, write the
+  audited narrow grant, and perform the real staff, ungranted, marketplace,
+  logout and post-logout browser checks. Recent-authentication step-up remains
+  unavailable to demonstrate through a dedicated interface.
+
 Operational evidence only; [canonical documentation](../README.md) and its
 authority order govern product behavior. Full scope is preserved. Premium mobile
 is primary; functional web screens and the unapproved preview are not the visual
 baseline. Current task: implement the explicitly requested staff authentication and
 permission foundation only; preserve marketplace and submission gates.
 
-## Staff access foundation — local implementation verified, AWS acceptance pending
+## Staff access foundation — implementation evidence before runtime setup (historical)
 
 - Branch `feat/staff-auth-permissions` created from clean functional baseline
   `3823aeddc1444b425bd06f248d7bd582909f8a65`; its CI passed (run 36264487402).
