@@ -1,5 +1,49 @@
 # Engineering handoff
 
+## Staff resource configuration follow-up — 2026-09-27
+
+- Arrival: clean `feat/staff-auth-permissions` at
+  `f7298dd115c6210ea99fa3ae14487284c5c6e5c6`; comparison base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Its exact CI run
+  [36283435191](https://github.com/david-developer/pachi/actions/runs/36283435191)
+  passed. This checkpoint changes only README/handoff in Git.
+- User-reported resources: region `eu-west-1`, pool `eu-west-1_7uju5eCyw`, client
+  `6o98a1sg9j9qghna441so80s2u`; issuer and domain are recorded in README.
+  Public OIDC discovery independently matches issuer/domain and advertises code
+  flow. Pool MFA/registration and client scopes/secrets/rotation/lifetimes remain
+  unverified without authenticated AWS access. No cloud settings were changed.
+- Configured exact implemented staff keys in ignored `.env` and
+  `apps/admin/.env`; marketplace settings and existing secrets preserved by
+  comparison. Generated only the missing independent staff-session secret.
+  `STAFF_COGNITO_CLIENT_SECRET` is still missing in `apps/admin/.env` and must
+  be entered by the user locally. No secret values printed or committed.
+- AWS CLI credential probe reports no credentials; zero configured profiles.
+  SSO is not assumed or required. README names the five read operations and
+  scope restrictions for an authorized profile; policy validation stays enabled.
+- Restarted only identified project API/admin launchers through `pnpm dev api`
+  and `pnpm dev admin`. Web port 3000 and worker were not stopped. API readiness
+  200; admin port 3002 root 200 and session configuration 503. Logs are ignored
+  `.local-dev/staff-config-{api,admin}.log`. These probes do not prove login.
+  Initial tool-shell background launchers exited; restarted their identified
+  orphan children with detached persistent supervisors. Both launcher locks are
+  now live. Effective API staff identifiers match the supplied values and test
+  issuer mode is disabled. Marketplace web remained PID 379506 throughout.
+- No database migration or development-record mutation in this follow-up;
+  previously verified migration 0014 remains the baseline. Startup tests 4/4,
+  admin tests 4/4 and API unit tests 14/14 pass. No database tests were run.
+- No authenticated browser attempt, identity mapping or grant performed. Pending:
+  actual TOTP, authenticated ungranted denial, granted role/scope, marketplace
+  credential rejection, marketplace workspace and logout/post-logout checks.
+  No separate step-up demonstration or G1 completion is claimed.
+- Next: user fills `apps/admin/.env` → `STAFF_COGNITO_CLIENT_SECRET` and configures
+  an authorized AWS profile using their account's existing mechanism. Then inspect
+  live pool/client policy, guide user browser password/TOTP, and establish the
+  intended issuer/subject before audited provisioning. Authorized grant remains
+  only SUPER_ADMIN / platform pachi / admin:permissions_manage. Do not choose a
+  target from an email match or first signup. No broader features are authorized.
+
+## Earlier setup evidence (historical)
+
 ## Current setup checkpoint — 2026-09-27
 
 - Task arrival was clean at `feat/staff-auth-permissions`, HEAD

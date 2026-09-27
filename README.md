@@ -342,22 +342,48 @@ and [feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/fe
    credentials or TOTP codes through chat. Record the verified **subject**, not
    email. An initial login without a mapped grant is intentionally denied.
 
-Development provisioning status (2026-09-27): no authenticated AWS access was
-available from this workspace, so no nonproduction staff Cognito pool, client,
-resource server, domain, IAM profile or staff identity could be inspected or
-provisioned. Therefore there are no resource identifiers to record, and the
-settings above are the reviewed target configuration, not observed AWS state.
-Root `.env` retains the marketplace configuration and has no staff issuer/client
-entries. `apps/admin/.env` is an
-ignored local copy of its example with blank staff settings; the admin app starts
-on port 3002 and displays configuration guidance. Do not treat a 200 response
-from that app or a 401 from the unconfigured staff API route as real login
-verification. AWS CLI v2.37.4 is installed under ignored `.local-dev/aws-cli/`
-with its AWS-published signature verified; no SSO profile is configured yet.
-After provisioning the pool, configure a named SSO profile with
-`./.local-dev/aws-cli/bin/aws configure sso --profile pachi-staff-nonprod` and
-sign in with `./.local-dev/aws-cli/bin/aws sso login --profile pachi-staff-nonprod`. Complete the browser
-login only on AWS's SSO page; do not send credentials or MFA codes in chat.
+Development configuration supplied by the user (2026-09-27): region `eu-west-1`,
+pool `eu-west-1_7uju5eCyw`, client `6o98a1sg9j9qghna441so80s2u`, issuer
+`https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_7uju5eCyw`, domain
+`https://eu-west-17uju5ecyw.auth.eu-west-1.amazoncognito.com`. Public OIDC discovery
+was independently reachable and matched the issuer/domain. This does **not** verify
+MFA, registration policy, client secret, scopes, rotation or token lifetimes.
+
+Those identifiers are configured in the ignored root/admin environment files.
+Marketplace settings and existing secrets were preserved; a missing independent
+staff-session secret was generated locally. The remaining app secret must be
+entered locally into `apps/admin/.env` as `STAFF_COGNITO_CLIENT_SECRET`.
+Never send it through chat. API readiness and admin root return 200, but the admin
+session endpoint returns configuration 503 until the secret is supplied.
+
+The existing validator requires authenticated AWS API access. No AWS profile or
+credentials were found. IAM Identity Center/SSO is **not** a prerequisite: use an
+existing authorized IAM role/profile or ask the account administrator for a
+profile with these permissions. Four operations can be scoped to
+`arn:aws:cognito-idp:eu-west-1:<AWS_ACCOUNT_ID>:userpool/eu-west-1_7uju5eCyw`:
+`cognito-idp:DescribeUserPool`, `cognito-idp:GetUserPoolMfaConfig`,
+`cognito-idp:DescribeUserPoolClient`, `cognito-idp:AdminGetUser`.
+`cognito-idp:DescribeUserPoolDomain` requires `Resource: "*"`; restrict its
+`aws:RequestedRegion` condition to `eu-west-1`. No write/list/admin-wide policy
+is needed. Cognito client credentials cannot replace these AWS IAM credentials.
+
+AWS CLI is available at `.local-dev/aws-cli/bin/aws`. Configure a named profile
+through the account's existing credential mechanism (SSO only if already used),
+keeping credentials in the user's AWS files, outside Git. Temporary role
+credentials in `~/.aws/credentials` require access key, secret key and session
+token together. Select the profile with `AWS_PROFILE=<profile>` when launching
+`pnpm dev admin` and the operator commands; the launcher forwards that selector.
+Do not put AWS credentials into chat or the repository environment files.
+
+Once the secret and AWS access are available, inspect actual policy before login.
+Open `http://localhost:3002`, choose **Sign in with staff account**, and use the
+explicitly selected local user in this dedicated pool. Replace a temporary
+password if prompted, then enroll an authenticator and enter its TOTP directly
+on Cognito. An authenticated user without a mapped grant must be denied first.
+Establish the dedicated issuer/subject unambiguously before using the audited
+identity/grant commands below; equal emails never identify the grant target.
+Real role/scope display, ungranted denial, marketplace-token rejection and logout
+remain pending browser acceptance. Recent step-up is unverified.
 
 For operator commands, load the intended root/admin files explicitly in a clean
 operator shell (Node supports `--env-file`); do not reuse a test shell. From root:
