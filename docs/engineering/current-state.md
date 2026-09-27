@@ -1,5 +1,53 @@
 # Engineering handoff
 
+## Real logout verified — 2026-09-27
+
+- Browser observations supplied by user: clicked Sign out; same-browser
+  /api/session returned {"error":"AUTH_REQUIRED"}; pachi_staff_session absent
+  from storage; remains signed out. User did not record HTTP status, so do not
+  claim a browser-observed 401. No browser Back/cache observation supplied.
+- Independent server evidence: original session (authenticated_at 19:39:40Z)
+  revoked_at 2026-09-27T19:47:07.283Z; staff:logout/USER_LOGOUT/SUCCESS audit at
+  2026-09-27T19:47:07.290243Z for expected application user. Exact saved baseline
+  session passed before logout and now StaffStore.read(id,false) rejects with
+  AUTH_REQUIRED. No session credentials printed or browser cookie replayed.
+  Grant remains active and unchanged; denial is revoked-session enforcement.
+- Logout verification passes on combined user browser and direct server evidence.
+  A cached page alone cannot authorize a server request. Next ask only for fresh
+  login, then inspect new session before separately directing Reauthenticate with
+  TOTP. Compare signed authentication time, old/new session revocation and actual
+  permission freshness enforcement; displayed deadline alone is insufficient.
+- No application changes, settings changes, service restarts or tests needed.
+  Code checkpoint 126dc1a exact CI passed (link below). This documentation checkpoint
+  records access/logout evidence; recent step-up and G1 remain incomplete.
+
+## Post-grant browser access verified; logout/reauthentication pending — 2026-09-27
+
+- HEAD 126dc1a518e6936625b4d71629b33f843e044238; exact CI
+  https://github.com/david-developer/pachi/actions/runs/36345004900 passed.
+  User reports fresh private-window password/TOTP login shows Signed in, Pachi
+  development staff, SUPER_ADMIN/platform pachi/admin:permissions_manage.
+- Latest successful callback e6573bb4-ca71-4d3b-bc5a-5988853be793; successful
+  FRESH_REQUIRED_TOTP audit at 2026-09-27T19:39:41.68017Z. One staff session,
+  signed authenticated_at 19:39:40Z, dedicated issuer/sub/client match, application
+  user fe485557-df32-4ae5-935f-732beeac5059. StaffStore.read(id,false) passes
+  current DB session/account/identity/grant checks. Exact single active grant
+  73dcd4f8-ca2c-4476-8ef8-3229a71bca67 matches authorized scope and expiry.
+  Absolute deadline 2026-09-28T03:39:40Z; no raw session/token/cookie output.
+- Baseline session identifier stored privately outside Git for logout comparison;
+  this is not a browser cookie. No browser connector access to user's session.
+  Requested user click Sign out, inspect /api/session for AUTH_REQUIRED/401 and
+  confirm pachi_staff_session cookie absence via browser storage name only.
+  Back may show stale rendered content; a fresh network request determines access.
+- Await logout report, then independently verify revoked_at, staff:logout audit
+  and baseline StaffStore.read rejection. Only after that request new login, then
+  existing Reauthenticate with TOTP; compare sessions/authenticated_at, previous
+  session revocation and actual server permission freshness behavior. UI deadline
+  alone is not evidence. Sensitive business endpoints are not implemented here.
+- No settings/data/service changes; mapped-but-ungranted real browser denial and
+  real marketplace-token rejection remain separate from existing synthetic tests.
+  G1 and recent step-up remain incomplete. This handoff update is uncommitted.
+
 ## Audited initial staff mapping and grant completed — 2026-09-27
 
 - Branch feat/staff-auth-permissions; arrival HEAD
