@@ -1,5 +1,37 @@
 # Engineering handoff
 
+## Fresh callback evidence — 2026-09-27
+
+- Clean arrival on `feat/staff-auth-permissions` at
+  `7de9800429d3468d8902e73208d6028d99ce6ee7`; comparison base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Exact code-commit CI
+  [36321962044](https://github.com/david-developer/pachi/actions/runs/36321962044)
+  passed. This follow-up changes only the shared handoff.
+- User reports another authenticator submission followed by the same error.
+  The new redacted callback event has failure_stage `aws_credential_resolution`,
+  category `stage_failed`, request ID `8fadc169-2e45-4d4d-9f20-a53bf94d5164`.
+  Callback control flow establishes that code exchange, ID/access-token checks,
+  local-identity checks and authentication freshness completed for this attempt.
+- AWS credential resolution failed before pool/client/user policy reads. Staff
+  session registration and grant checks were not reached. This does not establish
+  TOTP enrollment success or failure; real MFA acceptance remains unverified.
+  Rechecked AWS CLI profile listing: no configured profiles. No credential or
+  provider exception contents were printed.
+- No code, secrets, environment files, service processes, migrations, accounts,
+  grants or cloud settings changed. Existing API/web/admin/worker configuration,
+  development data and migration baseline remain as recorded below. No additional
+  tests needed for this documentation-only result; preceding code checks and CI
+  passed. G1 and real-browser acceptance remain incomplete.
+- Next: an authorized AWS administrator verifies the existing `pachi-david-dev`
+  principal/account and prepares the README's separate read-only assumed runtime
+  role, preserving developer management access. Establish the temporary developer
+  source login and runtime role profile outside Git, then verify resolved identity
+  and permissions before selecting it for admin. A new profile name or narrow
+  policy attached alongside broad permissions does not restrict that developer.
+  No further authenticator attempt is needed until AWS access is resolved; do not
+  reset MFA or write a grant. Earlier requests below to repeat sign-in or create a
+  new identity are superseded by this evidence and the existing developer identity.
+
 ## Callback stage diagnostic — 2026-09-27
 
 - Clean arrival on feat/staff-auth-permissions at
