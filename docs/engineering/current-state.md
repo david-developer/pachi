@@ -1,5 +1,65 @@
 # Engineering handoff
 
+## Authorized existing TOTP activation — 2026-09-27
+
+- Branch feat/staff-auth-permissions, code HEAD 03bcd5e4c511274fe07d2610477b008456582987.
+  Preserved preceding uncommitted diagnostic evidence. Its exact CI passed as
+  recorded below. No application changes or test reruns needed for this operation.
+- Verified pachi-dev-source STS account 451475820431 and developer user
+  arn:aws:iam::451475820431:user/pachi-david-dev immediately before mutation.
+  Re-read dedicated pool eu-west-1_7uju5eCyw user; Username and returned sub both
+  equal b2e594a4-1081-7083-a81b-874d8e4f5d01. Before: enabled, CONFIRMED,
+  MFA-setting/preferred fields absent. Prior validated browser fingerprint already
+  establishes this exact issuer/subject; no email matching used.
+- Under explicit user authorization made ONE AdminSetUserMFAPreference call using
+  pachi-dev-source, SoftwareTokenMfaSettings Enabled=true, PreferredMfa=true.
+  AWS returned success. No reset/reassociation, password, other-user, pool/client,
+  IAM, session-validation or grant changes. Runtime profile remained read-only.
+- Independent pachi-staff-runtime readback returns UserMFASettingList exactly
+  [SOFTWARE_TOKEN_MFA], PreferredMfaSetting SOFTWARE_TOKEN_MFA; returned sub matches.
+  Full existing attestRequiredTotp passes, as do all pool/client checks and runtime
+  assumed-role identity verification. This is configuration evidence, not real
+  MFA acceptance, recent step-up or staff authorization evidence.
+- Asked user to close existing private windows and open a fresh private context
+  at localhost:3002; sign in with intended staff account and current authenticator
+  entirely in Cognito. No restart needed; reads occur on every callback. Existing
+  code/profile/services/secrets preserved. Next correlate callback identity,
+  freshness, completed MFA checks and expected grant_denied/access_denied.
+  No grant permitted; G1 remains incomplete.
+- Operation semantics checked against official API reference:
+  https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminSetUserMFAPreference.html
+
+## Post-fix attempt reaches user MFA policy — 2026-09-27
+
+- HEAD 03bcd5e4c511274fe07d2610477b008456582987, clean arrival. Exact CI
+  https://github.com/david-developer/pachi/actions/runs/36342942970 passed.
+  Running launcher 513846 selects pachi-staff-runtime; callback/provider source
+  matches that commit and compiled dev output contains the settling helper.
+- Latest completed attempt 1b1e22c3-316a-4863-ac4d-ed7d6fd84321 at
+  2026-09-27T19:06:53.160Z fails mfa_policy_validation, category stage_failed.
+  Earlier post-restart attempt 1190c868-2c36-462b-9bc5-dcd873cab12b at
+  19:05:18.536Z has same outcome. Both follow dev_service_started PID 514149
+  in .local-dev/staff-settle-admin.log. Validator's fixed error is MFA_UNPROVEN;
+  the event does not persist its individual policy condition.
+- Validated identity fingerprint matches dedicated issuer and subject
+  b2e594a4-1081-7083-a81b-874d8e4f5d01. Authentication freshness PASSED; all AWS
+  credential/policy/user reads completed, and user-MFA assertion was reached.
+  Grant checks were NOT reached. This is not expected ungranted denial.
+- Wait invocation/duration and successful final auth_time delta were not logged
+  by 03bcd5e. Cannot reconstruct whether waiting was necessary for this attempt,
+  its duration, or exact final difference. Control flow proves only that strict
+  final freshness checks passed (not future, <=10 minutes old, transaction bound).
+- Read-only runtime recheck: every pool/client check passes. SDK and CLI agree
+  matched user is enabled, CONFIRMED and local; sub matches. UserMFASettingList
+  and PreferredMfaSetting are absent/unset (CLI projects null; previous SDK probe
+  normalized absence to []). Thus live reproducible failing condition is
+  UserMFASettingList?.join(',') !== 'SOFTWARE_TOKEN_MFA'. No exact historical
+  snapshot retained, so distinguish current read from callback event evidence.
+- No code/service/cloud/MFA/grant changes. Handoff-only uncommitted update.
+  Next diagnose Cognito enrollment/returned MFA-state semantics for the verified
+  identity using existing evidence before requesting another retry. Do not reset
+  authenticator or relax the validator. G1 remains incomplete.
+
 ## Bounded authentication-time settling fix — 2026-09-27
 
 - Branch feat/staff-auth-permissions, arrival HEAD
