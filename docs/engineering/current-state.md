@@ -1,5 +1,63 @@
 # Engineering handoff
 
+## Real TOTP reauthentication and server freshness verified — 2026-09-27
+
+- User reports Reauthenticate with TOTP requested email/password and authenticator
+  code, then returned to signed-in page. Callback
+  c407a5db-dbec-4b95-af6e-7434e1050003 records login_complete.
+- Server evidence: FRESH_REQUIRED_TOTP/SUCCESS login audit at
+  2026-09-27T19:57:18.474024Z; new signed authenticated_at 19:57:17Z replaces
+  prior 19:54:48Z. Expected dedicated issuer/sub/client/application user and exact
+  original single grant unchanged. New session passes StaffStore.read; old saved
+  reauth-baseline session revoked at 19:57:18.482Z and now rejects AUTH_REQUIRED.
+  Prior logged-out session remains revoked. Absolute expiry is eight hours from
+  new signed authentication; fresh idle bound is 30 minutes. No raw credentials.
+- Actual server requireStaffPermission evaluated against live stored session/grant
+  at real current time accepts admin:permissions_manage/platform pachi. Separate
+  deterministic clock checks (no writes/time changes) accept 15 minutes minus
+  1 ms, reject exact 15 minutes and future authentication with STEP_UP_REQUIRED.
+  These boundary checks are synthetic-time evaluations, not 15-minute browser
+  observations. No sensitive business endpoint is implemented/exercised here.
+  Thus real reauthentication/session replacement and backend freshness guard are
+  demonstrated; displayed deadline alone was not used as proof.
+- provider_revoke_failed recurred immediately before this login_complete in the
+  process log. Local old-session invalidation passes, but Cognito refresh-token
+  revocation remains unresolved/unverified. Existing revoke helper logs only a
+  fixed event and reuses USER_LOGOUT audit reason for reauthentication replacement;
+  do not misclassify the replacement as a separate user logout action.
+- Browser logout/cookie observations and direct revocation evidence remain in
+  earlier sections. Mapped-but-ungranted real-browser denial and real marketplace
+  token rejection remain unverified separately from automated tests. G1 also
+  requires remaining foundation/backup-restore/environment/security evidence;
+  this staff workflow does not complete that gate or production readiness.
+- No code/cloud/identity/grant/service changes. Shared handoff only. Exact prior
+  checkpoint 7d63e0801c5fbec1a1b468c7ae79541032c46c8f CI passed:
+  https://github.com/david-developer/pachi/actions/runs/36346011349.
+  Next bounded follow-up: diagnose provider revocation failure with safe reason
+  diagnostics; preserve local fail-closed checks and existing authenticator.
+
+## Fresh login baseline for reauthentication — 2026-09-27
+
+- User reports signed in after verified logout. Callback
+  8fd47b05-4015-4c76-90b5-4270eadd235b is login_complete; SUCCESS
+  FRESH_REQUIRED_TOTP audit at 2026-09-27T19:54:49.595601Z. New signed
+  authenticated_at 19:54:48Z; expected issuer/sub/application user and exact single
+  grant match. New session passes StaffStore.read; prior logged-out session still
+  fails AUTH_REQUIRED. New baseline identifier saved outside Git mode 0600 for
+  subsequent replacement/revocation comparison; no session credential exposed.
+- Log inspection also found provider_revoke_failed before this successful login.
+  This limits earlier logout evidence: local server revocation/cookie removal
+  remain verified, but Cognito refresh-token revocation was not proven. That event
+  lacks timestamp/request ID; do not claim precise correlation or provider logout
+  completion. Preserve this limitation for follow-up; no bypass/settings changes.
+- Next user action: while signed in click Reauthenticate with TOTP, complete fresh
+  password and authenticator prompts in Cognito, report actual prompts/outcome.
+  Then verify new signed authentication time, same identity/grant, replacement
+  session, previous-session revocation and server freshness enforcement. No
+  sensitive business mutation is authorized; G1 remains incomplete.
+- This is an uncommitted evidence-only handoff update; no application/service or
+  Cognito changes. Real step-up acceptance remains pending this interaction.
+
 ## Real logout verified — 2026-09-27
 
 - Browser observations supplied by user: clicked Sign out; same-browser
