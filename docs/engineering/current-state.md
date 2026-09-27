@@ -8,6 +8,11 @@
   commit's [CI run](https://github.com/david-developer/pachi/actions/runs/36281158497)
   passed. This task's tracked changes are limited to `README.md` and this
   handoff; `apps/admin/.env` is ignored local configuration, not a Git edit.
+- Setup documentation checkpoint `e0635cb8c6a3a7dc31f1e5049c8113dd143d1288`
+  was pushed without merging. Its exact-commit
+  [CI run](https://github.com/david-developer/pachi/actions/runs/36283253889)
+  passed, including isolated migrations and integration, lint, typecheck, unit
+  tests, production build and both web/admin Chromium suites.
 - Verified configuration locations: root `.env` and `apps/web/.env` retain the
   existing marketplace configuration; `apps/admin/.env` was created from its
   ignored example with staff settings blank. No values are recorded here. API
