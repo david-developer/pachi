@@ -1,5 +1,55 @@
 # Engineering handoff
 
+## Provider revocation fixed and real refresh denial verified — 2026-09-27
+
+- Arrival clean on feat/staff-auth-permissions at
+  bcd826294439859aeff0a1336a1f17b2cd587df8; comparison base unchanged. Exact CI
+  https://github.com/david-developer/pachi/actions/runs/36346342132 passed.
+  Earlier real login/logout/TOTP replacement evidence is preserved below.
+- Reproduced old revocation using a retained refresh token from an already locally
+  revoked session, decrypted in process memory only. Actual configured staff
+  /oauth2/revoke HTTPS POST returned HTTP 401 invalid_client. Request diagnostics
+  showed Basic auth absent, client_secret in form body. openid-client defaults to
+  ClientSecretPost; Cognito confidential revocation requires Basic. This is a
+  rejected request, not a network or empty-body response defect. No IAM changes.
+- New revocation-only Configuration uses exact staff issuer/domain/client with
+  ClientSecretBasic, form refresh token and 10-second timeout. Code-exchange and
+  refresh configurations unchanged. Empty 200 handled by library without JSON
+  parsing. Sanitized failure status/allowlisted reason and correlation timestamp/ID
+  retained; success logged as response_accepted, not proof of token invalidity.
+- Ordering verified: callback registers new session, then passes saved previous
+  session ID to revoke. Local UPDATE commits revoked_at and returns that row's
+  encrypted refresh token; row locking serializes with refresh rotation's locked
+  transaction. Provider receives old session's latest token, not replacement's.
+  Provider failure is caught after local denial and does not prevent logout cookie
+  destruction or replacement-cookie save. No tokens/headers/raw exceptions logged.
+- Controlled REAL verification completed without browser action for BOTH historical
+  locally revoked target-user session families (signed times 19:39:40 and 19:54:48).
+  Each old token successfully refreshed BEFORE fixed revocation; returned access
+  identity was validated. Rotated refresh stayed in memory and was revoked through
+  the new implementation: Basic auth, HTTP 200, empty body. After 11 seconds
+  (beyond 10-second rotation grace), BOTH original and rotated refresh tokens were
+  rejected with HTTP 400 invalid_grant for each family. This proves loss of refresh
+  capability beyond ambiguous 200 responses. No tokens persisted or printed.
+- Current replacement session remains authorized with the exact single grant;
+  old baseline remains AUTH_REQUIRED. No active-session token was refreshed or
+  revoked, no global sign-out, settings/account/data reset or marketplace changes.
+- Validation: admin tests 10/10; admin/database typecheck and lint pass. Isolated
+  localhost:5433/pachi_test staff integration passes, including old-token retrieval,
+  old-session denial and replacement-session/token preservation. Unit regressions
+  exercise actual library Basic/form request, empty 200, safe 401 diagnosis and
+  continued local denial on provider failure. No development DB test/migration.
+  Dev bundle contains corrected helper; unauthenticated /api/session returns 401.
+  No service restart required. Full browser logout with the new helper was not
+  repeated; previous real local cookie/logout evidence remains separately recorded.
+- Next/remaining: no browser action needed for this provider defect. Real mapped
+  identity without grant and real marketplace-token rejection remain distinct
+  outstanding browser cases versus existing automated coverage. Sensitive business
+  endpoints not implemented; G1 still requires broader security/environment and
+  backup/restore evidence. Do not claim G1 or production readiness.
+- Official endpoint contract:
+  https://docs.aws.amazon.com/cognito/latest/developerguide/revocation-endpoint.html
+
 ## Real TOTP reauthentication and server freshness verified — 2026-09-27
 
 - User reports Reauthenticate with TOTP requested email/password and authenticator

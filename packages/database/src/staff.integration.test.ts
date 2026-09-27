@@ -147,7 +147,15 @@ void integration(
       await client`UPDATE auth_identities SET unlinked_at=now() WHERE issuer=${claims.issuer} AND subject=${subject}`;
       await assert.rejects(() => store.read(id3), /AUTH_REQUIRED/);
       await client`UPDATE auth_identities SET unlinked_at=NULL WHERE issuer=${claims.issuer} AND subject=${subject}`;
-      await store.revoke(id3);
+      const replacementClaims = { ...claims, originJti: randomUUID() };
+      const replacementId = await store.register(replacementClaims, now, 'new-access', 'new-refresh');
+      assert.equal(await store.revoke(id3), 'refresh');
+      // Provider revocation can fail after this commit; old session stays denied,
+      // while replacement's ciphertext/token family and authorization are intact.
+      await assert.rejects(() => store.read(id3), /AUTH_REQUIRED/);
+      assert.equal((await store.read(replacementId)).row.id, replacementId);
+      assert.equal(await store.tokens(replacementId, async () => { throw new Error('unexpected refresh'); }), 'new-access');
+
       await assert.rejects(() => store.authenticate(family));
       await assert.rejects(() => store.register(family, now, 'access', 'refresh'));
       const failedId = await store.register(

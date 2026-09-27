@@ -1,3 +1,4 @@
+import { revokeLocalThenProvider, revokeRefreshToken } from './revocation';
 import { sameStaffOrigin, staffCsrfValid } from './csrf';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
@@ -53,12 +54,10 @@ export async function staffAccess(id: string) {
   });
 }
 export async function revoke(id: string) {
-  const refresh = await staffStore().revoke(id);
-  if (refresh) {
-    try {
-      await oidc.tokenRevocation(await configuration(), refresh);
-    } catch {
-      console.error(JSON.stringify({ event: 'staff_auth', stage: 'provider_revoke_failed' }));
-    }
-  }
+  await revokeLocalThenProvider(
+    id,
+    (oldId) => staffStore().revoke(oldId),
+    (refresh) => revokeRefreshToken(staffConfig(), refresh),
+    (event) => console.error(JSON.stringify(event)),
+  );
 }
