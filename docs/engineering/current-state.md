@@ -2,6 +2,13 @@
 
 ## G1 evidence reconciliation — 2026-09-27
 
+- Acceptance/restore checkpoint: eb3fb7b (pushed, no merge). Follow-up records
+  the user-confirmed marketplace recovery. Exact checkpoint CI
+  [36348972375](https://github.com/david-developer/pachi/actions/runs/36348972375)
+  is IN PROGRESS at handoff, not yet a pass; do not substitute the earlier
+  8a8b07f result. Next action: inspect that result and the follow-up documentation
+  commit CI; address the three canonical G1 gaps only in separately authorized work.
+
 - Arrival clean on feat/staff-auth-permissions at
   8a8b07f641053c4cd8e4f2be682de6142f1e4020; base remains
   6d8f8899498d52010e45646c6ebe16901b9cf291. Exact CI
@@ -22,7 +29,7 @@
 | Valid authenticated mapped staff identity with no grant | PASSED, isolated signed-token verifier + actual StaffStore registration rejects RESOURCE_SCOPE_DENIED; extended apps/api/src/staff.http.integration.test.ts makes mapping/valid claims explicit | Real-provider/browser mapped-but-ungranted case NOT RUN; requires a separate nonprivileged test identity and its own browser entry. Do not repurpose current user's grant. Earlier real denial was absent mapping only. |
 | Expired/revoked/insufficient grants | PASSED, existing actual Nest HTTP controller returns 403 for isolated fixtures; targeted suite rerun passes | Synthetic signed tokens, not modified live grants. |
 | Marketplace credentials rejected by staff endpoints | PASSED, REAL unexpired existing Cognito marketplace bearer: /v1/account/provider 200 then /v1/staff/session 401 with the same token; no token output/refresh/persistence | Server HTTP evidence, not a browser interception. Existing synthetic wrong issuer/client/scope/ID-token/cookie tests also pass. |
-| Continued marketplace/provider operation | API PASSED (real provider bearer 200); user confirmed browser spinning, matching 25-second HTTP timeouts. Recovered web / 200 (5.94s initial compile), /api/session 200 (0.51s) after targeted restart; authenticated UI confirmation pending | Obtain requested post-recovery browser confirmation for existing workspace/drafts/photos/readiness. Prior workspace evidence remains historical, not a current UI pass. No provider-data mutation performed. |
+| Continued marketplace/provider operation | API PASSED (real provider bearer 200); user confirmed browser spinning, matching 25-second HTTP timeouts. Recovered web / 200 (5.94s initial compile), /api/session 200 (0.51s) after targeted restart; user then confirmed existing workspace, drafts, photos and readiness all display correctly | PASSED current real-browser regression by user observation after recovery; no provider-data mutation performed. |
 
 - Current grant independently read: SUPER_ADMIN/platform pachi with ONLY
   admin:permissions_manage, not revoked, expires **2026-09-28T19:35:57.049Z**.
@@ -46,8 +53,7 @@
 | Nonproduction backup/restore mechanism, environment/secret separation, future deployed procedure | PASSED for local G1 mechanism | Approved operations runbook Restore procedure; successful isolated synthetic restore below; existing launcher separation tests/ignored secrets. Deployed RDS/media/identity/key/regional recovery E04 NOT RUN, not claimed by local success. |
 
 Thus G1 is INCOMPLETE: three whole requirements above remain failed/not-run.
-The pending post-recovery browser confirmation also blocks a clean current
-marketplace acceptance report. No provider verification/media approval/publication
+The post-recovery marketplace browser check PASSED by explicit user confirmation. No provider verification/media approval/publication
 work is authorized. Native-device acceptance and later E04/E07 cases are not silently
 added as new G1 requirements.
 
