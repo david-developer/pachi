@@ -7,7 +7,7 @@ import {
   configuration,
   verifyAccess,
   attestRequiredTotp,
-  freshAuthentication,
+  settledFreshAuthentication,
   AuthenticationFreshnessError,
 } from "../../../../lib/provider";
 import { staffCookie, staffStore, revoke } from "../../../../lib/session";
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       verifiedIdentityFingerprint = createHash("sha256")
         .update(JSON.stringify([claims.issuer, claims.subject])).digest("hex");
       failureStage = "authentication_freshness";
-      const authenticatedAt = freshAuthentication(id.auth_time, started);
+      const authenticatedAt = await settledFreshAuthentication(id.auth_time, started);
       await attestRequiredTotp(claims.subject, (stage) => {
         failureStage = stage;
       });

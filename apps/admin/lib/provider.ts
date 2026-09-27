@@ -97,6 +97,23 @@ export function freshAuthentication(
   if (+now - authTime * 1000 > 600_000) throw new AuthenticationFreshnessError("AUTH_TIME_TOO_OLD", age, delta);
   return new Date(authTime * 1000);
 }
+// One-second provider/host disagreement was observed. Wait at most two seconds
+// for the signed instant; never admit future evidence into session storage.
+export const AUTH_TIME_CLOCK_SETTLE_MS = 2_000;
+export async function settledFreshAuthentication(
+  authTime: unknown,
+  started: Date,
+  clock: () => Date = () => new Date(),
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<Date> {
+  const now = clock();
+  if (typeof authTime === "number" && Number.isSafeInteger(authTime)) {
+    const ahead = authTime * 1000 - +now;
+    if (ahead > 0 && ahead <= AUTH_TIME_CLOCK_SETTLE_MS) await wait(ahead);
+  }
+  // Re-read after waiting: a backwards/stalled clock still fails closed.
+  return freshAuthentication(authTime, started, clock());
+}
 // Trust comes from inspected REQUIRED/TOTP-only pool policy + a fresh verified
 // local OIDC authentication, never from an invented amr claim or browser flag.
 export async function attestRequiredTotp(

@@ -62,9 +62,18 @@ void integration(
       const transaction = await store.beginLogin();
       assert.ok(await store.consumeLogin(transaction));
       await assert.rejects(() => store.consumeLogin(transaction));
+      await assert.rejects(
+        () => store.register(claims, new Date(+now + 1), 'access', 'refresh'),
+        /AUTH_REQUIRED/,
+      );
       const id = await store.register(claims, now, 'access', 'refresh');
       const principal = await store.authenticate(claims);
       assert.equal(principal.row.id, id);
+      assert.equal(+principal.row.authenticated_at, +now);
+      assert.equal(+principal.row.absolute_expires_at, +now + 8 * 3600_000);
+      assert.equal(store.projection(principal).reauthentication_expires_at,
+        new Date(+now + 900_000).toISOString());
+
       assert.equal(store.projection(principal).display_name, 'Synthetic staff');
       assert.ok(!JSON.stringify(store.projection(principal)).includes(subject));
       assert.ok(!validStaffScope('SUPER_ADMIN', { ...scope, permissions: ['evidence:read'] }));

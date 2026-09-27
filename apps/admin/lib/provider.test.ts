@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertProviderPolicy, freshAuthentication, AuthenticationFreshnessError } from './provider';
+import { assertProviderPolicy, freshAuthentication, settledFreshAuthentication, AUTH_TIME_CLOCK_SETTLE_MS, AuthenticationFreshnessError } from './provider';
 import { staffConfig } from './config';
 const config = {
   poolId: 'eu-west-1_staff',
@@ -127,4 +127,36 @@ void test('freshness diagnostics distinguish invalid, prior, future and expired 
       e instanceof AuthenticationFreshnessError && e.reason === reason && e.message === 'MFA_UNPROVEN');
   }
   assert.equal(+freshAuthentication(seconds, now, now), seconds * 1000);
+});
+
+void test('bounded clock settling preserves signed time and strict session/step-up anchors', async () => {
+  const base = Date.parse('2026-09-26T12:00:00Z');
+  for (const ahead of [1000, AUTH_TIME_CLOCK_SETTLE_MS]) {
+    let now = base;
+    const signed = (base + ahead) / 1000;
+    const result = await settledFreshAuthentication(signed, new Date(base - 10000),
+      () => new Date(now), async (ms) => { assert.equal(ms, ahead); now += ms; });
+    assert.equal(+result, signed * 1000);
+    assert.ok(+result <= now); // StaffStore's strict future guard still holds.
+    assert.equal(+result + 8 * 3600000 - now, 8 * 3600000);
+    assert.equal(+result + 900000 - now, 900000);
+    // Processing delay cannot renew the original authentication/step-up anchor.
+    now += 60000;
+    assert.equal(+result + 900000 - now, 840000);
+  }
+  let waits = 0;
+  const clock = () => new Date(base);
+  const wait = async () => { waits++; };
+  await assert.rejects(settledFreshAuthentication((base + 3000) / 1000,
+    new Date(base - 10000), clock, wait), { reason: 'AUTH_TIME_IN_FUTURE' });
+  assert.equal(waits, 0);
+  await assert.rejects(settledFreshAuthentication((base + 1000) / 1000,
+    new Date(base - 10000), clock, wait), { reason: 'AUTH_TIME_IN_FUTURE' });
+  for (const value of [undefined, null, true, '123', NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1])
+    await assert.rejects(settledFreshAuthentication(value, new Date(base - 10000), clock, wait),
+      { reason: 'AUTH_TIME_INVALID' });
+  await assert.rejects(settledFreshAuthentication((base - 601000) / 1000,
+    new Date(base - 700000), clock, wait), { reason: 'AUTH_TIME_TOO_OLD' });
+  assert.equal(+await settledFreshAuthentication((base - 600000) / 1000,
+    new Date(base - 700000), clock, wait), base - 600000);
 });

@@ -1,5 +1,64 @@
 # Engineering handoff
 
+## Bounded authentication-time settling fix — 2026-09-27
+
+- Branch feat/staff-auth-permissions, arrival HEAD
+  82e1962433505917f75beab391b13b38cb2d3d53; comparison base unchanged.
+  Preserved uncommitted prior diagnostic handoff. Exact arrival CI
+  https://github.com/david-developer/pachi/actions/runs/36342300676 passed.
+- Host timedatectl reports synchronized=yes and NTP active; detailed timesync
+  telemetry unavailable because systemd-timesyncd service is absent. No evidence
+  establishes sustained clock drift. Seconds/milliseconds conversion is correct;
+  freshAuthentication captures now at invocation after token validation, not
+  before network work. Observed signed auth_time was in the next clock second;
+  strict zero-future comparison caused the rejection.
+- Introduced AUTH_TIME_CLOCK_SETTLE_MS=2000, a two-second maximum delay covering
+  the observed one-second disagreement with a small bound. Callback waits only
+  for a valid integral signed timestamp within this bound, then rereads time and
+  applies the unchanged strict freshness validator. A stalled/backwards clock or
+  timestamp still in the future fails closed. No future timestamp is admitted to
+  session storage; signed authentication time is preserved, never replaced with
+  current time. No JWT tolerance change, maximum-age extension, session/refresh
+  lifetime change or step-up window extension. No existing documented tolerance
+  was found. Pool/user MFA and grant checks remain enforced.
+- Admin tests 6/6, typecheck/lint pass. Deterministic cases cover one second,
+  exact two-second boundary, excessive future, stalled clock, invalid claims,
+  stale/exact max-age and original signed expiry anchors. Staff integration test
+  passes on verified localhost:5433/pachi_test; real store rejects future time and
+  preserves signed time, eight-hour absolute and 15-minute step-up boundaries.
+  Database typecheck/lint pass. No development DB tests or migrations.
+- Restarted only verified admin launcher with pnpm dev admin and
+  AWS_PROFILE=pachi-staff-runtime; supervisor 513702. Runtime-profile selection
+  verified, admin/web/API readiness 200, staff login POST 303. Marketplace/worker
+  preserved, no Cognito/user/grant/environment/secret changes. Startup builds
+  shared packages normally. Restored generated next-env path churn only.
+- Asked for one fresh browser attempt. Next inspect restart-specific
+  .local-dev/staff-settle-admin.log, correlate timestamp/request ID and verified
+  fingerprint, then read AdminGetUser for matched subject
+  b2e594a4-1081-7083-a81b-874d8e4f5d01. MFA and ungranted-denial acceptance remain
+  pending user interaction; no real step-up or G1 claim.
+
+## Controlled retry identifies future auth_time — 2026-09-27
+
+- Latest completed browser callback request 140d3d32-2871-4cec-a694-b673f315980f,
+  observed_at 2026-09-27T18:55:26.861Z, fails authentication_freshness with exact
+  safe reason AUTH_TIME_IN_FUTURE. auth_age_seconds=-1 and
+  auth_transaction_delta_seconds=55: signed authentication time is one second
+  ahead of the callback server's whole-second clock. No MFA/grant checks reached.
+- Event is in restart-specific staff-runtime-admin.log after dev_service_started
+  PID 506614; current launcher 506359 still selects pachi-staff-runtime. Latest
+  diagnostics are active. The intervening login_transaction failure was the
+  documented synthetic compile probe, not a completed browser login.
+- Validated issuer/subject fingerprint exactly matches the independently computed
+  fingerprint for dedicated issuer eu-west-1_7uju5eCyw and subject
+  b2e594a4-1081-7083-a81b-874d8e4f5d01. Browser subject match is now established
+  from validated claims, not email. This is a freshness/time-comparison rejection,
+  not proof of a user-MFA failure or expected missing-grant denial.
+- No settings, authenticator, permissions, grant or service changes in this
+  diagnostic. Next investigate measured clock offset and accepted clock-tolerance
+  policy before changing freshness validation. G1 remains incomplete. This
+  evidence-only handoff update is uncommitted; code HEAD remains 82e1962.
+
 ## Latest callback rejected authentication freshness — 2026-09-27
 
 - Arrival clean at a5468ba9946d0fdc5fc265a5d89937f2a78f610b on
