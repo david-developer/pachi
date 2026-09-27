@@ -1,5 +1,29 @@
 # Engineering handoff
 
+## Real login reaches expected ungranted denial — 2026-09-27
+
+- Latest callback a14497f6-cc1e-4cc2-9731-4752e31d0082 at
+  2026-09-27T19:19:51.078Z: staff_session_registration, grant_denied.
+  This category maps exclusively to RESOURCE_SCOPE_DENIED and access_denied.
+- Validated fingerprint matches dedicated issuer
+  https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_7uju5eCyw and subject
+  b2e594a4-1081-7083-a81b-874d8e4f5d01. Callback control flow proves signed
+  token/local identity validation, authentication freshness, all AWS reads and
+  complete pool/client/user required-TOTP validation PASSED before registration.
+  User reports password and current authenticator code entered in a fresh private
+  window. This is real authentication/MFA-policy evidence under accepted ADR 0002;
+  not a privileged session, demonstrated step-up interface or G1 readiness.
+- Read-only exact issuer/subject query confirms ZERO active AuthIdentity mappings.
+  register reached mapping/authorization gate and denied before grants lookup
+  (short-circuit when no mapping). No staff session granted. This is expected
+  ungranted denial, not continuing MFA failure. No email lookup/linking used.
+- Settings/authenticator/services/data preserved; no identity or grant written.
+  No further login needed to establish this diagnosis. Next await explicit scope
+  for audited identity/grant provisioning; do not provision in this task.
+- Arrival clean at 17fe9524177844063635b055507e0481e496aded on existing branch;
+  exact CI https://github.com/david-developer/pachi/actions/runs/36343787598 passed.
+  This checkpoint updates only the handoff; no code changes/tests needed.
+
 ## Authorized existing TOTP activation — 2026-09-27
 
 - Branch feat/staff-auth-permissions, code HEAD 03bcd5e4c511274fe07d2610477b008456582987.
