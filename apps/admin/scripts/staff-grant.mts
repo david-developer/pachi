@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 // Operator-only command; uses existing identity mappings, never links by email.
 import { readFileSync } from 'node:fs';
 import {
@@ -7,8 +8,9 @@ import {
   type StaffRole,
   type StaffScope,
 } from '@pachi/database';
-import { verifiedLocalUser } from '../lib/provider';
-import { staffConfig } from '../lib/config';
+const { verifiedLocalUser } = createRequire(import.meta.url)('../lib/provider.ts') as typeof import('../lib/provider');
+const require = createRequire(import.meta.url);
+const { staffConfig } = require('../lib/config.ts') as typeof import('../lib/config');
 const file = process.argv[2];
 if (!file) throw new Error('Usage: pnpm --filter @pachi/admin staff:grant /private/grant.json');
 const input = JSON.parse(readFileSync(file, 'utf8')) as {

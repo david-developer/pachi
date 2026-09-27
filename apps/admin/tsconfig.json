@@ -15,6 +15,7 @@
     "next.config.ts",
     "lib/**/*.ts",
     "scripts/**/*.ts",
+    "scripts/**/*.mts",
     "tests/**/*.ts",
     "playwright.config.ts"
   ]

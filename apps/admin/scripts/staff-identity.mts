@@ -1,9 +1,11 @@
+import { createRequire } from 'node:module';
 // Creates a NEW Pachi principal for an operator-verified local staff subject.
 // Existing users cannot be linked here; linking requires proof of both identities.
 import { readFileSync } from 'node:fs';
 import { createDatabase, StaffStore } from '@pachi/database';
-import { staffConfig } from '../lib/config';
-import { verifiedLocalUser } from '../lib/provider';
+const require = createRequire(import.meta.url);
+const { staffConfig } = require('../lib/config.ts') as typeof import('../lib/config');
+const { verifiedLocalUser } = createRequire(import.meta.url)('../lib/provider.ts') as typeof import('../lib/provider');
 const file = process.argv[2];
 if (!file) throw new Error('Usage: staff:identity /private/identity.json');
 const input = JSON.parse(readFileSync(file, 'utf8')) as {

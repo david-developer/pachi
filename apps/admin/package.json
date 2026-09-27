@@ -9,10 +9,10 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test lib/*.test.ts",
-    "staff:grant": "tsx scripts/staff-grant.ts",
+    "staff:grant": "tsx scripts/staff-grant.mts",
     "test:browser": "playwright test",
-    "staff:identity": "tsx scripts/staff-identity.ts",
-    "staff:revoke": "tsx scripts/staff-revoke.ts"
+    "staff:identity": "tsx scripts/staff-identity.mts",
+    "staff:revoke": "tsx scripts/staff-revoke.mts"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "3.1141.0",

@@ -510,9 +510,9 @@ For operator commands, load the intended root/admin files explicitly in a clean
 operator shell (Node supports `--env-file`); do not reuse a test shell. From root:
 
 ```bash
-node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-identity.ts /private/identity.json
-node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-grant.ts /private/grant.json
-node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-revoke.ts /private/revoke.json
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-identity.mts /private/identity.json
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-grant.mts /private/grant.json
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-revoke.mts /private/revoke.json
 ```
 
 Keep input files outside Git, mode 0600. Identity input is

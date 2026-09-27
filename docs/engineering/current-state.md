@@ -1,5 +1,70 @@
 # Engineering handoff
 
+## Audited initial staff mapping and grant completed — 2026-09-27
+
+- Branch feat/staff-auth-permissions; arrival HEAD
+  63d571111f7397e50896dcfc090f64166c973b4b. Preserved prior uncommitted preflight
+  note. Exact arrival CI https://github.com/david-developer/pachi/actions/runs/36344215075
+  passed. User explicitly resolved scope to admin:permissions_manage.
+- Reverified intended DB localhost:5432/pachi_local and zero mappings/grants,
+  including inactive, for dedicated issuer/sub. Verified operator through source
+  STS: arn:aws:iam::451475820431:user/pachi-david-dev. Runtime profile used only
+  read-only Cognito verification; full MFA-policy validator passed before writes.
+- Existing operator entrypoints failed before executing any statements: .ts was
+  compiled as CommonJS despite top-level await. Corrected operator entrypoints to
+  .mts with explicit typed CommonJS loading of existing admin config/provider;
+  package scripts, README commands and typecheck inclusion updated. No operator
+  audit/policy behavior changed. Regression spawns all three real entrypoints with
+  no input and no DB credentials to verify they reach usage validation. Failed
+  loader attempts created no mappings or grants; zero state rechecked before retry.
+- Used existing audited staff:identity and staff:grant commands after fix. Separate
+  application user fe485557-df32-4ae5-935f-732beeac5059 (PENDING_PHONE), display
+  name Pachi development staff. Dedicated issuer/sub mapping verified, no email
+  match or marketplace merge. Exactly one grant:
+  73dcd4f8-ca2c-4476-8ef8-3229a71bca67, SUPER_ADMIN,
+  {"kind":"platform","id":"pachi","permissions":["admin:permissions_manage"]}.
+  Explicit expiry 2026-09-28T19:35:57.049Z, computed 24 hours from command execution
+  preparation. Grant active/not revoked; no additional permissions.
+- Readback confirms exact mapping/user/scope/expiry/operator. Immutable SUCCESS
+  audits for staff:identity and staff:grant, request IDs respectively
+  e5c83457-18be-404a-8fc5-5e3d1f240b6f and a89c0b9d-58cd-4c7e-99ce-f7ef5564acbe.
+  Reason identifies explicit development bootstrap and verified absent-mapping
+  denial a14497f6-cc1e-4cc2-9731-4752e31d0082. Operator inputs outside Git at
+  ~/.local/share/pachi/staff-bootstrap-1790537755010, directory 0700/files 0600.
+- Checks: admin tests 7/7 including CLI-module regression, typecheck and lint pass;
+  diff check passes. Real writes only authorized mapping/grant/audits in development.
+  No marketplace data edits, Cognito changes, migrations or service restarts.
+- Next: fresh private-window staff login, confirm correct user, SUPER_ADMIN and
+  exact platform scope; correlate callback/session evidence, then guide logout and
+  verify invalidation. Pre-grant real denial was ABSENT MAPPING, not an existing
+  mapped user without grant. Mapped-but-ungranted denial has synthetic integration
+  evidence; real-browser case remains unverified. Marketplace-token rejection has
+  automated coverage reported in earlier handoff, no new real-browser evidence.
+  Actual post-grant access/logout, recent step-up and G1 remain incomplete.
+
+## Bootstrap preflight; exact permission clarification pending — 2026-09-27
+
+- Arrival clean at 63d571111f7397e50896dcfc090f64166c973b4b on existing branch.
+  Exact CI run 36344215075 was in progress at inspection. This evidence update
+  is uncommitted; no application changes or tests required.
+- User authorizes audited separate staff identity and 24-hour SUPER_ADMIN grant,
+  but specifies platform/pachi permissions [admin]. Existing accepted README
+  bootstrap scope and staff-policy allowlist use [admin:permissions_manage];
+  validStaffScope independently returns false for requested admin and true for
+  documented permission. Do not invent an admin alias or broaden policy.
+- Reverified source STS ARN arn:aws:iam::451475820431:user/pachi-david-dev.
+  Established environment loader confirms localhost:5432/pachi_local. Read-only
+  exact issuer/subject query finds zero mappings (including inactive) and zero
+  associated grants. No email matching or user-data changes.
+- Asked user whether to use the documented admin:permissions_manage permission
+  or stop before provisioning. No identity/grant write pending explicit resolution
+  of exact scope. Once resolved, use existing audited staff:identity, then the
+  returned application user ID with staff:grant; operator inputs outside Git mode
+  0600, actual 24-hour expiry computed at execution. Preserve runtime isolation.
+- Existing browser denial remains absent-mapping evidence only. Mapped-but-ungranted
+  real-browser test, staff authenticated access/logout, recent step-up and G1 remain
+  unverified; automated evidence must remain separately labeled.
+
 ## Real login reaches expected ungranted denial — 2026-09-27
 
 - Latest callback a14497f6-cc1e-4cc2-9731-4752e31d0082 at
