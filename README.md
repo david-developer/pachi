@@ -396,6 +396,29 @@ account placeholder with the actual development account ID:
 
  Cognito client credentials cannot replace these AWS IAM credentials.
 
+Existing IAM identity (user-reported, not independently verified):
+`pachi-david-dev`, previously in `PachiCognitoDevelopers` with
+`AmazonCognitoPowerUser`. Preserve its resource-management access; do not create
+another IAM user or attach the read-only policy alongside broad policies and
+claim that narrows access. Profile names do not restrict IAM permissions.
+
+Use a separate assumed runtime role with only the read-only policy above, a trust
+policy restricted to the actual existing developer principal, and explicit
+`sts:AssumeRole` permission on that principal for this role. Account ID and
+current permissions must be verified by an authorized administrator first.
+Keep the developer console-login source profile for management; run admin using
+only the role profile. Example `~/.aws/config` (placeholders must be resolved):
+
+```ini
+[profile pachi-staff-runtime]
+role_arn = arn:aws:iam::<AWS_ACCOUNT_ID>:role/<STAFF_READ_ONLY_ROLE>
+source_profile = <EXISTING_DEVELOPER_LOGIN_PROFILE>
+region = eu-west-1
+```
+
+Validate the resolved assumed-role ARN and effective policies before selecting
+this profile for the app. No IAM resources or policies have been changed here.
+
 AWS CLI 2.37.4 is available at `.local-dev/aws-cli/bin/aws`. The installed SDK's
 INI provider supports `login_session`, role profiles and credential processes.
 For an existing **non-root** console IAM/federated identity scoped to the policy

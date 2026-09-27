@@ -1,5 +1,39 @@
 # Engineering handoff
 
+## Callback stage diagnostic — 2026-09-27
+
+- Clean arrival on feat/staff-auth-permissions at
+  `044332540a068d529a8d402ca4f905348aa3b542`; base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`.
+- User reports password replacement, authenticator enrollment and code submission,
+  followed by generic callback error. These do not independently establish TOTP
+  success or failure. Two redacted log events show only login_rejected, with no
+  failure stage. Existing evidence cannot identify the failing callback stage.
+- Callback sequence: transaction → discovery/code exchange and ID-token checks →
+  access-token/local-identity/freshness checks → AWS credential resolution and
+  policy reads → pool/client/user MFA validation → staff registration/cookie.
+  Missing identity mapping OR eligible grant in register throws
+  RESOURCE_SCOPE_DENIED and maps to access_denied, not the observed generic error.
+  Other registration errors can still produce the generic error.
+- Added fixed failure-stage labels and fixed category only to rejected callback
+  logs. Split AWS credential resolution, policy reads and policy assertion stages.
+  No exception message/stack, tokens, subject, cookies, callback URL/query or MFA
+  material is logged. Validation and error responses remain enforced unchanged.
+- Admin unit tests 4/4, typecheck and lint pass after instrumentation.
+- No AWS profiles configured at inspection. Existing IAM developer pachi-david-dev
+  and former group PachiCognitoDevelopers/AmazonCognitoPowerUser are user-reported;
+  current effective permissions/account not verified. README now proposes a
+  separate read-only assumed runtime role sourced from that existing developer
+  login. A profile alias or additional narrow policy does not narrow broad access.
+  Preserve developer management access; no duplicate IAM user or IAM mutation.
+- No grant, identity reset, MFA change, migration, or development-data reset.
+  API/web/worker preserved; admin dev reloads diagnostic changes. Environment file
+  locations unchanged. Real MFA/browser acceptance and G1 remain incomplete.
+- Next: one fresh user sign-in (not a replay/reload of the callback) to record a
+  fixed failure stage. Report only that the attempt finished. Inspect only the
+  redacted stage/request-ID fields. Independently have the AWS administrator verify
+  existing developer permissions and prepare the scoped role before runtime use.
+
 ## Login configuration diagnostic — 2026-09-27
 
 - Arrival clean on `feat/staff-auth-permissions` at
