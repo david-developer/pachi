@@ -543,3 +543,22 @@ identities/isolated data. They do not prove real Cognito login, TOTP enrolment,
 AWS IAM configuration or provider rotation. Real staff acceptance remains pending
 until the new pool/client/user and these browser checks are completed. G1 and
 production readiness remain incomplete.
+
+### Isolated local backup/restore check
+
+Run `python3 scripts/check-local-restore.py` from the repository root with the
+existing `pachi-postgres-test-1` service running. It verifies the source is
+`localhost:5433/pachi_test`, captures a private custom-format dump outside Git,
+and restores into a new disposable container with no network or published port.
+It waits for the final PostgreSQL process, then creates the destination from
+`template0` so PostGIS initialization schemas cannot collide with the dump.
+It compares all public table counts/content hashes, extensions, constraints and
+index validity, verifies the source is unchanged, and removes only its own target
+container/anonymous volumes. Dumps and sanitized evidence remain under
+`~/.local/share/pachi/g1-restore` (0700 directory, 0600 files).
+
+This exercises the local mechanism in the accepted
+[restore procedure](docs/03-operations/deployment-and-operation-runbook.md#restore-procedure).
+It does not demonstrate deployed RDS recovery, media/identity/key restoration,
+cross-region recovery or E04. Current results belong in the
+[shared handoff](docs/engineering/current-state.md).

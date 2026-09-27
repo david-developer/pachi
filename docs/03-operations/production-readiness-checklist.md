@@ -7,7 +7,7 @@
 
 ## How to use this checklist
 
-This checklist covers staged gates, not just infrastructure launch. **All engineering, vendor and operating evidence below is NOT RUN unless an actual record is added.** Documentation acceptance is not a test result. Current state: environment configured and documents prepared; no scaffold/implementation.
+This checklist covers staged gates, not just infrastructure launch. **All engineering, vendor and operating evidence below is NOT RUN unless an actual record is added.** Documentation acceptance is not a test result. Current implementation and dated evidence are recorded in the single [engineering handoff](../engineering/current-state.md); gate completion requires every applicable item, not an authentication milestone.
 
 For each completed item record commit/release, environment, date, operator responsibility, evidence link, result and any expiry/retest condition. `[ ]` means not demonstrated; `[x]` may be used only with evidence. Failed, not-run and not-applicable are distinct; not-applicable needs a reason tied to scope. The project owner may hold multiple responsibilities but must not invent independent staff sign-off.
 
@@ -18,7 +18,7 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 | Gate | Required result | Current evidence state |
 |---|---|---|
 | G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | Documentation package prepared; repository replacement/commit still to be performed. |
-| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | NOT RUN — no implementation. |
+| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — see the [G1 evidence reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27). |
 | G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN. |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |
@@ -34,14 +34,14 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 
 ## G1 — Foundation
 
-- [ ] Clean clone installs with pinned runtime/package versions and frozen lockfile; API/mobile/web/admin and worker skeleton start/build as applicable.
-- [ ] Local PostgreSQL/PostGIS, migration framework, synthetic seeds and environment validation work without production credentials.
+- [x] Clean clone installs with pinned runtime/package versions and frozen lockfile; API/mobile/web/admin and worker skeleton start/build as applicable. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
+- [x] Local PostgreSQL/PostGIS, migration framework, synthetic seeds and environment validation work without production credentials. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [ ] CI checks type/lint/build, relevant tests, secrets/dependencies, migration and contract consistency.
-- [ ] Health/readiness, safe error envelope, request IDs and redacted logs are implemented.
+- [x] Health/readiness, safe error envelope, request IDs and redacted logs are implemented. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [ ] Threat/data boundaries cover identity, private evidence, organization scope, location privacy, client trust and external adapters.
-- [ ] Auth session registry, phone participation gate, staff MFA/step-up design and permission test harness demonstrated in isolated environments; production mock-auth rejection tested.
+- [x] Auth session registry, phone participation gate, staff MFA/step-up design and permission test harness demonstrated in isolated environments; production mock-auth rejection tested. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [ ] Current membership/account/session revocation denial tested; database constraints and stale-write/idempotency conventions demonstrated.
-- [ ] Backup/restore mechanism demonstrated in nonproduction; environment/secret separation and future deployed restore procedure recorded.
+- [x] Backup/restore mechanism demonstrated in nonproduction; environment/secret separation and future deployed restore procedure recorded. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 
 ## G2 — Working marketplace slice
 

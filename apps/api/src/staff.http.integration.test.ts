@@ -62,7 +62,14 @@ void integration(
           .sign(privateKey);
       const good = await token(),
         get = (t: string) => fetch(base, { headers: { authorization: `Bearer ${t}` } });
+      const verifiableClaims = await verifier.verify(good);
       assert.equal((await get(good)).status, 401); // no registered MFA evidence
+      // Signed, valid staff identity is mapped, but has no eligible grant.
+      // This is distinct from an absent identity mapping or malformed token.
+      await assert.rejects(
+        () => store.register(verifiableClaims, new Date(), 'access', 'refresh'),
+        /RESOURCE_SCOPE_DENIED/,
+      );
       const grant = await store.provision({
         operator: 'test',
         userId,

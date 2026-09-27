@@ -39,7 +39,7 @@ If two current documents disagree, resolve the contradiction in the same change 
 | Geography/maps | [ADR 0004](02-architecture/adr/0004-maps-geocoding-and-location-services.md) |
 | Uploads/media/evidence | [ADR 0005](02-architecture/adr/0005-media-processing-and-storage-policy.md) |
 | Inbox/email/SMS/push | [ADR 0006](02-architecture/adr/0006-notification-email-sms-strategy.md) |
-| Deployment/incident/recovery procedures | [Operations runbook](03-operations/deployment-and-operations-runbook.md) |
+| Deployment/incident/recovery procedures | [Operations runbook](03-operations/deployment-and-operation-runbook.md) |
 | G0–G6 and external evidence E01–E07 | [Readiness checklist](03-operations/production-readiness-checklist.md) |
 | Launch execution and first 24 hours | [Launch-day runbook](03-operations/launch-day-runbook.md) |
 | What changed and why | [Reconciliation record](archive/documentation-migration-record.md) |

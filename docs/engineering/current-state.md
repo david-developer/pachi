@@ -1,5 +1,86 @@
 # Engineering handoff
 
+## G1 evidence reconciliation — 2026-09-27
+
+- Arrival clean on feat/staff-auth-permissions at
+  8a8b07f641053c4cd8e4f2be682de6142f1e4020; base remains
+  6d8f8899498d52010e45646c6ebe16901b9cf291. Exact CI
+  [36347024098](https://github.com/david-developer/pachi/actions/runs/36347024098)
+  PASSED; inspected its individual steps, not another commit's result.
+  Existing real login/TOTP/logout/replacement/provider-revocation evidence below
+  remains valid. No repeat of completed browser checks or active-grant mutation.
+- Operator: repository agent acting under the project owner's explicit acceptance
+  instruction; environment local development plus isolated synthetic database/CI.
+  This reconciliation records current results, not independent security sign-off.
+
+### Staff acceptance evidence
+
+| Case | Result and evidence kind | Remaining action |
+|---|---|---|
+| Real dedicated password/TOTP login and exact role/scope | PASSED, prior real browser + signed claims + DB/audits | Retest on material auth changes or resource changes. |
+| Logout/local denial/cookie clearing; TOTP reauth/session replacement; provider revocation | PASSED, prior browser observations + direct server checks + real pre/post refresh rejection; browser HTTP status was not independently recorded | Preserve limitations: fixed revoke helper was verified directly with actual tokens, not a repeated browser logout. |
+| Valid authenticated mapped staff identity with no grant | PASSED, isolated signed-token verifier + actual StaffStore registration rejects RESOURCE_SCOPE_DENIED; extended apps/api/src/staff.http.integration.test.ts makes mapping/valid claims explicit | Real-provider/browser mapped-but-ungranted case NOT RUN; requires a separate nonprivileged test identity and its own browser entry. Do not repurpose current user's grant. Earlier real denial was absent mapping only. |
+| Expired/revoked/insufficient grants | PASSED, existing actual Nest HTTP controller returns 403 for isolated fixtures; targeted suite rerun passes | Synthetic signed tokens, not modified live grants. |
+| Marketplace credentials rejected by staff endpoints | PASSED, REAL unexpired existing Cognito marketplace bearer: /v1/account/provider 200 then /v1/staff/session 401 with the same token; no token output/refresh/persistence | Server HTTP evidence, not a browser interception. Existing synthetic wrong issuer/client/scope/ID-token/cookie tests also pass. |
+| Continued marketplace/provider operation | API PASSED (real provider bearer 200); user confirmed browser spinning, matching 25-second HTTP timeouts. Recovered web / 200 (5.94s initial compile), /api/session 200 (0.51s) after targeted restart; authenticated UI confirmation pending | Obtain requested post-recovery browser confirmation for existing workspace/drafts/photos/readiness. Prior workspace evidence remains historical, not a current UI pass. No provider-data mutation performed. |
+
+- Current grant independently read: SUPER_ADMIN/platform pachi with ONLY
+  admin:permissions_manage, not revoked, expires **2026-09-28T19:35:57.049Z**.
+  Active at this inspection; no renewal. After that time eligible-grant denial is
+  authorization expiry, not evidence that Cognito password/TOTP authentication broke.
+- Admin/API probes 200; web recovered as above. Environment files remain root .env,
+  apps/web/.env, apps/admin/.env; values/secrets unchanged. Current staff identity,
+  provider accounts and records preserved. Web parent 379452 was orphaned under PID 1; listener 379506 blocked in anon_pipe_read. Required inherited web settings matched intended files. Sent SIGTERM only to those identified web PIDs, then detached `pnpm dev web` with persistent private log output (launcher parent 595670, new listener 595940). Underlying hang cause is unproven. Admin PID 514185 unchanged; API watcher automatically reloaded shared-package build output during the established launcher, no API launcher stopped.
+
+### Canonical G1 requirements (each whole requirement)
+
+| Canonical requirement | Status | Evidence / exact remaining work |
+|---|---|---|
+| Clean checkout, pinned install, app/worker start/build | PASSED | Exact CI above: fresh checkout, Node .nvmrc 24.21.0, pnpm 12.0.0, frozen lockfile, full API/mobile/web/admin/worker build. This build evidence does not erase current web runtime timeout. |
+| Local PostgreSQL/PostGIS, migrations, synthetic seeds, environment validation | PASSED | CI isolated localhost:5433/pachi_test migration and fixture suites; startup isolation tests; local test container and successful restore/hash check. Development migration baseline 0014 unchanged. |
+| CI type/lint/build/tests, secrets/dependencies, migration/contract consistency | FAILED (coverage gap) | Type/lint/build/test/migrations/browser steps PASS. .github/workflows/checks.yml has no secret scan, dependency vulnerability check, or explicit OpenAPI/contracts consistency check. Next add/review those missing checks and demonstrate exact-commit results; do not equate typecheck with contract parity. |
+| Health/readiness, safe error envelope, request IDs, redacted logs | PASSED for implemented foundation | API readiness 200; unauthenticated staff 401 and unknown route 404 use safe error/message/statusCode envelope and x-request-id. requestIdMiddleware logs path without query; redaction unit test passes in CI; safe staff logs preserved. Audited admin/web log files show zero callback-query request entries. |
+| Threat/data boundaries for identity, private evidence, organization scope, location privacy, client trust, external adapters | NOT RUN as a complete boundary review | Canonical architecture/ADRs/roles document designs; isolated ownership/staff tests cover implemented surfaces. No complete recorded adversarial review mapping all six named boundaries to implementation/evidence was found. Next perform that bounded review and record gaps; do not implement deferred business features merely to declare it passed. |
+| Session registry, phone participation gate, staff MFA/step-up design/permission harness in isolation; production mock rejection | PASSED for G1 foundation | Exact CI config.test rejects production test issuer/local SMS, phone/identity/store guards pass; real staff MFA/reauth + actual permission guard and simulated 15-minute boundary evidence below. Full E07/social/owner recovery remains a later separate gate. |
+| Current membership/account/session revocation, constraints, stale-write/idempotency | NOT RUN in full | Account/session/grant denial and concurrency/idempotency/version tests pass. Organization membership/revocation coverage is not present in current implementation/tests; next identify/implement the authorized membership foundation and demonstrate its revocation boundary in isolation. Do not start it as part of this auth acceptance task. |
+| Nonproduction backup/restore mechanism, environment/secret separation, future deployed procedure | PASSED for local G1 mechanism | Approved operations runbook Restore procedure; successful isolated synthetic restore below; existing launcher separation tests/ignored secrets. Deployed RDS/media/identity/key/regional recovery E04 NOT RUN, not claimed by local success. |
+
+Thus G1 is INCOMPLETE: three whole requirements above remain failed/not-run.
+The pending post-recovery browser confirmation also blocks a clean current
+marketplace acceptance report. No provider verification/media approval/publication
+work is authorized. Native-device acceptance and later E04/E07 cases are not silently
+added as new G1 requirements.
+
+### Isolated backup/restore evidence
+
+- Approved procedure: docs/03-operations/deployment-and-operation-runbook.md,
+  Backups and recovery / Restore procedure. Corrected docs index's broken plural
+  filename link. Added reproducible `python3 scripts/check-local-restore.py` and
+  README usage. Source guard accepts only existing pachi-postgres-test-1 with
+  localhost:5433/pachi_test; never development pachi_local.
+- Source dump from synthetic test DB restored into new container
+  pachi-g1-restore-1790541146, database pachi_restore created from template0;
+  same locally available PostGIS image, network none, no published port, PostgreSQL
+  UNIX socket only. No app/worker attached: no jobs, notifications or user access.
+- Initial trials FAILED only in disposable target: temporary initialization server
+  readiness race, then pre-created tiger schema collision. Final procedure waits
+  for PID 1 postgres and creates a clean template0 database; final run PASSED.
+  Source unchanged throughout; no development restore or service stop.
+- Successful run 28.87 seconds. All 27 public table row counts AND deterministic
+  full-row hashes match; extensions and constraint counts/validation status match,
+  invalid indexes 0. Source before/after manifest identical (no intervening data
+  changes, zero observed loss for this synthetic snapshot). Not a deployed RPO/RTO
+  claim. Removed only the newly created restore container and anonymous volumes.
+- Private dump and sanitized result JSON retained outside Git, mode 0600 under
+  ~/.local/share/pachi/g1-restore (0700). Successful dump SHA256
+  0c2512aba1cfaf095698fc8764ec0a4555c8a791f05418e2a43bc0d521d71242.
+  No production/development personal data included. E04 needs actual deployed
+  isolated infrastructure and authorized recovery resources; not provisioned here.
+- Affected checks: targeted signed-token staff HTTP integration PASS on guarded
+  localhost:5433/pachi_test; API typecheck/lint PASS; restore script syntax check
+  PASS and actual execution above; git diff --check PASS. Reused valid exact CI
+  evidence for unchanged full suite rather than repeating it. No migrations run.
+
 ## Provider revocation fixed and real refresh denial verified — 2026-09-27
 
 - Arrival clean on feat/staff-auth-permissions at
