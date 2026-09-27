@@ -1,5 +1,46 @@
 # Engineering handoff
 
+## Runtime role preparation — 2026-09-27
+
+- Arrival clean on `feat/staff-auth-permissions` at
+  `4eb0ed71f743dc920dc98d5e0acaa67d01507c6f`; base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Exact arrival CI
+  [36322340156](https://github.com/david-developer/pachi/actions/runs/36322340156)
+  passed. This checkpoint changes README, three IAM policy JSON artifacts and
+  this handoff only; no application behavior changes.
+- CLI 2.37.4 STS GetCallerIdentity using `pachi-dev-source` verified account
+  `451475820431` and `arn:aws:iam::451475820431:user/pachi-david-dev`.
+  No credentials or cached login data were displayed. The earlier missing-source
+  credential blocker is resolved; admin must still use a separate runtime role.
+- GetRole returned NoSuchEntity for `PachiStaffRuntimeReadOnly`; complete ListRoles
+  returned only three AWS service-linked roles. CreateRole returned AccessDenied.
+  ListAttachedUserPolicies and ListGroupsForUser also returned AccessDenied;
+  historical group/PowerUser permissions remain unverified. No IAM resources or
+  policies were changed and no denied operation was bypassed.
+- Prepared exact trust/runtime/AssumeRole JSON under `docs/03-operations/iam` and
+  ordered administrator console instructions in README. Trust delegates to the
+  verified account constrained by the exact developer principal ARN, retaining
+  the need for identity-based AssumeRole authorization. Runtime permissions are
+  only the four specified pool-scoped Cognito reads plus region-restricted domain
+  inspection. Preserve existing developer management permissions and applicable
+  security conditions; no duplicate IAM user or privilege expansion is needed.
+- Appended `pachi-staff-runtime` to personal `~/.aws/config` without rewriting
+  existing settings: source `pachi-dev-source`, role
+  `arn:aws:iam::451475820431:role/PachiStaffRuntimeReadOnly`, region eu-west-1,
+  duration 3600 seconds. File remains outside Git with mode 0600. This profile is
+  staged, not verified usable: role creation is still required.
+- Validation: all three policy JSON files parse; assertions verify exact action,
+  pool, region, principal and target-role scope; git diff --check passes. No DB
+  tests/migrations needed or run. Root/admin/web environment files, secrets,
+  API/web/admin/worker processes and development data remain unchanged.
+- Blocked pending administrator console step: create the scoped role and authorize
+  its assumption as documented. Then verify CLI and SDK assumed-role identity,
+  inspect effective role policy where permitted, run the existing Cognito policy
+  validator and restart only admin with the runtime profile. Do not run admin
+  with the developer source profile. No fresh browser login requested yet.
+  Dedicated subject, real MFA-policy evidence and expected ungranted denial are
+  still unverified; no grant written, G1 remains incomplete. MCP setup excluded.
+
 ## Fresh callback evidence — 2026-09-27
 
 - Clean arrival on `feat/staff-auth-permissions` at

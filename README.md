@@ -358,11 +358,12 @@ login configuration 503 into the expected Cognito 303 redirect with PKCE; a
 marketplace-origin POST remains 403. This does not prove secret validity at token
 exchange, MFA, or authenticated access.
 
-The existing validator requires authenticated AWS API access. No AWS profile or
-credentials were found. IAM Identity Center/SSO is **not** a prerequisite: use an
+The existing validator requires authenticated AWS API access. STS verified
+`pachi-dev-source` as `arn:aws:iam::451475820431:user/pachi-david-dev` on
+2026-09-27. Runtime-role provisioning is blocked by `iam:CreateRole` AccessDenied. IAM Identity Center/SSO is **not** a prerequisite: use an
 existing authorized IAM role/profile or ask the account administrator for a
 profile with these permissions. Four operations can be scoped to
-`arn:aws:cognito-idp:eu-west-1:<AWS_ACCOUNT_ID>:userpool/eu-west-1_7uju5eCyw`:
+`arn:aws:cognito-idp:eu-west-1:451475820431:userpool/eu-west-1_7uju5eCyw`:
 `cognito-idp:DescribeUserPool`, `cognito-idp:GetUserPoolMfaConfig`,
 `cognito-idp:DescribeUserPoolClient`, `cognito-idp:AdminGetUser`.
 `cognito-idp:DescribeUserPoolDomain` requires `Resource: "*"`; restrict its
@@ -382,7 +383,7 @@ account placeholder with the actual development account ID:
         "cognito-idp:DescribeUserPoolClient",
         "cognito-idp:AdminGetUser"
       ],
-      "Resource": "arn:aws:cognito-idp:eu-west-1:<AWS_ACCOUNT_ID>:userpool/eu-west-1_7uju5eCyw"
+      "Resource": "arn:aws:cognito-idp:eu-west-1:451475820431:userpool/eu-west-1_7uju5eCyw"
     },
     {
       "Effect": "Allow",
@@ -396,7 +397,7 @@ account placeholder with the actual development account ID:
 
  Cognito client credentials cannot replace these AWS IAM credentials.
 
-Existing IAM identity (user-reported, not independently verified):
+Existing IAM identity (STS verified; group/policy membership remains user-reported):
 `pachi-david-dev`, previously in `PachiCognitoDevelopers` with
 `AmazonCognitoPowerUser`. Preserve its resource-management access; do not create
 another IAM user or attach the read-only policy alongside broad policies and
@@ -404,20 +405,60 @@ claim that narrows access. Profile names do not restrict IAM permissions.
 
 Use a separate assumed runtime role with only the read-only policy above, a trust
 policy restricted to the actual existing developer principal, and explicit
-`sts:AssumeRole` permission on that principal for this role. Account ID and
-current permissions must be verified by an authorized administrator first.
+`sts:AssumeRole` permission on that principal for this role. Account ID is verified;
+current developer permissions require administrator inspection.
 Keep the developer console-login source profile for management; run admin using
 only the role profile. Example `~/.aws/config` (placeholders must be resolved):
 
 ```ini
 [profile pachi-staff-runtime]
-role_arn = arn:aws:iam::<AWS_ACCOUNT_ID>:role/<STAFF_READ_ONLY_ROLE>
-source_profile = <EXISTING_DEVELOPER_LOGIN_PROFILE>
+role_arn = arn:aws:iam::451475820431:role/PachiStaffRuntimeReadOnly
+source_profile = pachi-dev-source
 region = eu-west-1
 ```
 
 Validate the resolved assumed-role ARN and effective policies before selecting
 this profile for the app. No IAM resources or policies have been changed here.
+
+#### Administrator console step: development runtime role
+
+Role inventory contains only three AWS service-linked roles; GetRole confirms
+`PachiStaffRuntimeReadOnly` is absent. CreateRole returned AccessDenied. Do not
+add IAM provisioning permissions to the developer to work around that denial.
+The local `pachi-staff-runtime` profile is prepared in `~/.aws/config`, but cannot
+resolve until the role and assumption permission exist. Admin has not been
+restarted with either AWS profile.
+
+An authorized account administrator should:
+
+1. Confirm the console account is `451475820431`. In **IAM → Roles**, check again
+   for `PachiStaffRuntimeReadOnly`; if it now exists, inspect its trust, attached
+   and inline policies, boundary and ownership instead of creating a duplicate.
+2. Choose **Create role → Custom trust policy** and paste
+   [staff-runtime-trust.json](docs/03-operations/iam/staff-runtime-trust.json).
+   This delegates to the account only when the caller ARN is exactly the existing
+   developer user; it requires that user's AssumeRole permission. The account
+   principal in this JSON does not mean authenticating with root credentials.
+   Preserve any applicable organization, boundary or administrator-required
+   security conditions; do not relax them to make assumption work.
+3. Select no broad managed policies. Name the role `PachiStaffRuntimeReadOnly`,
+   with maximum session duration **1 hour**, and create it. Under its Permissions,
+   choose **Add permissions → Create inline policy → JSON**, paste
+   [staff-runtime-permissions.json](docs/03-operations/iam/staff-runtime-permissions.json),
+   and name it `PachiStaffCognitoInspection`. This is the exact read-only policy
+   above; attach no other runtime permission policies.
+4. Under **IAM → Users → pachi-david-dev → Permissions**, inspect existing
+   permissions first. If the exact role is not already assumable, add the inline
+   policy [staff-runtime-assume.json](docs/03-operations/iam/staff-runtime-assume.json)
+   named `AssumePachiStaffRuntime`. Keep all existing developer management
+   permissions and applicable boundaries/conditions intact.
+5. Report that the role is ready (identifiers only). The next agent verifies CLI
+   and admin SDK assumed-role identity and policies, runs the existing Cognito
+   validator, and only then restarts admin with `AWS_PROFILE=pachi-staff-runtime`.
+   No Cognito setting or staff grant is changed by this IAM setup.
+
+The trust design follows [AWS account principals](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html#principal-accounts).
+
 
 AWS CLI 2.37.4 is available at `.local-dev/aws-cli/bin/aws`. The installed SDK's
 INI provider supports `login_session`, role profiles and credential processes.
@@ -426,7 +467,7 @@ above, an administrator must also permit `SignInLocalDevelopmentAccess` for
 browser-based local login. Then run from the repository root:
 
 ```bash
-./.local-dev/aws-cli/bin/aws login --profile pachi-staff-dev --region eu-west-1
+./.local-dev/aws-cli/bin/aws login --profile pachi-dev-source --region eu-west-1
 ```
 
 Select that non-root development identity in your browser. This obtains temporary
