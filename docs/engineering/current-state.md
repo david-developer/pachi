@@ -1,5 +1,45 @@
 # Engineering handoff
 
+## Login configuration diagnostic — 2026-09-27
+
+- Arrival clean on `feat/staff-auth-permissions` at
+  `eca0a02f0517a99bec94637d0d4f2687c2674992`; comparison base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Exact arrival CI
+  [36307966360](https://github.com/david-developer/pachi/actions/runs/36307966360)
+  passed. Only README/handoff changed in this diagnostic.
+- Login POST catches configuration, cookie/session, DB login-transaction, OIDC
+  discovery and URL-construction errors as STAFF_CONFIGURATION. It performs no
+  authenticated AWS API call; those occur later during callback MFA attestation.
+- Required ignored file settings all present and actual staffConfig validator
+  passes. Running admin inherited an empty client secret from its earlier launch;
+  its presence/equality differed from the saved file. Valid-origin POST reproduced
+  503. No values, cookie or redirect queries were printed.
+- Restarted only identified admin launcher using `pnpm dev admin` with persistent
+  supervision. No environment files or secrets edited. Valid-origin login now
+  returns 303 to the expected Cognito host with code/S256 PKCE; marketplace-origin
+  POST returns 403. This exercises configuration, DB transaction, encrypted cookie
+  save and discovery but not token exchange. One short-lived login transaction
+  from this diagnostic was created through the normal route; no accounts/grants
+  changed. Migration baseline remains 0014; no migrations or DB tests run.
+- API/web/worker launchers were preserved; admin startup builds shared packages
+  and may trigger API's existing watcher. Ports remain API 3001, web 3000, admin
+  3002. Environment sources remain root `.env`, `apps/web/.env`, `apps/admin/.env`.
+- AWS CLI 2.37.4; no configured profile names; STS probe reports missing
+  credentials. SDK source confirms INI role/login_session, credential_process and
+  SSO support. README now contains minimal Cognito read-only policy with an
+  explicit unknown account-ID placeholder and supported temporary `aws login`
+  instructions for a non-root identity. No root credentials or long-lived keys
+  used or created. AWS settings/account/permissions remain unverified.
+- No application code changed; verification was actual route 503 → 303, PKCE
+  redirect checks and wrong-origin 403. Real browser/MFA, token exchange, grant,
+  logout and step-up acceptance remain incomplete. No grant authorized in this
+  diagnostic; G1 remains incomplete.
+- Next: account administrator supplies a non-root scoped development identity
+  with README read-only policy and local-login permission. User runs the documented
+  `aws login --profile pachi-staff-dev --region eu-west-1` in their terminal and
+  completes browser authentication; report only profile name. Verify account and
+  permissions before running staff-policy checks. Do not write a grant.
+
 ## Staff resource configuration follow-up — 2026-09-27
 
 - Arrival: clean `feat/staff-auth-permissions` at

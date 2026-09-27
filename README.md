@@ -350,11 +350,13 @@ was independently reachable and matched the issuer/domain. This does **not** ver
 MFA, registration policy, client secret, scopes, rotation or token lifetimes.
 
 Those identifiers are configured in the ignored root/admin environment files.
-Marketplace settings and existing secrets were preserved; a missing independent
-staff-session secret was generated locally. The remaining app secret must be
-entered locally into `apps/admin/.env` as `STAFF_COGNITO_CLIENT_SECRET`.
-Never send it through chat. API readiness and admin root return 200, but the admin
-session endpoint returns configuration 503 until the secret is supplied.
+Marketplace settings and existing secrets were preserved. The client secret is now
+present in `apps/admin/.env` and passes local configuration validation. After
+editing this file, restart the identified admin launcher: its inherited settings
+take precedence over Next's dotenv reload. On 2026-09-27, restarting admin resolved
+login configuration 503 into the expected Cognito 303 redirect with PKCE; a
+marketplace-origin POST remains 403. This does not prove secret validity at token
+exchange, MFA, or authenticated access.
 
 The existing validator requires authenticated AWS API access. No AWS profile or
 credentials were found. IAM Identity Center/SSO is **not** a prerequisite: use an
@@ -365,9 +367,52 @@ profile with these permissions. Four operations can be scoped to
 `cognito-idp:DescribeUserPoolClient`, `cognito-idp:AdminGetUser`.
 `cognito-idp:DescribeUserPoolDomain` requires `Resource: "*"`; restrict its
 `aws:RequestedRegion` condition to `eu-west-1`. No write/list/admin-wide policy
-is needed. Cognito client credentials cannot replace these AWS IAM credentials.
+is needed. An account administrator can use this policy after replacing the
+account placeholder with the actual development account ID:
 
-AWS CLI is available at `.local-dev/aws-cli/bin/aws`. Configure a named profile
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:GetUserPoolMfaConfig",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:AdminGetUser"
+      ],
+      "Resource": "arn:aws:cognito-idp:eu-west-1:<AWS_ACCOUNT_ID>:userpool/eu-west-1_7uju5eCyw"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cognito-idp:DescribeUserPoolDomain",
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "eu-west-1" } }
+    }
+  ]
+}
+```
+
+ Cognito client credentials cannot replace these AWS IAM credentials.
+
+AWS CLI 2.37.4 is available at `.local-dev/aws-cli/bin/aws`. The installed SDK's
+INI provider supports `login_session`, role profiles and credential processes.
+For an existing **non-root** console IAM/federated identity scoped to the policy
+above, an administrator must also permit `SignInLocalDevelopmentAccess` for
+browser-based local login. Then run from the repository root:
+
+```bash
+./.local-dev/aws-cli/bin/aws login --profile pachi-staff-dev --region eu-west-1
+```
+
+Select that non-root development identity in your browser. This obtains temporary
+credentials without creating access keys or requiring SSO. See
+[AWS local-development login](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+If only root access exists, the account administrator must first provide a scoped
+non-root identity; do not connect the application as root. Share only the profile
+name after login, never credentials or browser authorization material.
+ Configure a named profile
 through the account's existing credential mechanism (SSO only if already used),
 keeping credentials in the user's AWS files, outside Git. Temporary role
 credentials in `~/.aws/credentials` require access key, secret key and session
