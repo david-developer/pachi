@@ -1,5 +1,44 @@
 # Engineering handoff
 
+## Latest callback rejected authentication freshness — 2026-09-27
+
+- Arrival clean at a5468ba9946d0fdc5fc265a5d89937f2a78f610b on
+  feat/staff-auth-permissions; comparison base unchanged. Exact arrival CI
+  https://github.com/david-developer/pachi/actions/runs/36341803444 passed.
+- Latest completed user attempt request 63e7a4df-26fc-4ee8-8c64-03672d48f9fa
+  failed at authentication_freshness, category stage_failed. Earlier user attempt
+  a7b5bba2-2a75-460c-bf32-45f1f4d10c52 failed at the same stage. Both are in the
+  restart-specific staff-runtime-admin.log AFTER dev_service_started PID 506614.
+  Current admin launcher 506359 uses pachi-staff-runtime and correct repository.
+- Token exchange, ID/access validation and local-identity checks completed. The
+  only error emitted by the existing freshness function is MFA_UNPROVEN; old logs
+  cannot distinguish invalid/missing auth_time, time before transaction, future
+  time or expired freshness. AWS credential/policy reads, user-MFA validation and
+  staff grant checks were not reached. No evidence yet of an implementation defect
+  in acceptance logic. Tokens were not retained, so issuer/subject cannot be
+  recovered retrospectively; email/sole-pool membership is not a substitute.
+- Runtime identity and pool/client checks reverified PASS. Independently inspected
+  prior subject b2e594a4-1081-7083-a81b-874d8e4f5d01 through SDK and CLI: returned
+  username/sub match, Enabled true, UserStatus CONFIRMED; MFA/preferred fields have
+  no reported value (CLI projection null, SDK undefined normalized to [] by the
+  earlier probe). Thus earlier wording 'empty list' included absent fields; not
+  a proven literal empty-array response. This is not proof of callback identity.
+- Added fixed freshness reason codes, numeric age/transaction deltas, observation
+  timestamp and SHA256(JSON.stringify([verified issuer, verified subject])) to
+  rejected callback diagnostics. No arbitrary exception text, claims, token,
+  cookie, query or raw identity is logged. Existing acceptance boundaries remain;
+  unsafe numeric auth_time additionally fails invalid. Expected prior-identity
+  fingerprint: d727a6dd5685627441d2e346fd10e60c5e364036f0ae06a4ce573f75e11650b9.
+- Admin unit tests 5/5, typecheck, lint and diff checks pass. Verified dev build
+  contains new diagnostic fields; no service restart needed. A deliberate callback
+  with no transaction compiled the route and returned 307; its login_transaction
+  failure is synthetic and must not be confused with the two user attempts.
+  No AWS/user/grant/database mutations, environment changes or marketplace restarts.
+- Next: exactly one controlled fresh staff sign-in with browser-only credentials
+  and authenticator input. Inspect new reason/time offsets and compare validated
+  identity fingerprint before attributing any user MFA state. Old evidence cannot
+  establish those missing facts. Preserve checks; no grant or G1 completion.
+
 ## Development staff policy corrected; fresh login pending — 2026-09-27
 
 - Arrival clean on feat/staff-auth-permissions at

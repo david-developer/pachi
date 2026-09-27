@@ -76,19 +76,25 @@ export async function verifiedLocalUser(subject: string) {
     },
   );
 }
+export class AuthenticationFreshnessError extends Error {
+  constructor(
+    public readonly reason: "AUTH_TIME_INVALID" | "AUTH_TIME_BEFORE_TRANSACTION" | "AUTH_TIME_IN_FUTURE" | "AUTH_TIME_TOO_OLD",
+    public readonly ageSeconds?: number,
+    public readonly transactionDeltaSeconds?: number,
+  ) { super("MFA_UNPROVEN"); }
+}
 export function freshAuthentication(
   authTime: unknown,
   started: Date,
   now = new Date(),
 ): Date {
-  if (
-    typeof authTime !== "number" ||
-    !Number.isInteger(authTime) ||
-    authTime < Math.floor(+started / 1000) ||
-    authTime > Math.floor(+now / 1000) ||
-    +now - authTime * 1000 > 600_000
-  )
-    throw new Error("MFA_UNPROVEN");
+  if (typeof authTime !== "number" || !Number.isSafeInteger(authTime))
+    throw new AuthenticationFreshnessError("AUTH_TIME_INVALID");
+  const age = Math.floor(+now / 1000) - authTime;
+  const delta = authTime - Math.floor(+started / 1000);
+  if (delta < 0) throw new AuthenticationFreshnessError("AUTH_TIME_BEFORE_TRANSACTION", age, delta);
+  if (authTime > Math.floor(+now / 1000)) throw new AuthenticationFreshnessError("AUTH_TIME_IN_FUTURE", age, delta);
+  if (+now - authTime * 1000 > 600_000) throw new AuthenticationFreshnessError("AUTH_TIME_TOO_OLD", age, delta);
   return new Date(authTime * 1000);
 }
 // Trust comes from inspected REQUIRED/TOTP-only pool policy + a fresh verified

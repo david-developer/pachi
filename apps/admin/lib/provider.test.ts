@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertProviderPolicy, freshAuthentication } from './provider';
+import { assertProviderPolicy, freshAuthentication, AuthenticationFreshnessError } from './provider';
 import { staffConfig } from './config';
 const config = {
   poolId: 'eu-west-1_staff',
@@ -111,4 +111,20 @@ void test('staff config refuses shared consumer issuer/client/secret and unsafe 
   assert.throws(() => staffConfig({ ...env, WEB_SESSION_SECRET: env.STAFF_SESSION_SECRET }));
   assert.throws(() => staffConfig({ ...env, STAFF_ORIGIN: 'http://evil.example' }));
   assert.throws(() => staffConfig({ ...env, STAFF_ORIGIN: 'https://staff.example/redirect' }));
+});
+
+void test('freshness diagnostics distinguish invalid, prior, future and expired signed times without weakening checks', () => {
+  const now = new Date('2026-09-26T12:00:00.500Z');
+  const seconds = Math.floor(+now / 1000);
+  const cases = [
+    [undefined, new Date(+now - 1000), 'AUTH_TIME_INVALID'],
+    [seconds - 2, new Date(+now - 1000), 'AUTH_TIME_BEFORE_TRANSACTION'],
+    [seconds + 1, new Date(+now - 1000), 'AUTH_TIME_IN_FUTURE'],
+    [seconds - 600, new Date(+now - 700000), 'AUTH_TIME_TOO_OLD'],
+  ] as const;
+  for (const [value, started, reason] of cases) {
+    assert.throws(() => freshAuthentication(value, started, now), (e: unknown) =>
+      e instanceof AuthenticationFreshnessError && e.reason === reason && e.message === 'MFA_UNPROVEN');
+  }
+  assert.equal(+freshAuthentication(seconds, now, now), seconds * 1000);
 });

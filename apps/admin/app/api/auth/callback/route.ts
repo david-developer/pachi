@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import * as oidc from "openid-client";
 import { StaffAccessError } from "@pachi/database";
@@ -7,11 +8,13 @@ import {
   verifyAccess,
   attestRequiredTotp,
   freshAuthentication,
+  AuthenticationFreshnessError,
 } from "../../../../lib/provider";
 import { staffCookie, staffStore, revoke } from "../../../../lib/session";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   let failureStage = "configuration";
+  let verifiedIdentityFingerprint: string | undefined;
   try {
     const c = staffConfig(),
       url = new URL(request.url);
@@ -49,6 +52,8 @@ export async function GET(request: Request) {
         !tokens.refresh_token
       )
         throw new Error("LOCAL_IDENTITY_REQUIRED");
+      verifiedIdentityFingerprint = createHash("sha256")
+        .update(JSON.stringify([claims.issuer, claims.subject])).digest("hex");
       failureStage = "authentication_freshness";
       const authenticatedAt = freshAuthentication(id.auth_time, started);
       await attestRequiredTotp(claims.subject, (stage) => {
@@ -102,6 +107,13 @@ export async function GET(request: Request) {
           event: "staff_auth",
           stage: "login_rejected",
           failure_stage: failureStage,
+          observed_at: new Date().toISOString(),
+          verified_identity_sha256: verifiedIdentityFingerprint,
+          ...(error instanceof AuthenticationFreshnessError ? {
+            reason: error.reason,
+            auth_age_seconds: error.ageSeconds,
+            auth_transaction_delta_seconds: error.transactionDeltaSeconds,
+          } : {}),
           request_id: requestId,
           category:
             error instanceof StaffAccessError
