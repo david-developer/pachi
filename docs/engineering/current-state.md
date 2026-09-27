@@ -1,5 +1,52 @@
 # Engineering handoff
 
+## Runtime identity verified; Cognito policy mismatches — 2026-09-27
+
+- Arrival clean on `feat/staff-auth-permissions` at
+  `8bf8772f81d961f0889403cb00865c8375d3b2aa`; base remains
+  `6d8f8899498d52010e45646c6ebe16901b9cf291`. Exact arrival CI
+  [36338860449](https://github.com/david-developer/pachi/actions/runs/36338860449)
+  passed. This checkpoint changes documentation only.
+- User reports completing role and policies. Independently verified CLI STS and
+  credentials resolved by the actual admin `awsClient()` SDK factory both identify
+  `arn:aws:sts::451475820431:assumed-role/PachiStaffRuntimeReadOnly/...`.
+  SDK used the established developmentEnvironment loader with
+  `AWS_PROFILE=pachi-staff-runtime`; resolved credentials were passed in memory
+  to a child STS probe, never printed or saved. Personal profile/config remains
+  outside Git; root/admin/web environment files and secrets are unchanged.
+- Source-profile GetRole verifies exact prepared trust and MaxSessionDuration
+  3600. Role permission enumeration/read operations are AccessDenied; full
+  effective role permissions remain unverified, despite administrator-reported
+  exact policy installation. All five required Cognito inspection operations
+  independently succeeded through runtime credentials.
+- Existing `attestRequiredTotp` validator FAILS. Safe read-only diagnostics find:
+  pool password MinimumLength is 8 (required >=12); client ExplicitAuthFlows is
+  ALLOW_USER_AUTH plus ALLOW_USER_SRP_AUTH (required only ALLOW_USER_SRP_AUTH);
+  inspected local user UserMFASettingList is empty and PreferredMfaSetting absent
+  (required SOFTWARE_TOKEN_MFA only). This records current provider settings,
+  not a conclusion about what occurred during the user's earlier enrollment UI.
+- Verified other checks: required pool MFA, software TOTP enabled without SMS/email
+  MFA, no remembered devices, admin-created users only, password first factor,
+  managed-login v2 and correct pool, matching confidential client secret (boolean
+  only), Cognito-only provider, OAuth code-only flow, staff scope, exact callback
+  and logout, token revocation, refresh rotation with 10-second grace, five-minute
+  access tokens. Refresh lifetime independently read as 480 minutes (8 hours).
+- Source-profile read-only ListUsers found exactly one dedicated-pool user;
+  runtime AdminGetUser confirmed enabled/CONFIRMED, matching subject, no federation.
+  Subject/attributes were not printed; no identity mapping or grant was written.
+  Sole-user inspection is not proof that this was the user's browser identity.
+- No Cognito/IAM changes, admin restart, migration or data changes. API/web/admin/
+  worker left running unchanged; ports remain 3001/3000/3002 respectively. No
+  fresh browser attempt requested: validation must pass first. No application
+  tests needed for docs-only changes; live SDK/CLI/validator evidence above and
+  git diff --check are the affected checks. G1 remains incomplete.
+- Next: administrator reviews the three mismatches against accepted ADR/README.
+  Do not silently change cloud settings or bypass the validator. After provider
+  configuration is corrected and user TOTP state established through the normal
+  browser flow, rerun validation, then restart only admin via the launcher with
+  the runtime profile. Real callback identity and expected ungranted denial remain
+  outstanding; no staff grant is authorized at this stage.
+
 ## Runtime role preparation — 2026-09-27
 
 - Arrival clean on `feat/staff-auth-permissions` at

@@ -422,6 +422,16 @@ this profile for the app. No IAM resources or policies have been changed here.
 
 #### Administrator console step: development runtime role
 
+Latest verification (2026-09-27): the role now exists. CLI and admin SDK resolve
+`pachi-staff-runtime` to the expected assumed role; trust and one-hour session
+limit are verified. Policy enumeration is denied, so complete role permissions
+remain administrator-reported. All required Cognito reads succeed. The existing
+validator fails on password minimum 8 (requires >=12), additional ALLOW_USER_AUTH
+(requires SRP only), and the inspected user's empty MFA setting list (requires
+SOFTWARE_TOKEN_MFA). No Cognito settings were changed and admin was not restarted.
+See the [shared handoff](docs/engineering/current-state.md) for current evidence;
+the provisioning observations below describe the earlier setup attempt.
+
 Role inventory contains only three AWS service-linked roles; GetRole confirms
 `PachiStaffRuntimeReadOnly` is absent. CreateRole returned AccessDenied. Do not
 add IAM provisioning permissions to the developer to work around that denial.
