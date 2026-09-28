@@ -169,6 +169,21 @@ paths:
         '201': { description: Created property and DECLARED provider relationship, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyDraftResponse' } } } }
         '401': { description: Authentication required }
         '409': { description: Provider is ineligible or property input is invalid }
+  /v1/account/properties/{id}/specifications:
+    patch:
+      summary: Edit physical specifications on an owned property with only draft listings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PropertySpecificationsUpdateRequest' }
+      responses:
+        '200': { description: Updated property specifications and incremented version, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyDraftResponse' } } } }
+        '404': { description: Property unavailable to this provider }
+        '409': { description: Invalid values, stale version, or non-draft listing state }
   /v1/account/listing-drafts:
     get:
       summary: List the current provider's private listing drafts
@@ -479,11 +494,21 @@ components:
         bathrooms: { type: integer, minimum: 0 }
         size_sqm: { type: number, exclusiveMinimum: 0 }
         furnishing: { type: string, enum: [FURNISHED, UNFURNISHED, PARTLY_FURNISHED] }
+    PropertySpecificationsUpdateRequest:
+      type: object
+      required: [expected_version]
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        bedrooms: { type: [integer, 'null'], minimum: 0 }
+        bathrooms: { type: [integer, 'null'], minimum: 0 }
+        size_sqm: { type: [number, 'null'], exclusiveMinimum: 0 }
+        furnishing: { type: [string, 'null'], enum: [FURNISHED, UNFURNISHED, PARTLY_FURNISHED, null] }
     PropertyDraftResponse:
       type: object
-      required: [id, property_type, region, city, neighborhood, relationship_id, relationship_type, authorization_status, landmark, bedrooms, bathrooms, size_sqm, furnishing]
+      required: [id, version, property_type, region, city, neighborhood, relationship_id, relationship_type, authorization_status, landmark, bedrooms, bathrooms, size_sqm, furnishing]
       properties:
         id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
         property_type: { type: string, enum: [HOUSE, APARTMENT, ROOM, LAND, COMMERCIAL] }
         region: { type: string, enum: [Southwest, Littoral] }
         city: { type: string }
