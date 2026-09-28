@@ -39,7 +39,7 @@ const directory = mkdtempSync(join(tmpdir(), 'pachi-contracts-'));
 try {
   writeFileSync(join(directory, 'openapi.ts'), astToString(await openapiTS(document)));
   const pairs = Object.keys(document.components.schemas).filter(n => !noSharedType.has(n));
-  writeFileSync(join(directory, 'compare.ts'), `import type { components } from './openapi';\nimport type * as C from '${resolve('packages/contracts/src/index.js')}';\ntype Assert<T extends true> = T;\ntype Same<A,B> = [A] extends [B] ? [B] extends [A] ? true : false : false;\n` + pairs.map(n => `type Check${n} = Assert<Same<components['schemas']['${n}'], C.${aliases[n] ?? n}>>;`).join('\n'));
+  writeFileSync(join(directory, 'compare.ts'), `import type { components } from './openapi';\nimport type * as C from '${resolve('packages/contracts/src/index.js')}';\ntype Assert<T extends true> = T;\ntype Normalize<T> = T extends object ? { [K in keyof T]: Normalize<T[K]> } : T;\ntype Same<A,B> = (<T>() => T extends Normalize<A> ? 1 : 2) extends (<T>() => T extends Normalize<B> ? 1 : 2) ? true : false;\n` + pairs.map(n => `type Check${n} = Assert<Same<components['schemas']['${n}'], C.${aliases[n] ?? n}>>;`).join('\n'));
   const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc','--noEmit','--strict','--skipLibCheck','--target','ES2022','--moduleResolution','bundler','--module','ESNext',join(directory,'compare.ts')], {encoding:'utf8'});
   if (result.status !== 0) { process.stderr.write(result.stdout + result.stderr); throw Error('OpenAPI/shared TypeScript contract drift'); }
   console.log(`Contract consistency passed: ${actual.size} routes and ${pairs.length} shared schemas`);

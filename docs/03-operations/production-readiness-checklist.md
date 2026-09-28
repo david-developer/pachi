@@ -18,7 +18,7 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 | Gate | Required result | Current evidence state |
 |---|---|---|
 | G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | Documentation package prepared; repository replacement/commit still to be performed. |
-| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — CI/browser closure pending; see the [current G1 work](../engineering/current-state.md#g1-closure-work-in-progress--2026-09-28). |
+| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — real mapped-ungranted browser acceptance pending; see the [current G1 work](../engineering/current-state.md#g1-closure-work-in-progress--2026-09-28). |
 | G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN. |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |
@@ -36,7 +36,7 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 
 - [x] Clean clone installs with pinned runtime/package versions and frozen lockfile; API/mobile/web/admin and worker skeleton start/build as applicable. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [x] Local PostgreSQL/PostGIS, migration framework, synthetic seeds and environment validation work without production credentials. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
-- [ ] CI checks type/lint/build, relevant tests, secrets/dependencies, migration and contract consistency.
+- [x] CI checks type/lint/build, relevant tests, secrets/dependencies, migration and contract consistency. Evidence: [exact 26f0b4b CI and check design](../engineering/current-state.md#current-g1-closure-status).
 - [x] Health/readiness, safe error envelope, request IDs and redacted logs are implemented. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [x] Threat/data boundaries cover identity, private evidence, organization scope, location privacy, client trust and external adapters. Evidence: [bounded implementation review and findings](../engineering/current-state.md#threat-boundary-review-of-implemented-foundation).
 - [x] Auth session registry, phone participation gate, staff MFA/step-up design and permission test harness demonstrated in isolated environments; production mock-auth rejection tested. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).

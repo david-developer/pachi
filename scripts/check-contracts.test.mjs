@@ -13,6 +13,7 @@ test('contract check rejects missing routes and incompatible shared response sha
       d => { delete d.paths['/v1/staff/session']; },
       d => { d.components.schemas.StaffSession.properties.display_name.type = 'integer'; },
       d => { d.components.schemas.ListingDraftResponse.required = []; },
+      d => { d.components.schemas.StaffSession.properties.unexpected_optional = {type:'string'}; },
     ]) {
       const doc = parse(readFileSync('apps/api/openapi.yaml', 'utf8')); mutation(doc);
       const path = join(directory, 'bad.yaml'); writeFileSync(path, stringify(doc));

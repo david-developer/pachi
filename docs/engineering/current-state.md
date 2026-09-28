@@ -3,7 +3,7 @@
 ## G1 closure work in progress — 2026-09-28
 
 - Started clean on feat/staff-auth-permissions, HEAD 6b39452610993598b10a406d9435897578c3a410; comparison base unchanged. Exact CI eb3fb7bf4a78c11cf45dc14d6e93a246928e0811 / run 36348972375 and 6b39452610993598b10a406d9435897578c3a410 / run 36349003275 both PASSED. Prior real staff authentication/logout/reauth/revocation and restore evidence preserved below.
-- In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; final exact-commit CI pending.
+- In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; checkpoint exact-commit CI passed as recorded below; follow-up pending.
 - Dependency audit initially found high/moderate/low advisories; patched direct packages and scoped transitive overrides produce zero known advisories. Mobile build exposed image-size v2 filename API incompatibility in older Metro; compatible Metro 0.83.8 patch now passes Android/iOS/web export. No advisory suppressions.
 - Secret scan full history found exactly two synthetic fixtures (fixed nonfunctional test secret and idempotency key); exact historical fingerprints only are documented in .gitleaksignore. Scanner canary fails on an ephemeral generated private key; normal scan passes. Contract check caught/fixed 3 missing route declarations and DTO enum/required-field drift; negative mutation tests added.
 - New owner-authorized ungranted Cognito fixture created using verified source IAM identity arn:aws:iam::451475820431:user/pachi-david-dev; invitation delivery SUPPRESSED. Dedicated issuer unchanged; new subject f2a534d4-f011-70c9-e6b8-643b3289c687 mapped through audited operator command to application user 0a855b6b-31bc-4b8a-ac79-b8a311e5c7df. Verified mapping, SUCCESS staff:identity audit, ZERO grants. Private mode-0600 input/temporary-password files outside Git under ~/.local/share/pachi/g1-ungranted; no email/credentials included here.
@@ -12,6 +12,37 @@
 - Marketplace hang cause remains UNRESOLVED. Orphaned Next parent and blocked listener were observed; restart restored responsiveness and user confirmed all workspace content. No evidence proves why it hung. Keep distinct from successful recovery.
 - Root .env, apps/web/.env, apps/admin/.env secrets preserved. No marketplace accounts/memberships modified; admin remains runtime-profile configured. G1 INCOMPLETE pending current work and real mapped-ungranted evidence.
 
+
+### Current G1 closure status
+
+- Checkpoint **26f0b4b20598ac7e7b3e488e4b8fb24cb576806e** exact CI
+  [36376252388](https://github.com/david-developer/pachi/actions/runs/36376252388)
+  PASSED, including new fail-closed secret/dependency/contract checks, test
+  migration, 8 database integrations, 5 API HTTP integrations, lint/typecheck/unit,
+  full API/mobile/web/admin/worker build and both Playwright browser suites.
+- Follow-up strengthens schema equality to reject unexpected optional fields;
+  four negative contract mutations and current contract check PASS locally.
+  Its final exact-commit CI is pending until the follow-up is pushed/run.
+- All eight canonical foundation criteria now have supporting implementation/test
+  evidence (retaining the prior restore result); the separately requested real
+  mapped-but-ungranted staff browser acceptance remains BLOCKED, so G1 is still
+  held INCOMPLETE. No new product routes or G2 work started.
+- AWS renewal was authorized and initiated with `aws login --profile
+  pachi-dev-source --region eu-west-1 --remote`; private instructions/input FIFO
+  under ~/.local/share/pachi/aws-renewal, no credential values in Git/log output.
+  Waiting for user's browser completion. Next: verify source and assumed role,
+  read this exact new subject's MFA settings through runtime, validate pool/client,
+  then one controlled private-window login. Do not count prior credential failure
+  as ungranted denial or change MFA preferences to conceal it.
+- Current service probes web3000/admin3002/API3001 readiness all 200. Admin PID
+  514185 still has pachi-staff-runtime; web PID595940 test issuer disabled.
+  Historical web.log contains 12 ECONNREFUSED and 4 fetch-failed strings, no OOM
+  or EPIPE evidence; recovery log contains none. No timestamps/stack establish
+  causality with orphaned listener's hang. Root cause remains UNRESOLVED, separate
+  from recovered service/current browser pass. No restart in this closure work.
+- Development DB retained at migration0014; new0015 exercised only on pachi_test.
+  Environment locations, account/provider data and secrets unchanged. Current
+  grant expiry remains **2026-09-28T19:35:57.049Z**, no renewal or broadening.
 
 ### Threat-boundary review of implemented foundation
 
