@@ -1,5 +1,44 @@
 # Engineering handoff
 
+## Real mapped-ungranted acceptance passed; G1 evidence complete — 2026-09-28
+
+- Started clean on feat/staff-auth-permissions at b467b99; exact Checks run
+  36411714166 PASSED. Comparison base unchanged. Completed foundation evidence
+  reused rather than repeating tests/investigations. This change is documentation
+  only; no application, service, environment, schema, grant or Cognito changes.
+- User reports fresh private-window login returned “Access denied: no eligible
+  staff grant.” Server callback 2347222e-cbf7-4a5d-bbb1-08dae1ce40f5 at
+  2026-09-28T10:48:04.551Z has failure_stage=staff_session_registration,
+  category=grant_denied (RESOURCE_SCOPE_DENIED). Sequential awaited callback
+  code establishes that discovery, token exchange/ID and access validation,
+  matching local identity, authentication freshness and full AWS pool/client/user
+  MFA attestation completed before this stage. No inference from page text alone.
+- Signed issuer/subject fingerprint matches exactly
+  https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_7uju5eCyw /
+  f2a534d4-f011-70c9-e6b8-643b3289c687. Recomputed SHA256:
+  6775da8d1ed3aeea52f5631c4af1bcbec72664f5a0b3bf5fd3f82aa8bee0f927.
+- Read-only database target verified localhost:5432/pachi_local. Exact identity
+  maps to 0a855b6b-31bc-4b8a-ac79-b8a311e5c7df, unlinked_at=null,
+  account_state=PENDING_PHONE (eligible for staff mapping under existing policy).
+  ZERO grants and ZERO staff sessions. Correlated staff:login audit at
+  10:48:04.529637Z targets that same application user, reason NO_ELIGIBLE_GRANT,
+  outcome DENIED. This proves a mapped identity denied for no grant, distinct
+  from the historical absent-mapping denial. No privileges or session created.
+- All eight canonical G1 foundation criteria already have recorded evidence;
+  this closes the last additional real-provider/browser acceptance hold.
+  G1 foundation evidence is COMPLETE. This does not certify production readiness,
+  later marketplace gates, unimplemented sensitive endpoints, or new product work.
+- Preserve separate operational limitations: marketplace web hang root cause
+  remains unresolved despite recovery; the isolated 10:44:44 discovery failure
+  has no underlying error code and remains unexplained despite subsequent success.
+  Neither is relabeled fixed by this acceptance result. Original privileged grant
+  unchanged, recorded expiry 2026-09-28T19:35:57.049Z; no automatic renewal.
+- Focused safe callback/audit/mapping/count checks and git diff --check passed.
+  No application tests rerun for docs-only changes; prior passing exact-commit CI
+  retained, final documentation checkpoint CI reported separately. No further
+  browser action required for this case. Next action: await user-selected scope;
+  do not begin provider verification, media approval or publication.
+
 ## Post-activation browser attempt stopped at discovery — 2026-09-28
 
 - Arrival clean at d918eac513cb604d02183d541167f7323470c41a on
