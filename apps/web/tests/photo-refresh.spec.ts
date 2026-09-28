@@ -10,6 +10,7 @@ async function workspace(page: Page) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/session') return route.fulfill({ json: { authenticated: true, participationAllowed: true, accountState: 'ACTIVE', csrfToken: 'synthetic' } });
+    if (path === '/api/account/provider/verification') return route.fulfill({ json: { case: null } });
     if (path === '/api/account/properties') return route.fulfill({ json: { properties: [{ id: 'property', city: 'Synthetic city', neighborhood: 'Synthetic area' }] } });
     if (path === '/api/account/listing-drafts') return route.fulfill({ json: { drafts } });
     if (path.endsWith('/readiness')) return route.fulfill({ json: { publication_status: 'DRAFT', checks: [], can_submit: false } });

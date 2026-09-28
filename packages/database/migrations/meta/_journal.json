@@ -113,6 +113,20 @@
       "when": 1790553600000,
       "tag": "0015_organization_authorization",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790640000000,
+      "tag": "0016_provider_identity_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790726400000,
+      "tag": "0017_verification_snapshot_and_holds",
+      "breakpoints": true
     }
   ]
 }

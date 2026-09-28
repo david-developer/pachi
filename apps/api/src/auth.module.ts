@@ -16,6 +16,8 @@ import { LocalSmsDevelopmentController, LocalSmsSink, PhoneVerificationControlle
 import { ProviderController } from './provider.controller.js';
 import { ProviderStore } from '@pachi/database';
 import { PropertyController } from './property.controller.js';
+import { ProviderVerificationStore } from '@pachi/database';
+import { StaffVerificationController } from './staff-verification.controller.js';
 
 const config = loadConfig();
 const { client } = createDatabase();
@@ -24,6 +26,7 @@ const store = new IdentityStore(client);
 const phoneStore = new PhoneVerificationStore(client, config.PHONE_OTP_HMAC_SECRET);
 const mediaStore = new ListingMediaStore(client);
 const listingSubmissionStore = new ListingSubmissionStore(client);
+const providerVerificationStore = new ProviderVerificationStore(client, config.NODE_ENV === 'test' ? 'synthetic-test-only-provider-evidence-secret' : process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
 const mediaStorage = new LocalPrivateMediaStorage(config.MEDIA_STORAGE_ROOT);
 const mediaScanner = new ClamAvScanner(config.CLAMAV_HOST, config.CLAMAV_PORT);
 const smsProvider = new LocalSmsSink(config.NODE_ENV);
@@ -39,11 +42,12 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [StaffController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [StaffController, StaffVerificationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },
+  { provide: 'PROVIDER_VERIFICATION_STORE', useValue: providerVerificationStore },
   { provide: ProviderStore, useExisting: 'PROVIDER_STORE' },
   { provide: 'PROPERTY_DRAFT_STORE', useValue: new PropertyDraftStore(client) },
   { provide: 'LISTING_MEDIA_STORE', useValue: mediaStore },

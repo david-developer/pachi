@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
+import { randomUUID } from 'node:crypto';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { NestFactory } from '@nestjs/core';
-import { createDatabase } from '@pachi/database';
+import { createDatabase, ProviderVerificationStore, type StaffPrincipal } from '@pachi/database';
 
 if (!process.env.DATABASE_TEST_URL && process.env.CI === 'true') throw new Error('DATABASE_TEST_URL is required for property HTTP integration tests');
 const integrationTest = process.env.DATABASE_TEST_URL ? test : test.skip;
@@ -43,6 +44,21 @@ void integrationTest('property and private listing draft HTTP workflow is eligib
     assert.equal(draftResponse.status, 201); const draft = await draftResponse.json() as { id: string; property_id: string; publication_status: string; currency: string; version: number };
     assert.equal(draft.publication_status, 'DRAFT'); assert.equal(draft.currency, 'XAF'); assert.equal(draft.property_id, property.id);
     const readinessResponse = await fetch(`${base}/v1/account/listing-drafts/${draft.id}/readiness`, { headers: { authorization: `Bearer ${firstToken}` } }); const readiness = await readinessResponse.json() as { can_submit: boolean; publication_status: string; revision_id: string; offering_version_id: string; checks: Array<{ code: string; status: string }> }; assert.equal(readinessResponse.status, 200); assert.equal(readiness.can_submit, false); assert.equal(readiness.publication_status, 'DRAFT'); assert.ok(readiness.checks.some((check) => check.code === 'MEDIA_REQUIRED' && check.status === 'BLOCKED')); assert.ok(readiness.checks.some((check) => check.code === 'MEDIA_APPROVAL_UNAVAILABLE' && check.status === 'BLOCKED')); assert.ok(readiness.checks.some((check) => check.code === 'PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE' && check.status === 'BLOCKED')); assert.ok(readiness.checks.some((check) => check.code === 'PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE' && check.status === 'BLOCKED'));
+    const verificationStore = new ProviderVerificationStore(client,'synthetic-readiness-evidence-secret-long-enough');
+    const verificationCase = await verificationStore.submit(first.id,{idempotencyKey:`readiness_${randomUUID()}`,capacity:'OWNER',governmentId:'PACHI_SYNTHETIC_GOVERNMENT_ID_V1',liveSelfie:'PACHI_SYNTHETIC_LIVE_SELFIE_V1',requestId:randomUUID(),syntheticEnabled:true});
+    const officerScope = {kind:'case' as const,id:verificationCase.id,permissions:['provider:verify','evidence:read']};
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${second.id},'VERIFICATION_OFFICER',${JSON.stringify(officerScope)}::jsonb,now()+interval '1 day','test','readiness decision fixture')`;
+    await client`UPDATE verification_cases SET assigned_staff_user_id=${second.id},version=2 WHERE id=${verificationCase.id}`;
+    const officer = {row:{user_id:second.id,authenticated_at:new Date()},grants:[{role:'VERIFICATION_OFFICER',scope:officerScope}]} as unknown as StaffPrincipal;
+    await verificationStore.evidence(officer,verificationCase.id,'GOVERNMENT_ID',randomUUID()); await verificationStore.evidence(officer,verificationCase.id,'LIVE_SELFIE',randomUUID());
+    await verificationStore.decide(officer,verificationCase.id,{expectedVersion:2,outcome:'VERIFIED',reasonCode:'EVIDENCE_ACCEPTED',requestId:randomUUID()});
+    const verifiedReadiness = await (await fetch(`${base}/v1/account/listing-drafts/${draft.id}/readiness`, { headers: { authorization: `Bearer ${firstToken}` } })).json() as typeof readiness;
+    assert.ok(verifiedReadiness.checks.some(check => check.code==='PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE' && check.status==='READY'));
+    assert.ok(verifiedReadiness.checks.some(check => check.code==='MEDIA_APPROVAL_UNAVAILABLE' && check.status==='BLOCKED'));
+    assert.equal(verifiedReadiness.can_submit,false);
+    await client`UPDATE verification_claims SET valid_until=now()-interval '1 second' WHERE source_case_id=${verificationCase.id}`;
+    const expiredReadiness = await (await fetch(`${base}/v1/account/listing-drafts/${draft.id}/readiness`, { headers: { authorization: `Bearer ${firstToken}` } })).json() as typeof readiness;
+    assert.ok(expiredReadiness.checks.some(check => check.code==='PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE' && check.status==='BLOCKED'));
     await client`UPDATE provider_property_relationships SET authorization_status = 'PENDING' WHERE id = ${property.relationship_id}`;
     const pendingReadinessResponse = await fetch(`${base}/v1/account/listing-drafts/${draft.id}/readiness`, { headers: { authorization: `Bearer ${firstToken}` } }); const pendingReadiness = await pendingReadinessResponse.json() as { checks: Array<{ code: string; status: string }> }; assert.equal(pendingReadinessResponse.status, 200); assert.ok(pendingReadiness.checks.some((check) => check.code === 'PROPERTY_AUTHORITY_REVIEW_UNAVAILABLE' && check.status === 'BLOCKED')); assert.ok(pendingReadiness.checks.some((check) => check.code === 'PROPERTY_RELATIONSHIP_NOT_CURRENT' && check.status === 'BLOCKED'));
     await client`UPDATE provider_property_relationships SET authorization_status = 'DECLARED' WHERE id = ${property.relationship_id}`;

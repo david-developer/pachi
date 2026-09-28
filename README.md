@@ -191,16 +191,56 @@ photo changes are then unavailable until a documented review outcome permits
 correction. Approval, publication and market status remain separate staff or
 domain operations.
 
-This local foundation deliberately reports `MEDIA_APPROVAL_UNAVAILABLE` and
-`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`: `READY` media is not approved
-media, and the evidence-backed `PROVIDER_IDENTITY` capability is not present in
-the current workspace. Do not change verification records manually to make a
-submission succeed. A complete eligible submission walkthrough remains blocked
-until those approved capabilities are implemented; blocked readiness,
+This local foundation deliberately retains `MEDIA_APPROVAL_UNAVAILABLE`:
+`READY` media is not approved media. The
+`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE` check now reads the current,
+evidence-backed provider claim and becomes ready only after an authorized
+verification decision; it blocks again immediately when the claim expires.
+Do not change verification records manually to make a submission succeed.
+A complete eligible submission walkthrough remains blocked until media content
+approval and the remaining authority/risk-hold controls are implemented; blocked readiness,
 cross-provider scope, stale versions, and duplicate-safe command behavior are
 covered against the disposable test database. If the web session expires or an
 API data request is unauthorized, the account and provider screens show a
 session/data error or sign-in prompt rather than presenting empty collections.
+
+## Provider identity verification
+
+The provider workspace shows the latest `PROVIDER_IDENTITY` case, its decision
+reason and next action. Its submission audit records declared provider capacity; the case holds synthetic
+government-ID and live-selfie evidence classes, an immutable submitted snapshot,
+policy version and a unique request key. Correction, rejection recovery and
+renewal create linked cases; a pending case cannot be duplicated. The admin
+workspace opens a case by the reference shown to its applicant. An assigned
+`VERIFICATION_OFFICER` with an unexpired case grant for `provider:verify` and
+`evidence:read` reviews both evidence classes and records `VERIFIED`, `REJECTED`
+or `NEEDS_RESUBMISSION` with an outcome-specific reason. Review and decision
+require staff TOTP reauthentication within 15 minutes. A separate current
+`admin:permissions_manage` grant may assign an already scoped officer, but does
+not permit a verification decision. Applicant/reviewer conflicts are denied.
+
+The decision, current claim, provider projection, audit and durable event row
+change in one transaction. Listing readiness reads the live claim instead of a
+profile flag. A local worker expires claims and pauses dependent published
+listings; reads fail closed immediately at expiry. Synthetic evidence is encrypted,
+excluded from listing media and public DTOs, access-audited, deleted 30 days
+after case closure unless held, and never put on a public CDN. No public
+evidence URL exists in this slice.
+
+**E01 still blocks real identity intake.** The approved Cameroon document list,
+privacy notice, retention schedule and deletion/backup treatment must be
+recorded before real documents are collected. This implementation accepts only
+exact synthetic samples in isolated tests. A local development demo needs both
+`PACHI_SYNTHETIC_VERIFICATION_EVIDENCE=enabled` and a distinct
+`VERIFICATION_EVIDENCE_SECRET` of at least 32 characters in the ignored root
+environment file; production ignores the flag. Never put real documents in the
+demo. The live provider account and human staff grant are unchanged. When real
+evidence intake is implemented after E01, an operator must create a **new**, narrowly
+scoped `VERIFICATION_OFFICER` grant for that case through the existing reviewed
+`staff:grant` command, then assign it with an eligible recently authenticated
+admin session. Do not add `provider:verify` to an existing `SUPER_ADMIN` grant or
+extend that grant automatically. Real evidence storage/processing, appeal and
+notification acceptance remain separate release work.
 
 ## Web authentication setup
 
@@ -538,15 +578,16 @@ is an operator boundary, not a public privilege-management API or dashboard.
 
 Open the admin app and sign in. Confirm eligible identity/role/scope summaries,
 logout and reauthentication; test denied login with an ungranted staff user.
-Sensitive future endpoints must use `requireStaffPermission`, current grant and
-resource eligibility, purpose/reason and audit. This foundation implements none
-of the verification, media approval, moderation or publication decisions.
+Sensitive endpoints use `requireStaffPermission`, current grant and resource
+eligibility, purpose/reason and audit. Provider identity case decisions are now
+implemented for synthetic evidence; media approval, listing moderation and
+publication are still unavailable.
 
 Automated policy, session, signed-token HTTP and Playwright checks use synthetic
 identities/isolated data. They do not prove real Cognito login, TOTP enrolment,
-AWS IAM configuration or provider rotation. Real staff acceptance remains pending
-until the new pool/client/user and these browser checks are completed. G1 and
-production readiness remain incomplete.
+AWS IAM configuration or provider rotation. Earlier real staff foundation
+acceptance completed G1. The new verification workflow has synthetic tests
+only; production readiness remains incomplete.
 
 ### Isolated local backup/restore check
 

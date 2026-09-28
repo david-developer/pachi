@@ -15,4 +15,5 @@ export type { ListingReadiness, ListingReadinessCheck, ListingSubmissionRecord, 
 export type { ListingDraft, ListingPurpose, PropertyDraft, PropertyType, RelationshipType } from './property.js';
 export * from './staff-policy.js';
 export * from './staff.js';
+export * from './provider-verification.js';
 export { OrganizationAccessStore } from './organization.js';
