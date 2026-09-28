@@ -12,18 +12,21 @@ export class ProviderStore {
     const types = [...new Set(input.providerTypes)];
     if (!types.length || types.some((type) => !INDIVIDUAL_PROVIDER_TYPES.includes(type))) throw new IdentityError('PROVIDER_TYPE_INVALID', 'Provider type is invalid');
     const displayName = input.displayName.trim();
-    if (displayName.length < 2 || displayName.length > 120) throw new IdentityError('PROVIDER_PROFILE_INVALID', 'Provider display name is invalid');
+    const bio = input.bio?.trim() || null;
+    const serviceArea = input.serviceArea?.trim() || null;
+    if (displayName.length < 2 || displayName.length > 120 || (bio?.length ?? 0) > 1000 || (serviceArea?.length ?? 0) > 240) throw new IdentityError('PROVIDER_PROFILE_INVALID', 'Provider profile fields are invalid');
     return this.client.begin(async (transaction) => {
       await transaction`SELECT pg_advisory_xact_lock(hashtextextended(${`provider:${userId}`}, 0))`;
       const userRows = await transaction<{ account_state: string; phone_verified: boolean }[]>`SELECT account_state, EXISTS (SELECT 1 FROM phone_contacts WHERE user_id = ${userId} AND verified_at IS NOT NULL AND replaced_at IS NULL) AS phone_verified FROM users WHERE id = ${userId} FOR UPDATE`;
       const user = userRows[0];
       if (!user) throw new IdentityError('ACCOUNT_NOT_FOUND', 'Account not found');
       if (user.account_state !== 'ACTIVE' || !user.phone_verified) throw new IdentityError('PROVIDER_ELIGIBILITY_REQUIRED', 'Active phone-confirmed account required');
-      const existing = await transaction<{provider_types:string[];state:string;verification_current:boolean}[]>`SELECT p.provider_types,p.state,EXISTS(SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) AS verification_current FROM provider_profiles p WHERE p.user_id=${userId} FOR UPDATE`;
+      const existing = await transaction<{provider_types:string[];state:string;account_state:string|null;verification_current:boolean}[]>`SELECT p.provider_types,p.state,a.state AS account_state,EXISTS(SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) AS verification_current FROM provider_profiles p LEFT JOIN provider_accounts a ON a.provider_profile_id=p.id WHERE p.user_id=${userId} FOR UPDATE OF p`;
+      if (existing[0] && (['RESTRICTED','SUSPENDED','CLOSED'].includes(existing[0].state) || (existing[0].account_state !== null && !['DRAFT','PENDING_VERIFICATION','ACTIVE'].includes(existing[0].account_state)))) throw new IdentityError('PROVIDER_STATE_INVALID', 'Provider profile cannot be edited in its current state');
       if (existing[0] && (existing[0].state === 'PENDING_VERIFICATION' || existing[0].verification_current) && (existing[0].provider_types.length !== types.length || existing[0].provider_types.some(type => !types.includes(type as IndividualProviderType)))) throw new IdentityError('PROVIDER_CAPACITY_LOCKED','Provider capacity cannot change during review or while verified');
       const profileRows = await transaction<{ id: string }[]>`
         INSERT INTO provider_profiles (user_id, provider_types, display_name, bio, service_area)
-        VALUES (${userId}, ${types}, ${displayName}, ${input.bio?.trim() || null}, ${input.serviceArea?.trim() || null})
+        VALUES (${userId}, ${types}, ${displayName}, ${bio}, ${serviceArea})
         ON CONFLICT (user_id) DO UPDATE SET provider_types = EXCLUDED.provider_types, display_name = EXCLUDED.display_name, bio = EXCLUDED.bio, service_area = EXCLUDED.service_area, updated_at = now()
         RETURNING id
       `;
