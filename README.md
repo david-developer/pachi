@@ -53,6 +53,11 @@ configured; local tests use a separate synthetic signed issuer and never
 enable that issuer in production. The response contract is in
 `packages/contracts` and the API description is in `apps/api/openapi.yaml`.
 
+Phone ownership uses `POST /v1/account/phone/request` and
+`POST /v1/account/phone/confirm`. Local delivery uses an isolated test sink;
+production SMS is intentionally not configured until the documented E02 gate.
+The request response never contains an OTP.
+
 Run the foundation checks with `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, and `pnpm build`. These checks do not replace the documented
 G1-G6 evidence gates.
