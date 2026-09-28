@@ -10,7 +10,7 @@ void integration('provider identity case, scoped review, claim and retention', a
   const url = new URL(process.env.DATABASE_TEST_URL!);
   assert.equal(url.hostname,'localhost'); assert.equal(url.port,'5433'); assert.equal(url.pathname,'/pachi_test');
   const {client} = createDatabase(url.toString());
-  const store = new ProviderVerificationStore(client,'synthetic-evidence-key-for-isolated-tests');
+  const store = new ProviderVerificationStore(client,'synthetic-evidence-key-for-isolated-tests',true);
   const ids: string[] = [];
   const principal = (userId:string, grants: Array<{role:string;scope:{kind:'platform'|'case';id:string;permissions:string[]}}>, authenticatedAt=new Date()) => ({row:{user_id:userId,authenticated_at:authenticatedAt},grants}) as unknown as StaffPrincipal;
   try {
@@ -60,6 +60,21 @@ void integration('provider identity case, scoped review, claim and retention', a
     assert.equal(decisionsRows[0]?.count,1);
     const current=await client<{valid:boolean}[]>`SELECT EXISTS(SELECT 1 FROM verification_claims WHERE provider_profile_id=${profileId} AND status='VERIFIED' AND valid_until>now()) AS valid`;
     assert.equal(current[0]?.valid,true);
+    // Local synthetic reviews outside the isolated eligibility mode record a case result only.
+    await client`INSERT INTO phone_contacts(user_id,normalized_e164,verified_at,verification_version) VALUES (${other},'+237690009998',now(),1)`;
+    const sampleProfile=await client<{id:string}[]>`INSERT INTO provider_profiles(user_id,provider_types,display_name) VALUES (${other},ARRAY['OWNER'],'Nonqualifying Sample') RETURNING id`;
+    await client`INSERT INTO provider_accounts(provider_profile_id) VALUES (${sampleProfile[0]!.id})`;
+    const caseOnlyStore=new ProviderVerificationStore(client,'synthetic-evidence-key-for-isolated-tests');
+    const sample=await caseOnlyStore.submit(other,{...input,idempotencyKey:`caseonly_${randomUUID()}`});
+    const sampleScope={kind:'case' as const,id:sample.id,permissions:['provider:verify','evidence:read']};
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${officer},'VERIFICATION_OFFICER',${JSON.stringify(sampleScope)}::jsonb,now()+interval '1 day','test','synthetic nonqualification fixture')`;
+    const sampleOfficer=principal(officer,[{role:'VERIFICATION_OFFICER',scope:sampleScope}]);
+    await caseOnlyStore.assign(adminPrincipal,sample.id,officer,1,randomUUID());
+    await caseOnlyStore.evidence(sampleOfficer,sample.id,'GOVERNMENT_ID',randomUUID());
+    await caseOnlyStore.evidence(sampleOfficer,sample.id,'LIVE_SELFIE',randomUUID());
+    assert.equal((await caseOnlyStore.decide(sampleOfficer,sample.id,{expectedVersion:2,outcome:'VERIFIED',reasonCode:'EVIDENCE_ACCEPTED',requestId:randomUUID()})).state,'VERIFIED');
+    const nonqualifying=await client<{profile_state:string;verification_status:string;account_state:string;claim_count:number}[]>`SELECT p.state AS profile_state,p.verification_status,a.state AS account_state,(SELECT count(*)::int FROM verification_claims WHERE provider_profile_id=p.id) AS claim_count FROM provider_profiles p JOIN provider_accounts a ON a.provider_profile_id=p.id WHERE p.id=${sampleProfile[0]!.id}`;
+    assert.deepEqual(nonqualifying[0],{profile_state:'DRAFT',verification_status:'NOT_VERIFIED',account_state:'DRAFT',claim_count:0});
     await client`UPDATE verification_claims SET valid_until=now()-interval '1 day' WHERE provider_profile_id=${profileId}`;
     await client`UPDATE verification_cases SET valid_until=now()-interval '1 day' WHERE id=${first.id}`;
     assert.equal((await store.own(applicant))?.state,'EXPIRED');

@@ -191,14 +191,19 @@ photo changes are then unavailable until a documented review outcome permits
 correction. Approval, publication and market status remain separate staff or
 domain operations.
 
-This local foundation deliberately retains `MEDIA_APPROVAL_UNAVAILABLE`:
-`READY` media is not approved media. The
-`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE` check now reads the current,
-evidence-backed provider claim and becomes ready only after an authorized
-verification decision; it blocks again immediately when the claim expires.
+Photo content review is separate from technical processing. A region-scoped
+`LISTING_MODERATOR` can review a current `READY` draft photo and record
+`APPROVED`, `CHANGES_REQUIRED`, or `REJECTED` with a reason. The provider sees
+the decision and any replacement action. `MEDIA_CONTENT_APPROVAL_REQUIRED`
+remains blocked until every current photo has content approval; `READY` alone
+never satisfies it. The
+`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE` check reads the current,
+evidence-backed provider claim. Synthetic claims count only in isolated tests;
+outside tests, real intake is disabled pending E01, so this check remains
+blocked. An expired claim also blocks immediately.
 Do not change verification records manually to make a submission succeed.
-A complete eligible submission walkthrough remains blocked until media content
-approval and the remaining authority/risk-hold controls are implemented; blocked readiness,
+A complete eligible submission walkthrough remains blocked by the authority
+risk-hold reader, and synthetic provider claims never count outside isolated tests. Blocked readiness,
 cross-provider scope, stale versions, and duplicate-safe command behavior are
 covered against the disposable test database. If the web session expires or an
 API data request is unauthorized, the account and provider screens show a

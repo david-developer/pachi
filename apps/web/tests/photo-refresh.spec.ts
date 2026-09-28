@@ -19,7 +19,7 @@ async function workspace(page: Page) {
     if (path.endsWith('/media')) {
       if (route.request().method() === 'POST') return route.fulfill({ status: 202, json: { status: 'UPLOADED_QUARANTINED' } });
       reads += 1;
-      const body = { media: [{ id: `photo-${id}`, media_asset_id: `photo-${id}`, status: id === 'b' ? 'READY' : status, display_order: 0, is_cover: false, variants: [], width: null, height: null, size_bytes: null, failure_code: null, retryable: false }] };
+      const body = { media: [{ id: `photo-${id}`, media_asset_id: `photo-${id}`, status: id === 'b' ? 'READY' : status, review_status: 'NOT_REVIEWED', next_action: id === 'b' || status === 'READY' ? 'WAIT_FOR_REVIEW' : 'WAIT_FOR_PROCESSING', display_order: 0, is_cover: false, variants: [], width: null, height: null, size_bytes: null, failure_code: null, retryable: false }] };
       const respond = nextResponse;
       nextResponse = undefined;
       return respond ? respond(route, body) : route.fulfill({ json: body });

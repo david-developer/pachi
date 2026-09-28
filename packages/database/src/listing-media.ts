@@ -3,7 +3,7 @@ import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
 
 export type MediaLifecycle = 'UPLOAD_AUTHORIZED' | 'UPLOADED_QUARANTINED' | 'PROCESSING' | 'READY' | 'FAILED' | 'REJECTED' | 'DELETION_PENDING' | 'DELETED';
-export type ListingMediaItem = { id: string; mediaAssetId: string; displayOrder: number; isCover: boolean; state: MediaLifecycle; mimeType: string | null; bytes: number | null; width: number | null; height: number | null; variants: Array<{ variantWidth: number; width: number; height: number; bytes: number; mime: string }>; failureCode: string | null; retryable: boolean };
+export type ListingMediaItem = { id: string; mediaAssetId: string; displayOrder: number; isCover: boolean; state: MediaLifecycle; reviewStatus: 'NOT_REVIEWED' | 'APPROVED' | 'CHANGES_REQUIRED' | 'REJECTED'; nextAction: 'WAIT_FOR_PROCESSING' | 'WAIT_FOR_REVIEW' | 'NONE' | 'REPLACE_PHOTO' | 'RETRY_OR_REMOVE'; mimeType: string | null; bytes: number | null; width: number | null; height: number | null; variants: Array<{ variantWidth: number; width: number; height: number; bytes: number; mime: string }>; failureCode: string | null; retryable: boolean };
 export type MediaUploadIntent = { assetId: string; storageReference: string; listingId: string; providerAccountId: string };
 export type MediaProcessingJob = { id: string; jobId: string; storageReference: string; originalMime: string; originalBytes: number; originalSha256: string; ownerProviderAccountId: string; attemptCount: number };
 export type MediaCleanupJob = { id: string; storageReference: string };
@@ -66,7 +66,7 @@ export class ListingMediaStore {
   public async media(userId: string, listingId: string): Promise<ListingMediaItem[]> {
     const provider = await this.requireProvider(userId);
     await this.requireDraftScope(this.client, listingId, provider.account_id);
-    const rows = await this.client<MediaRow[]>`SELECT lm.id, lm.media_asset_id, lm.display_order, lm.is_cover, ma.lifecycle, ma.original_mime, ma.original_bytes, ma.width, ma.height, ma.derivative_manifest, ma.failure_code, ma.retryable FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order`;
+    const rows = await this.client<MediaRow[]>`SELECT lm.id, lm.media_asset_id, lm.display_order, lm.is_cover, lm.review_status, ma.lifecycle, ma.original_mime, ma.original_bytes, ma.width, ma.height, ma.derivative_manifest, ma.failure_code, ma.retryable FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order`;
     return rows.map(mapMedia);
   }
 
@@ -197,5 +197,5 @@ export class ListingMediaStore {
   }
 }
 
-type MediaRow = { id: string; media_asset_id: string; display_order: number; is_cover: boolean; lifecycle: MediaLifecycle; original_mime: string | null; original_bytes: number | string | null; width: number | null; height: number | null; derivative_manifest: Record<string, { width: number; height: number; bytes: number; mime: string }>; failure_code: string | null; retryable: boolean };
-function mapMedia(row: MediaRow): ListingMediaItem { return { id: row.id, mediaAssetId: row.media_asset_id, displayOrder: row.display_order, isCover: row.is_cover, state: row.lifecycle, mimeType: row.original_mime, bytes: row.original_bytes === null ? null : Number(row.original_bytes), width: row.width, height: row.height, variants: Object.entries(row.derivative_manifest).map(([variantWidth, info]) => ({ ...info, variantWidth: Number(variantWidth) })), failureCode: row.failure_code, retryable: row.retryable }; }
+type MediaRow = { id: string; media_asset_id: string; display_order: number; is_cover: boolean; review_status: ListingMediaItem['reviewStatus']; lifecycle: MediaLifecycle; original_mime: string | null; original_bytes: number | string | null; width: number | null; height: number | null; derivative_manifest: Record<string, { width: number; height: number; bytes: number; mime: string }>; failure_code: string | null; retryable: boolean };
+function mapMedia(row: MediaRow): ListingMediaItem { return { id: row.id, mediaAssetId: row.media_asset_id, displayOrder: row.display_order, isCover: row.is_cover, state: row.lifecycle, reviewStatus: row.review_status, nextAction: row.lifecycle === 'FAILED' ? 'RETRY_OR_REMOVE' : ['REJECTED','DELETION_PENDING','DELETED'].includes(row.lifecycle) ? 'REPLACE_PHOTO' : row.lifecycle !== 'READY' ? 'WAIT_FOR_PROCESSING' : row.review_status === 'NOT_REVIEWED' ? 'WAIT_FOR_REVIEW' : row.review_status === 'APPROVED' ? 'NONE' : 'REPLACE_PHOTO', mimeType: row.original_mime, bytes: row.original_bytes === null ? null : Number(row.original_bytes), width: row.width, height: row.height, variants: Object.entries(row.derivative_manifest).map(([variantWidth, info]) => ({ ...info, variantWidth: Number(variantWidth) })), failureCode: row.failure_code, retryable: row.retryable }; }
