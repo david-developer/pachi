@@ -21,6 +21,19 @@ void integrationTest('provider onboarding is retry-safe and requires active phon
     assert.deepEqual(second.providerTypes, ['OWNER', 'PROPERTY_MANAGER']);
     assert.equal(second.state, 'DRAFT');
     assert.equal(second.verificationStatus, 'NOT_VERIFIED');
+    const updated = await store.onboard(user.id, { ...input, displayName: 'Updated Homes', bio: 'Public profile', serviceArea: 'Douala' });
+    assert.equal(updated.profileId, first.profileId);
+    assert.equal(updated.state, 'DRAFT');
+    assert.equal(updated.verificationStatus, 'NOT_VERIFIED');
+    assert.equal((await store.get(user.id))?.displayName, 'Updated Homes');
+    assert.equal((await store.get(user.id))?.bio, 'Public profile');
+    assert.equal((await store.get(user.id))?.serviceArea, 'Douala');
+    await assert.rejects(store.onboard(user.id, { ...input, bio: 'x'.repeat(1001) }), { code: 'PROVIDER_PROFILE_INVALID' });
+    await assert.rejects(store.onboard(user.id, { ...input, serviceArea: 'x'.repeat(241) }), { code: 'PROVIDER_PROFILE_INVALID' });
+    assert.equal((await store.get(user.id))?.displayName, 'Updated Homes');
+    await client`UPDATE provider_profiles SET state = 'SUSPENDED' WHERE id = ${first.profileId}`;
+    await assert.rejects(store.onboard(user.id, { ...input, displayName: 'Not allowed' }), { code: 'PROVIDER_STATE_INVALID' });
+    assert.equal((await store.get(user.id))?.displayName, 'Updated Homes');
     const count = await client`SELECT count(*)::int AS count FROM provider_profiles WHERE user_id = ${user.id}`;
     assert.equal(count[0]?.count, 1);
   } finally {

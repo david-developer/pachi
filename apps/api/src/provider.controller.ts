@@ -20,9 +20,10 @@ export class ProviderController {
   @Post('onboard')
   public async onboard(@Req() request: AuthenticatedRequest, @Body() body: { provider_types?: unknown; display_name?: unknown; bio?: unknown; service_area?: unknown }): Promise<ProviderOnboardingResponse> {
     const principal = this.requirePrincipal(request);
-    const types = Array.isArray(body.provider_types) ? body.provider_types.filter((value): value is IndividualProviderType => typeof value === 'string') : [];
+    const types = Array.isArray(body.provider_types) ? body.provider_types as unknown[] : [];
     try {
-      const input = { providerTypes: types, displayName: typeof body.display_name === 'string' ? body.display_name : '' } as { providerTypes: IndividualProviderType[]; displayName: string; bio?: string; serviceArea?: string };
+      if (types.some((value) => typeof value !== 'string') || (body.bio !== undefined && typeof body.bio !== 'string') || (body.service_area !== undefined && typeof body.service_area !== 'string')) throw new IdentityError('PROVIDER_PROFILE_INVALID', 'Provider profile fields are invalid');
+      const input = { providerTypes: types as IndividualProviderType[], displayName: typeof body.display_name === 'string' ? body.display_name : '' } as { providerTypes: IndividualProviderType[]; displayName: string; bio?: string; serviceArea?: string };
       if (typeof body.bio === 'string') input.bio = body.bio;
       if (typeof body.service_area === 'string') input.serviceArea = body.service_area;
       return toResponse(await this.store.onboard(principal.userId, input));

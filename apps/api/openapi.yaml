@@ -126,6 +126,7 @@ paths:
   /v1/account/provider/onboard:
     post:
       security: [{ bearerAuth: [] }]
+      description: Create or edit the authenticated individual's provider profile. Editing public details does not activate the provider or change verification status; capacity is locked during review or while a current verified claim exists.
       requestBody:
         required: true
         content:
@@ -138,7 +139,7 @@ paths:
                 display_name: { type: string, minLength: 2, maxLength: 120 }
                 bio: { type: string, maxLength: 1000 }
                 service_area: { type: string, maxLength: 240 }
-      responses: { '201': { description: Draft individual provider onboarding result, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderOverviewResponse' } } } }, '409': { description: Account is not ACTIVE and phone-confirmed or input is invalid } }
+      responses: { '201': { description: Current individual provider profile after create or edit, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderOverviewResponse' } } } }, '409': { description: Account or profile state is ineligible, capacity locked, or input invalid } }
   /v1/account/provider/verification:
     get:
       security: [{ bearerAuth: [] }]
