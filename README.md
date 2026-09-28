@@ -503,8 +503,12 @@ password if prompted, then enroll an authenticator and enter its TOTP directly
 on Cognito. An authenticated user without a mapped grant must be denied first.
 Establish the dedicated issuer/subject unambiguously before using the audited
 identity/grant commands below; equal emails never identify the grant target.
-Real role/scope display, ungranted denial, marketplace-token rejection and logout
-remain pending browser acceptance. Recent step-up is unverified.
+Real role/scope display, logout, TOTP reauthentication/session replacement and
+marketplace-token rejection have recorded evidence in the [shared handoff](docs/engineering/current-state.md).
+The separate real mapped-but-ungranted browser case remains pending; an earlier
+absent-mapping denial is not that case. The real reauthentication and server
+permission-guard freshness evidence do not certify unimplemented sensitive
+business operations or G1 completion.
 
 For operator commands, load the intended root/admin files explicitly in a clean
 operator shell (Node supports `--env-file`); do not reuse a test shell. From root:

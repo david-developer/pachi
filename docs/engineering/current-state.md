@@ -3,13 +3,14 @@
 ## G1 closure work in progress — 2026-09-28
 
 - Started clean on feat/staff-auth-permissions, HEAD 6b39452610993598b10a406d9435897578c3a410; comparison base unchanged. Exact CI eb3fb7bf4a78c11cf45dc14d6e93a246928e0811 / run 36348972375 and 6b39452610993598b10a406d9435897578c3a410 / run 36349003275 both PASSED. Prior real staff authentication/logout/reauth/revocation and restore evidence preserved below.
-- In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; checkpoint exact-commit CI passed as recorded below; follow-up pending.
+- In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; both implementation checkpoints passed exact-commit CI as recorded below.
 - Dependency audit initially found high/moderate/low advisories; patched direct packages and scoped transitive overrides produce zero known advisories. Mobile build exposed image-size v2 filename API incompatibility in older Metro; compatible Metro 0.83.8 patch now passes Android/iOS/web export. No advisory suppressions.
 - Secret scan full history found exactly two synthetic fixtures (fixed nonfunctional test secret and idempotency key); exact historical fingerprints only are documented in .gitleaksignore. Scanner canary fails on an ephemeral generated private key; normal scan passes. Contract check caught/fixed 3 missing route declarations and DTO enum/required-field drift; negative mutation tests added.
 - New owner-authorized ungranted Cognito fixture created using verified source IAM identity arn:aws:iam::451475820431:user/pachi-david-dev; invitation delivery SUPPRESSED. Dedicated issuer unchanged; new subject f2a534d4-f011-70c9-e6b8-643b3289c687 mapped through audited operator command to application user 0a855b6b-31bc-4b8a-ac79-b8a311e5c7df. Verified mapping, SUCCESS staff:identity audit, ZERO grants. Private mode-0600 input/temporary-password files outside Git under ~/.local/share/pachi/g1-ungranted; no email/credentials included here.
-- User reports password/TOTP browser completion. Latest callback c2eb8ada-1b14-4c44-92df-8eabef06f3ec at 2026-09-28T03:58:03.010Z matched signed issuer/subject fingerprint 6775da8d1ed3aeea52f5631c4af1bcbec72664f5a0b3bf5fd3f82aa8bee0f927, passed freshness, FAILED aws_credential_resolution. Prior 03:50:13 attempt same stage. Independent runtime CLI confirms expired source login. Pool/user MFA and grant checks NOT REACHED. Not an ungranted-denial pass. Requested authorization to initiate browser-based AWS login renewal; no policy or MFA changes.
+- User reports password/TOTP browser completion. Latest callback c2eb8ada-1b14-4c44-92df-8eabef06f3ec at 2026-09-28T03:58:03.010Z matched signed issuer/subject fingerprint 6775da8d1ed3aeea52f5631c4af1bcbec72664f5a0b3bf5fd3f82aa8bee0f927, passed freshness, FAILED aws_credential_resolution. Prior 03:50:13 attempt same stage. Independent runtime CLI confirms expired source login. Pool/user MFA and grant checks NOT REACHED. Not an ungranted-denial pass. User authorized browser-based AWS login renewal; CLI started and remains waiting for the browser authorization response through a private local FIFO. No policy or MFA changes.
 - Existing active grant unchanged: SUPER_ADMIN/platform pachi/only admin:permissions_manage, expires 2026-09-28T19:35:57.049Z, not revoked. No renewal.
 - Marketplace hang cause remains UNRESOLVED. Orphaned Next parent and blocked listener were observed; restart restored responsiveness and user confirmed all workspace content. No evidence proves why it hung. Keep distinct from successful recovery.
+- Remaining acceptance action: complete the already-started AWS browser renewal using the private instructions file, then verify runtime readback and one fresh test-identity login. Latest attempt failed before MFA policy and grant checks; do not retry the browser until credentials/policy reads work. If the CLI reports expiration, start a new authorized remote login and replace only its private instruction/FIFO files.
 - Root .env, apps/web/.env, apps/admin/.env secrets preserved. No marketplace accounts/memberships modified; admin remains runtime-profile configured. G1 INCOMPLETE pending current work and real mapped-ungranted evidence.
 
 
@@ -22,7 +23,11 @@
   full API/mobile/web/admin/worker build and both Playwright browser suites.
 - Follow-up strengthens schema equality to reject unexpected optional fields;
   four negative contract mutations and current contract check PASS locally.
-  Its final exact-commit CI is pending until the follow-up is pushed/run.
+  Exact follow-up **49a21e2ff8ff5a463b3a3bc892f3f45ff05d245d** CI
+  [36376512323](https://github.com/david-developer/pachi/actions/runs/36376512323)
+  PASSED all steps, including both browser suites. Final documentation-only
+  handoff commit is tested separately; inspect Checks for its exact HEAD rather
+  than substituting either earlier run. The final response reports that run.
 - All eight canonical foundation criteria now have supporting implementation/test
   evidence (retaining the prior restore result); the separately requested real
   mapped-but-ungranted staff browser acceptance remains BLOCKED, so G1 is still
@@ -62,8 +67,8 @@ or certification of unimplemented G2+ features.
 
 No remaining exploitable G1 defect was found in this bounded review after the
 SQL and organization/security-check fixes. Unimplemented business flows stay
-unavailable; their acceptance tests are not claimed. Final exact-commit CI and
-real mapped-ungranted browser proof remain pending. Marketplace hang remains an
+unavailable; their acceptance tests are not claimed. Implementation exact-commit CI PASSED;
+real mapped-ungranted browser proof remains pending. Marketplace hang remains an
 unresolved operational finding, despite successful restart and browser recovery.
 
 ## G1 evidence reconciliation — 2026-09-27
