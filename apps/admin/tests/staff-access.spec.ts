@@ -49,3 +49,22 @@ test('staff summary, denial and logout controls use session API; fixtures do not
   await expect(page.getByRole('status')).toContainText('Access denied');
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
 });
+test('assigned officer reviews synthetic evidence and records a decision', async ({page}) => {
+  await page.route('**/api/session', route => route.fulfill({json:{csrf:'synthetic-csrf',session:{display_name:'Synthetic officer',grants:[{role:'VERIFICATION_OFFICER',scope:{kind:'case',id:'00000000-0000-4000-8000-000000000001',permissions:['provider:verify','evidence:read']},expires_at:new Date(Date.now()+3600_000).toISOString()}],absolute_expires_at:new Date(Date.now()+3600_000).toISOString(),idle_expires_at:new Date(Date.now()+1800_000).toISOString(),reauthentication_expires_at:new Date(Date.now()+900_000).toISOString()}}}));
+  await page.route('**/api/verification-cases/**', route => {
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/GOVERNMENT_ID')) return route.fulfill({json:{content:'PACHI_SYNTHETIC_GOVERNMENT_ID_V1'}});
+    if(path.endsWith('/LIVE_SELFIE')) return route.fulfill({json:{content:'PACHI_SYNTHETIC_LIVE_SELFIE_V1'}});
+    if(path.endsWith('/decision')) {expect(route.request().headers()['x-csrf-token']).toBe('synthetic-csrf');expect(route.request().postDataJSON()).toMatchObject({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'});return route.fulfill({status:201,json:{id:'00000000-0000-4000-8000-000000000001',state:'VERIFIED',version:3,policy_version:'provider-identity-synthetic-v1',reason_code:'EVIDENCE_ACCEPTED',valid_until:new Date(Date.now()+86400_000).toISOString()}});}
+    return route.fulfill({json:{id:'00000000-0000-4000-8000-000000000001',state:'PENDING',version:2,policy_version:'provider-identity-synthetic-v1',reason_code:null,valid_until:null}});
+  });
+  await page.goto('/');
+  await page.getByLabel('Case ID').fill('00000000-0000-4000-8000-000000000001');
+  await page.getByRole('button',{name:'Open assigned case'}).click();
+  await expect(page.getByText('State: PENDING.',{exact:false})).toBeVisible();
+  await page.getByRole('button',{name:'Review government ID sample'}).click();
+  await page.getByRole('button',{name:'Review live selfie sample'}).click();
+  await page.getByLabel('Decision').selectOption('VERIFIED');
+  await page.getByRole('button',{name:'Record decision'}).click();
+  await expect(page.getByText('State: VERIFIED.',{exact:false})).toBeVisible();
+});

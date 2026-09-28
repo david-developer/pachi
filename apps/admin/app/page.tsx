@@ -1,11 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { StaffSessionResponse } from '@pachi/contracts';
+type VerificationCase = { id: string; state: string; version: number; reason_code: string | null; policy_version: string; valid_until: string | null };
 export default function Page() {
   const [session, setSession] = useState<StaffSessionResponse | null>(null),
     [csrf, setCsrf] = useState(''),
     [status, setStatus] = useState('Loading staff session…');
   const [busy, setBusy] = useState(false);
+  const [caseId, setCaseId] = useState('');
+  const [verificationCase, setVerificationCase] = useState<VerificationCase | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState('');
+  const [reviewed, setReviewed] = useState<string[]>([]);
+  const [outcome, setOutcome] = useState<'VERIFIED' | 'REJECTED' | 'NEEDS_RESUBMISSION'>('NEEDS_RESUBMISSION');
+  const [reason, setReason] = useState('DOCUMENT_UNREADABLE');
+  const [assignee, setAssignee] = useState('');
   useEffect(() => {
     let alive = true;
     fetch('/api/session', { cache: 'no-store' })
@@ -63,6 +71,32 @@ export default function Page() {
       setBusy(false);
     }
   }
+  async function caseRequest(path: string, payload?: object) {
+    const response = await fetch(`/api/verification-cases/${encodeURIComponent(caseId.trim())}${path}`, { method: payload ? 'POST' : 'GET', headers: payload ? { 'content-type': 'application/json', 'x-csrf-token': csrf } : {}, ...(payload ? { body: JSON.stringify(payload) } : {}), cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message ?? result.error ?? 'Case action was denied');
+    return result;
+  }
+  async function openCase() {
+    setVerificationStatus('Loading case…'); setReviewed([]); setVerificationCase(null);
+    try { setVerificationCase(await caseRequest('') as VerificationCase); setVerificationStatus('Assigned case loaded.'); }
+    catch (error) { setVerificationStatus(error instanceof Error ? error.message : 'Case access denied.'); }
+  }
+  async function readEvidence(kind: 'GOVERNMENT_ID' | 'LIVE_SELFIE') {
+    try { const evidence = await caseRequest(`/evidence/${kind}`) as {content:string}; if (!evidence.content.startsWith('PACHI_SYNTHETIC_')) throw new Error('Unexpected evidence format'); setReviewed((current) => [...new Set([...current,kind])]); setVerificationStatus(`${kind.replaceAll('_',' ')} sample reviewed.`); }
+    catch (error) { setVerificationStatus(error instanceof Error ? error.message : 'Evidence access denied.'); }
+  }
+  async function decide() {
+    if (!verificationCase) return;
+    setVerificationStatus('Recording decision…');
+    try { setVerificationCase(await caseRequest('/decision', { expected_version: verificationCase.version, outcome, reason_code: reason }) as VerificationCase); setVerificationStatus('Decision recorded. The provider can refresh status.'); }
+    catch (error) { setVerificationStatus(error instanceof Error ? error.message : 'Decision was not recorded.'); }
+  }
+  async function assign() {
+    setVerificationStatus('Assigning case…');
+    try { const assigned = await caseRequest('/assign', { staff_user_id: assignee, expected_version: verificationCase?.version ?? 1 }) as VerificationCase; setVerificationCase(assigned); setVerificationStatus('Case assigned to the scoped officer.'); }
+    catch (error) { setVerificationStatus(error instanceof Error ? error.message : 'Assignment denied.'); }
+  }
   return (
     <main style={{ maxWidth: 720, margin: '3rem auto', padding: '1rem', fontFamily: 'sans-serif' }}>
       <h1>Pachi staff access</h1>
@@ -89,6 +123,7 @@ export default function Page() {
             Recent authentication valid until {session.reauthentication_expires_at}. Sensitive
             actions require reauthentication within 15 minutes.
           </p>
+          <section aria-labelledby="verification-heading"><h2 id="verification-heading">Provider identity cases</h2><p>Use the case ID from the provider submission. Case access and decisions require a current assigned grant. Real evidence intake remains disabled pending E01.</p><label>Case ID<input value={caseId} onChange={(event) => setCaseId(event.target.value)} /></label><button type="button" onClick={() => { void openCase(); }}>Open assigned case</button>{verificationStatus && <p role="status">{verificationStatus}</p>}{session.grants.some(g => g.scope.permissions.includes('admin:permissions_manage')) && <div><label>Officer user ID<input value={assignee} onChange={(event) => setAssignee(event.target.value)} /></label><button type="button" onClick={() => { void assign(); }}>Assign scoped officer</button></div>}{verificationCase && <div><p>State: {verificationCase.state}. Policy: {verificationCase.policy_version}. Version: {verificationCase.version}. {verificationCase.reason_code ? `Reason: ${verificationCase.reason_code}.` : ''}</p>{verificationCase.state === 'PENDING' && <><button type="button" onClick={() => { void readEvidence('GOVERNMENT_ID'); }}>Review government ID sample</button><button type="button" onClick={() => { void readEvidence('LIVE_SELFIE'); }}>Review live selfie sample</button><p>Reviewed: {reviewed.join(', ') || 'none'}</p><label>Decision<select value={outcome} onChange={(event) => { const next = event.target.value as typeof outcome; setOutcome(next); setReason(next === 'VERIFIED' ? 'EVIDENCE_ACCEPTED' : next === 'REJECTED' ? 'SUBJECT_MISMATCH' : 'DOCUMENT_UNREADABLE'); }}><option>NEEDS_RESUBMISSION</option><option>REJECTED</option><option>VERIFIED</option></select></label><label>Reason<select value={reason} onChange={(event) => setReason(event.target.value)}>{(outcome === 'VERIFIED' ? ['EVIDENCE_ACCEPTED'] : outcome === 'REJECTED' ? ['SUBJECT_MISMATCH','POLICY_NOT_MET'] : ['DOCUMENT_UNREADABLE','EVIDENCE_INCOMPLETE']).map(code => <option key={code}>{code}</option>)}</select></label><button type="button" disabled={reviewed.length !== 2} onClick={() => { void decide(); }}>Record decision</button></>}</div>}</section>
         </>
       ) : null}
       {csrf ? (

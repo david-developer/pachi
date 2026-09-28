@@ -37,6 +37,32 @@ paths:
               schema: { $ref: '#/components/schemas/StaffSession' }
         '401': { description: Invalid staff token, missing registration/MFA evidence, revoked session or idle/absolute expiry }
         '403': { description: No current eligible StaffGrant }
+  /v1/staff/verification-cases/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned officer reads case metadata; case scoped provider:verify grant required.
+      responses: { '200': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Case scope denied } }
+  /v1/staff/verification-cases/{id}/evidence/{kind}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: kind, in: path, required: true, schema: { type: string, enum: [GOVERNMENT_ID, LIVE_SELFIE] } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned evidence:read officer with recent TOTP only; access audited and never public.
+      responses: { '200': { description: Private synthetic test evidence }, '403': { description: Scope or step up required } }
+  /v1/staff/verification-cases/{id}/decision:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned provider:verify officer with recent TOTP decides a reviewed PENDING case at the expected version.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version, outcome, reason_code], properties: { expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [VERIFIED, REJECTED, NEEDS_RESUBMISSION] }, reason_code: { type: string } } } } } }
+      responses: { '201': { description: Recorded decision, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Scope or step up required }, '409': { description: Invalid or stale decision } }
+  /v1/staff/verification-cases/{id}/assign:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Recent authenticated admin:permissions_manage operator assigns an officer who already has an unexpired case scoped provider:verify grant. Assignment does not grant review rights.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [staff_user_id, expected_version], properties: { staff_user_id: { type: string, format: uuid }, expected_version: { type: integer, minimum: 1 } } } } } }
+      responses: { '201': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Scope or step up required }, '409': { description: Stale version } }
   /v1/auth/bootstrap:
     post:
       summary: Resolve an access-token identity and register its session
@@ -86,6 +112,16 @@ paths:
                 bio: { type: string, maxLength: 1000 }
                 service_area: { type: string, maxLength: 240 }
       responses: { '201': { description: Draft individual provider onboarding result, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderOverviewResponse' } } } }, '409': { description: Account is not ACTIVE and phone-confirmed or input is invalid } }
+  /v1/account/provider/verification:
+    get:
+      security: [{ bearerAuth: [] }]
+      description: Current applicant's latest provider identity case and permitted next action; no evidence, reviewer notes or storage keys.
+      responses: { '200': { description: Applicant case status, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationStatus' } } } } }
+    post:
+      security: [{ bearerAuth: [] }]
+      description: Submit only explicit synthetic local test evidence. Real identity intake remains disabled until E01; actual documents are rejected.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [capacity, government_id, live_selfie, idempotency_key], properties: { capacity: { type: string, enum: [OWNER, INDEPENDENT_AGENT, PROPERTY_MANAGER] }, government_id: { type: string }, live_selfie: { type: string }, idempotency_key: { type: string } } } } } }
+      responses: { '201': { description: Pending case, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Provider scope denied }, '409': { description: Pending case or invalid input }, '503': { description: E01 intake gate unavailable } }
   /v1/account/properties:
     get:
       summary: List properties and provider declarations owned by the current provider
@@ -292,6 +328,27 @@ components:
     staffBearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Separate staff issuer/client access token with pachi/staff scope }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
+    ProviderVerificationCase:
+      type: object
+      required: [id, provider_profile_id, state, version, policy_version, submitted_at, decision_at, reason_code, valid_until, previous_case_id, next_action]
+      properties:
+        id: { type: string, format: uuid }
+        provider_profile_id: { type: string, format: uuid }
+        state: { type: string, enum: [PENDING, NEEDS_RESUBMISSION, VERIFIED, REJECTED, EXPIRED, REVOKED] }
+        version: { type: integer }
+        policy_version: { type: string }
+        submitted_at: { type: string, format: date-time }
+        decision_at: { type: [string, 'null'], format: date-time }
+        reason_code: { type: [string, 'null'] }
+        valid_until: { type: [string, 'null'], format: date-time }
+        previous_case_id: { type: [string, 'null'], format: uuid }
+        next_action: { type: string, enum: [WAIT_FOR_REVIEW, SUBMIT_CORRECTION, SUBMIT_NEW_CASE, RENEW, CONTACT_SUPPORT, NONE] }
+    ProviderVerificationStatus:
+      type: object
+      required: [case, synthetic_intake_available]
+      properties:
+        case: { oneOf: [{ $ref: '#/components/schemas/ProviderVerificationCase' }, { type: 'null' }] }
+        synthetic_intake_available: { type: boolean }
     StaffSession:
       type: object
       additionalProperties: false

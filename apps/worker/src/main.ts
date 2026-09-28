@@ -1,4 +1,4 @@
-import { createDatabase, ListingMediaStore } from '@pachi/database';
+import { createDatabase, ListingMediaStore, ProviderVerificationStore } from '@pachi/database';
 import { createMediaWorkerFromEnvironment, runMediaWorker } from './media-worker.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -10,10 +10,15 @@ const mediaRoot = process.env.MEDIA_STORAGE_ROOT ?? '../../.local-media';
 const worker = createMediaWorkerFromEnvironment(mediaStore, mediaRoot);
 const abort = new AbortController();
 const workerTask = runMediaWorker({ ...worker, signal: abort.signal });
+const verificationStore = new ProviderVerificationStore(client, process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
+const retentionTimer = setInterval(() => {
+  void verificationStore.expireClaims().then(() => verificationStore.purgeExpiredEvidence()).catch(() => console.error(JSON.stringify({event:'verification_maintenance_failed'})));
+}, 60_000);
 
 const shutdown = async (signal: string) => {
   console.log(JSON.stringify({ event: 'worker_shutdown', signal }));
   abort.abort();
+  clearInterval(retentionTimer);
   await workerTask;
   await client.end();
   process.exit(0);

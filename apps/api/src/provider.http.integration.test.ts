@@ -53,6 +53,20 @@ void integrationTest('provider onboarding HTTP wiring supports success, retry, a
     assert.equal(retry.status, 201);
     const retryResult = await retry.json() as { profile_id: string; account_id: string };
     assert.equal(retryResult.profile_id, firstResult.profile_id); assert.equal(retryResult.account_id, firstResult.account_id);
+    const verificationEndpoint = `${base}/v1/account/provider/verification`;
+    const verificationInput = { capacity: 'OWNER', government_id: 'PACHI_SYNTHETIC_GOVERNMENT_ID_V1', live_selfie: 'PACHI_SYNTHETIC_LIVE_SELFIE_V1', idempotency_key: 'synthetic-http-case-1' };
+    const verificationPost = (token: string, body: unknown) => fetch(verificationEndpoint, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await verificationPost(secondToken, verificationInput)).status, 403);
+    assert.equal((await verificationPost(firstToken, { ...verificationInput, government_id: 'actual-private-document' })).status, 503);
+    const submitted = await verificationPost(firstToken, verificationInput);
+    assert.equal(submitted.status, 201);
+    const pending = await submitted.json() as { id: string; state: string; next_action: string };
+    assert.equal(pending.state, 'PENDING'); assert.equal(pending.next_action, 'WAIT_FOR_REVIEW');
+    const ownStatus = await fetch(verificationEndpoint, { headers: { authorization: `Bearer ${firstToken}` } });
+    assert.equal((await ownStatus.json() as {case:{id:string}}).case.id,pending.id);
+    const crossStatus = await fetch(verificationEndpoint, { headers: { authorization: `Bearer ${secondToken}` } });
+    assert.deepEqual(await crossStatus.json(), {case:null,synthetic_intake_available:true});
+    assert.equal((await verificationPost(firstToken,verificationInput)).status,201);
     const crossUser = await fetch(`${base}/v1/account/provider`, { headers: { authorization: `Bearer ${secondToken}` } });
     assert.equal(crossUser.status, 200); assert.deepEqual(await crossUser.json(), { provider: null });
   } finally {

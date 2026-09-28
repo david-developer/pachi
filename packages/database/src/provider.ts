@@ -19,6 +19,8 @@ export class ProviderStore {
       const user = userRows[0];
       if (!user) throw new IdentityError('ACCOUNT_NOT_FOUND', 'Account not found');
       if (user.account_state !== 'ACTIVE' || !user.phone_verified) throw new IdentityError('PROVIDER_ELIGIBILITY_REQUIRED', 'Active phone-confirmed account required');
+      const existing = await transaction<{provider_types:string[];state:string;verification_current:boolean}[]>`SELECT p.provider_types,p.state,EXISTS(SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) AS verification_current FROM provider_profiles p WHERE p.user_id=${userId} FOR UPDATE`;
+      if (existing[0] && (existing[0].state === 'PENDING_VERIFICATION' || existing[0].verification_current) && (existing[0].provider_types.length !== types.length || existing[0].provider_types.some(type => !types.includes(type as IndividualProviderType)))) throw new IdentityError('PROVIDER_CAPACITY_LOCKED','Provider capacity cannot change during review or while verified');
       const profileRows = await transaction<{ id: string }[]>`
         INSERT INTO provider_profiles (user_id, provider_types, display_name, bio, service_area)
         VALUES (${userId}, ${types}, ${displayName}, ${input.bio?.trim() || null}, ${input.serviceArea?.trim() || null})
@@ -34,7 +36,7 @@ export class ProviderStore {
       `;
       const account = accountRows[0];
       if (!account) throw new IdentityError('PROVIDER_ACCOUNT_FAILED', 'Provider account could not be created');
-      const result = await transaction<ProviderRow[]>`SELECT p.id AS profile_id, a.id AS account_id, p.provider_types, p.state, p.verification_status, p.display_name, p.bio, p.service_area FROM provider_profiles p JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE p.id = ${profile.id}`;
+      const result = await transaction<ProviderRow[]>`SELECT p.id AS profile_id, a.id AS account_id, p.provider_types, p.state, CASE WHEN p.verification_status='VERIFIED' AND NOT EXISTS (SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) THEN 'NOT_VERIFIED' ELSE p.verification_status END AS verification_status, p.display_name, p.bio, p.service_area FROM provider_profiles p JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE p.id = ${profile.id}`;
       const row = result[0];
       if (!row) throw new IdentityError('PROVIDER_READ_FAILED', 'Provider profile could not be read');
       return mapProvider(row);
@@ -42,7 +44,7 @@ export class ProviderStore {
   }
 
   public async get(userId: string): Promise<ProviderOnboarding | null> {
-    const rows = await this.client<ProviderRow[]>`SELECT p.id AS profile_id, a.id AS account_id, p.provider_types, p.state, p.verification_status, p.display_name, p.bio, p.service_area FROM provider_profiles p JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE p.user_id = ${userId}`;
+    const rows = await this.client<ProviderRow[]>`SELECT p.id AS profile_id, a.id AS account_id, p.provider_types, p.state, CASE WHEN p.verification_status='VERIFIED' AND NOT EXISTS (SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) THEN 'NOT_VERIFIED' ELSE p.verification_status END AS verification_status, p.display_name, p.bio, p.service_area FROM provider_profiles p JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE p.user_id = ${userId}`;
     return rows[0] ? mapProvider(rows[0]) : null;
   }
 }

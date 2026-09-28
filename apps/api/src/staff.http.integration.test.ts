@@ -5,9 +5,10 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { generateKeyPair, SignJWT } from 'jose';
-import { createDatabase, StaffStore } from '@pachi/database';
+import { createDatabase, StaffStore, ProviderVerificationStore } from '@pachi/database';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { StaffController, StaffAuthService } from './staff.controller.js';
+import { StaffVerificationController } from './staff-verification.controller.js';
 const integration = process.env.DATABASE_TEST_URL ? test : test.skip;
 void integration(
   'actual staff HTTP controller accepts only registered staff tokens and live grants',
@@ -27,10 +28,12 @@ void integration(
       strictStaff: true,
     });
     const store = new StaffStore(client, 'synthetic-staff-secret-long-enough-for-encryption');
+    const verificationStore = new ProviderVerificationStore(client,'synthetic-evidence-key-for-http-staff-test');
     @Module({
-      controllers: [StaffController],
+      controllers: [StaffController, StaffVerificationController],
       providers: [
         { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(store, verifier) },
+        { provide: 'PROVIDER_VERIFICATION_STORE', useValue: verificationStore },
       ],
     })
     class TestApp {}
@@ -84,6 +87,26 @@ void integration(
       const success = await get(good);
       assert.equal(success.status, 200);
       assert.ok(!JSON.stringify(await success.json()).includes(subject));
+      const applicantRows=await client<{id:string}[]>`INSERT INTO users(account_state) VALUES ('ACTIVE') RETURNING id`;
+      const applicant=applicantRows[0]!.id;
+      await client`INSERT INTO phone_contacts(user_id,normalized_e164,verified_at,verification_version) VALUES (${applicant},'+237690000991',now(),1)`;
+      const profile=await client<{id:string}[]>`INSERT INTO provider_profiles(user_id,provider_types,display_name) VALUES (${applicant},ARRAY['OWNER'],'Staff HTTP Synthetic') RETURNING id`;
+      await client`INSERT INTO provider_accounts(provider_profile_id) VALUES (${profile[0]!.id})`;
+      const caseRecord=await verificationStore.submit(applicant,{idempotencyKey:`http_${randomUUID()}`,capacity:'OWNER',governmentId:'PACHI_SYNTHETIC_GOVERNMENT_ID_V1',liveSelfie:'PACHI_SYNTHETIC_LIVE_SELFIE_V1',requestId:randomUUID(),syntheticEnabled:true});
+      const caseUrl=`http://127.0.0.1:${address.port}/v1/staff/verification-cases/${caseRecord.id}`;
+      const caseGet=()=>fetch(caseUrl,{headers:{authorization:`Bearer ${good}`}});
+      assert.equal((await caseGet()).status,403); // ANALYST cannot inspect verification case
+      const officerGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'VERIFICATION_OFFICER',${JSON.stringify({kind:'case',id:caseRecord.id,permissions:['provider:verify','evidence:read']})}::jsonb,now()+interval '1 day','test','isolated HTTP officer') RETURNING id`;
+      await client`UPDATE verification_cases SET assigned_staff_user_id=${userId},version=2 WHERE id=${caseRecord.id}`;
+      assert.equal((await caseGet()).status,200);
+      const decision=(body:unknown)=>fetch(`${caseUrl}/decision`,{method:'POST',headers:{authorization:`Bearer ${good}`,'content-type':'application/json'},body:JSON.stringify(body)});
+      assert.equal((await decision({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'})).status,409); // evidence not reviewed
+      assert.equal((await fetch(`${caseUrl}/evidence/GOVERNMENT_ID`,{headers:{authorization:`Bearer ${good}`}})).status,200);
+      assert.equal((await fetch(`${caseUrl}/evidence/LIVE_SELFIE`,{headers:{authorization:`Bearer ${good}`}})).status,200);
+      assert.equal((await decision({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'})).status,201);
+      assert.equal((await decision({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'})).status,409);
+      await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${officerGrant[0]!.id}`;
+      assert.equal((await caseGet()).status,403);
       for (const extra of [
         { client_id: 'marketplace' },
         { scope: 'pachi/account' },
