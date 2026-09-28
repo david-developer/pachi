@@ -1,3 +1,5 @@
+import { OrganizationAccessStore } from '@pachi/database';
+import { OrganizationSettingsGuard } from './organization.guard.js';
 import { StaffStore } from '@pachi/database';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { Module } from '@nestjs/common';
@@ -60,7 +62,9 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
   { provide: 'AUTH_SERVICE', useFactory: () => new AuthService(store, verifier) },
   { provide: AuthService, useExisting: 'AUTH_SERVICE' },
   AuthGuard,
+  OrganizationSettingsGuard,
+  { provide: 'ORGANIZATION_ACCESS_STORE', useValue: new OrganizationAccessStore(client) },
   { provide: 'PHONE_VERIFICATION_SERVICE', useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) },
   { provide: PhoneVerificationService, useExisting: 'PHONE_VERIFICATION_SERVICE' }
-], exports: [AuthService] })
+], exports: [AuthService, 'AUTH_SERVICE', 'ORGANIZATION_ACCESS_STORE', AuthGuard, OrganizationSettingsGuard] })
 export class AuthModule {}

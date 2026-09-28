@@ -562,3 +562,37 @@ This exercises the local mechanism in the accepted
 It does not demonstrate deployed RDS recovery, media/identity/key restoration,
 cross-region recovery or E04. Current results belong in the
 [shared handoff](docs/engineering/current-state.md).
+
+### G1 security and consistency checks
+
+Run `pnpm check:secrets`, `pnpm check:dependencies`, and `pnpm check:contracts`.
+CI runs all three as ordinary failing steps (no `continue-on-error`).
+
+- Secret scanning uses [Gitleaks](https://github.com/gitleaks/gitleaks) 8.30.1,
+  SHA256-verified Linux x64 release, full fetched Git history and 100% redaction.
+  A generated disposable private-key canary must return failure first. Only two
+  exact historical synthetic-test finding fingerprints are ignored; reasons are
+  beside them in `.gitleaksignore`. No file/directory blanket exclusions.
+- [pnpm audit](https://pnpm.io/cli/audit) checks production AND development
+  dependencies at severity `low` and above; registry errors also fail. There are
+  no advisory exceptions. Scoped overrides in `pnpm-workspace.yaml` fix upstream
+  transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
+  Metro passes filenames to the removed v1 API. Mobile exports exercise this
+  compatibility; xcode's UUID v4 and query-string decoding retain their used APIs.
+- Contract checking generates types from OpenAPI in a temporary directory,
+  compares every shared schema bidirectionally with `@pachi/contracts`, and
+  checks the exact Nest controller method/path inventory plus SQL/journal
+  consistency. Negative mutations prove route, field-type and required-field
+  drift fail. BootstrapRequest remains an inline controller input, not an exported
+  shared DTO. This is structural consistency, not proof that arbitrary runtime
+  JSON conforms: HTTP integration tests exercise the implemented runtime guards.
+
+Migration 0015 adds organization authorization tables and a current-member unique
+index. `OrganizationSettingsGuard` is exported by the real auth module and checks
+current account, verified phone, organization and membership on every request.
+Its isolated HTTP harness uses the same signed token before and after revocation.
+No organization product endpoint, invitation, ownership transfer or mutation API
+is exposed. Those future operations must add their own assignment/step-up,
+transactional final-owner and audit checks; this settings guard grants none of
+those permissions. Apply migrations to development only when that slice needs
+these tables; G1 validation uses the guarded test database.

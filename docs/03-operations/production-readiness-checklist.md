@@ -18,7 +18,7 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 | Gate | Required result | Current evidence state |
 |---|---|---|
 | G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | Documentation package prepared; repository replacement/commit still to be performed. |
-| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — see the [G1 evidence reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27). |
+| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — CI/browser closure pending; see the [current G1 work](../engineering/current-state.md#g1-closure-work-in-progress--2026-09-28). |
 | G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN. |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |
@@ -38,9 +38,9 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 - [x] Local PostgreSQL/PostGIS, migration framework, synthetic seeds and environment validation work without production credentials. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 - [ ] CI checks type/lint/build, relevant tests, secrets/dependencies, migration and contract consistency.
 - [x] Health/readiness, safe error envelope, request IDs and redacted logs are implemented. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
-- [ ] Threat/data boundaries cover identity, private evidence, organization scope, location privacy, client trust and external adapters.
+- [x] Threat/data boundaries cover identity, private evidence, organization scope, location privacy, client trust and external adapters. Evidence: [bounded implementation review and findings](../engineering/current-state.md#threat-boundary-review-of-implemented-foundation).
 - [x] Auth session registry, phone participation gate, staff MFA/step-up design and permission test harness demonstrated in isolated environments; production mock-auth rejection tested. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
-- [ ] Current membership/account/session revocation denial tested; database constraints and stale-write/idempotency conventions demonstrated.
+- [x] Current membership/account/session revocation denial tested; database constraints and stale-write/idempotency conventions demonstrated. Evidence: [current G1 work](../engineering/current-state.md#g1-closure-work-in-progress--2026-09-28), actual module/guard HTTP harness with isolated memberships; no organization product endpoint is exposed.
 - [x] Backup/restore mechanism demonstrated in nonproduction; environment/secret separation and future deployed restore procedure recorded. Evidence: [2026-09-27 reconciliation](../engineering/current-state.md#g1-evidence-reconciliation--2026-09-27).
 
 ## G2 — Working marketplace slice

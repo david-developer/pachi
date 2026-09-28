@@ -1,6 +1,44 @@
 # Engineering handoff
 
+## G1 closure work in progress — 2026-09-28
+
+- Started clean on feat/staff-auth-permissions, HEAD 6b39452610993598b10a406d9435897578c3a410; comparison base unchanged. Exact CI eb3fb7bf4a78c11cf45dc14d6e93a246928e0811 / run 36348972375 and 6b39452610993598b10a406d9435897578c3a410 / run 36349003275 both PASSED. Prior real staff authentication/logout/reauth/revocation and restore evidence preserved below.
+- In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; final exact-commit CI pending.
+- Dependency audit initially found high/moderate/low advisories; patched direct packages and scoped transitive overrides produce zero known advisories. Mobile build exposed image-size v2 filename API incompatibility in older Metro; compatible Metro 0.83.8 patch now passes Android/iOS/web export. No advisory suppressions.
+- Secret scan full history found exactly two synthetic fixtures (fixed nonfunctional test secret and idempotency key); exact historical fingerprints only are documented in .gitleaksignore. Scanner canary fails on an ephemeral generated private key; normal scan passes. Contract check caught/fixed 3 missing route declarations and DTO enum/required-field drift; negative mutation tests added.
+- New owner-authorized ungranted Cognito fixture created using verified source IAM identity arn:aws:iam::451475820431:user/pachi-david-dev; invitation delivery SUPPRESSED. Dedicated issuer unchanged; new subject f2a534d4-f011-70c9-e6b8-643b3289c687 mapped through audited operator command to application user 0a855b6b-31bc-4b8a-ac79-b8a311e5c7df. Verified mapping, SUCCESS staff:identity audit, ZERO grants. Private mode-0600 input/temporary-password files outside Git under ~/.local/share/pachi/g1-ungranted; no email/credentials included here.
+- User reports password/TOTP browser completion. Latest callback c2eb8ada-1b14-4c44-92df-8eabef06f3ec at 2026-09-28T03:58:03.010Z matched signed issuer/subject fingerprint 6775da8d1ed3aeea52f5631c4af1bcbec72664f5a0b3bf5fd3f82aa8bee0f927, passed freshness, FAILED aws_credential_resolution. Prior 03:50:13 attempt same stage. Independent runtime CLI confirms expired source login. Pool/user MFA and grant checks NOT REACHED. Not an ungranted-denial pass. Requested authorization to initiate browser-based AWS login renewal; no policy or MFA changes.
+- Existing active grant unchanged: SUPER_ADMIN/platform pachi/only admin:permissions_manage, expires 2026-09-28T19:35:57.049Z, not revoked. No renewal.
+- Marketplace hang cause remains UNRESOLVED. Orphaned Next parent and blocked listener were observed; restart restored responsiveness and user confirmed all workspace content. No evidence proves why it hung. Keep distinct from successful recovery.
+- Root .env, apps/web/.env, apps/admin/.env secrets preserved. No marketplace accounts/memberships modified; admin remains runtime-profile configured. G1 INCOMPLETE pending current work and real mapped-ungranted evidence.
+
+
+### Threat-boundary review of implemented foundation
+
+Review scope: accepted product PERM-001–004/ORG-003, roles-and-permissions,
+ADRs 0002/0004/0005; current routes, stores, media worker and browser/session
+boundaries. This is an implementation review, not independent penetration testing
+or certification of unimplemented G2+ features.
+
+| Boundary / abuse attempt | Implementation and evidence | Finding / disposition |
+|---|---|---|
+| Identity: forged/wrong-client/ID token, email takeover, revoked family reuse, stale staff grant | token-verifier + IdentityStore issuer/subject uniqueness/session tombstones; StaffStore live grants; token-verifier, identity integration, staff HTTP tests and preserved real Cognito evidence | Existing checks pass; no email linking introduced. Real separate mapped-ungranted test currently blocked at expired AWS credentials, not mistaken for grant denial. |
+| Private evidence/media: other owner reads/uploads, public original/storage-key exposure, failed scan treated as approval | PropertyController authenticated private routes; ListingMediaStore provider joins on reads/mutations; private no-store derivative responses; media tests include cross-owner/scan outage/EXIF/checksum; submission hard blocks missing approvals | No evidence-review/public-delivery route exists. Unimplemented evidence/approval remains unavailable. This passes foundation separation, not E01 or a future evidence ACL. |
+| Organization: stale membership in valid JWT, forged client role, cross-org settings access | OrganizationSettingsGuard exported from real AuthModule + OrganizationAccessStore live SQL; new signed-token HTTP harness uses test-only protected route and actual DI/authentication | Closed missing foundation boundary. Same registered session: active ADMIN 200, revoked/suspended/invited/expired/declined 403, cross-org/AGENT/ANALYST 403, restricted account/org 403, revoked session 401. No public org workflow or assignment grant exposed. Future final-owner/assignment/mutation audits remain product-slice requirements before those routes exist. |
+| Location privacy and SQL input | Current property projection is owner-only and exposes neighborhood/landmark, no public exact-location endpoint; media re-encoding strips metadata | FOUND geography custom type interpolating arbitrary input into sql.raw (unused today). FIXED bound EWKT parameter; injection-shaped input regression asserts payload never enters SQL text. Future public precision rules remain required before public discovery. |
+| Client trust: forged ownership/role/state, CSRF/cookies, stale revisions | AuthGuard establishes principal from verified token; ownership stores ignore caller principal claims; web/admin origin+CSRF checks; server-encrypted sessions; version/idempotency tests; failed readiness submission 422 | No business outcome can be authorized by client display state. Contract drift found and corrected; CI route/schema negative mutations added. Deferred phone/federation/recovery launch evidence not relabeled as passed. |
+| External adapters: malicious media, scanner outage, mock provider in production, dependency compromise | Media limits/signature/scan/re-encode; fail-closed scanner; API production config rejects local SMS/test issuer; staff AWS policy reads fail closed; runtime IAM remains separate; CI security checks | Dependency advisories fixed with pinned patches/overrides. Secret history checked with two exact synthetic false-positive exceptions; no broad allowlist. SDK credential expiry observed as denial (no bypass). Local development adapters do not certify deployed cloud isolation. |
+
+No remaining exploitable G1 defect was found in this bounded review after the
+SQL and organization/security-check fixes. Unimplemented business flows stay
+unavailable; their acceptance tests are not claimed. Final exact-commit CI and
+real mapped-ungranted browser proof remain pending. Marketplace hang remains an
+unresolved operational finding, despite successful restart and browser recovery.
+
 ## G1 evidence reconciliation — 2026-09-27
+
+Historical checkpoint: the 2026-09-28 closure section above supersedes outstanding
+work/status here; the completed authentication/restore evidence remains valid.
 
 - Acceptance/restore checkpoint: eb3fb7b (pushed, no merge). Follow-up records
   the user-confirmed marketplace recovery. Exact checkpoint CI

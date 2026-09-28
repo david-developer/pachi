@@ -1,0 +1,5 @@
+# Reviewed synthetic test fixtures only; exact historical finding fingerprints.
+# provider.test.ts: fixed, nonfunctional encryption-test secret.
+fc8e11131207f1f33609e1407b17040584897c75:apps/admin/lib/provider.test.ts:generic-api-key:104
+# property.http.integration.test.ts: idempotency-key fixture, not a credential.
+47ce6927c7bdbb60105c57614b0ca111b8a62764:apps/api/src/property.http.integration.test.ts:generic-api-key:48
