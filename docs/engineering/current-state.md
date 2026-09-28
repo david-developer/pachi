@@ -1,5 +1,34 @@
 # Engineering handoff
 
+## Post-activation browser attempt stopped at discovery — 2026-09-28
+
+- Arrival clean at d918eac513cb604d02183d541167f7323470c41a on
+  feat/staff-auth-permissions; exact CI 36411259532 PASSED. No application changes.
+- User reports fresh test login returned generic verification failure. Latest
+  completed callback 57ce5b5c-fafb-4d7d-8d02-89b3b34c67b3 at
+  2026-09-28T10:44:44.208Z failed oidc_discovery, category stage_failed.
+  This is AFTER the successful 10:34:57Z factor activation, but BEFORE token
+  exchange/validation, signed subject matching, freshness, AWS/MFA or grant checks.
+  No validated browser subject in this attempt; do not infer one from the account
+  reported by the user. Not an MFA_UNPROVEN result and not an ungranted-denial pass.
+- Existing safe callback diagnostics omit the discovery exception code/status;
+  the precise network/provider/response cause of this historical failure cannot
+  be established. No raw exceptions, callback queries or credentials exposed.
+- Existing configuration() discovery called read-only with the established admin
+  environment now PASSES in 511ms. That proves present connectivity/configuration,
+  not the historical cause. Running admin PID514185 still has
+  AWS_PROFILE=pachi-staff-runtime; no restart or environment change performed.
+- Next action: one controlled fresh private-window test login now that independent
+  discovery and existing pool/user validation pass. Inspect its exact callback.
+  If discovery fails again, add bounded allowlisted error-code/status diagnostics
+  before further retries; do not repeatedly request logins or assume MFA failed.
+- User's active grant and all Cognito settings/authenticators unchanged in this
+  follow-up. Marketplace services/data untouched. G1 remains INCOMPLETE; mapped
+  identity/no-grant browser proof outstanding. Unexplained web hang remains a
+  separate unresolved item. Focused discovery check and git diff --check only;
+  no code/test-suite rerun for this handoff-only change. Prior passing CI is not
+  substituted for the new documentation checkpoint's CI status.
+
 ## Test-factor activation authorized and verified — 2026-09-28
 
 - Started clean on feat/staff-auth-permissions at
