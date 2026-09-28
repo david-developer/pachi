@@ -17,3 +17,15 @@ export type StaffSessionResponse = {
   idle_expires_at: string;
   reauthentication_expires_at: string;
 };
+export type ListingPhotoReviewItem = {
+  id: string;
+  listing_id: string;
+  media_asset_id: string;
+  region: string;
+  listing_title: string | null;
+  status: 'NOT_REVIEWED' | 'APPROVED' | 'CHANGES_REQUIRED' | 'REJECTED';
+  version: number;
+  reason_code: string | null;
+  is_cover: boolean;
+  attached_at: string;
+};

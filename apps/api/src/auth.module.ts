@@ -4,7 +4,7 @@ import { StaffStore } from '@pachi/database';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { Module } from '@nestjs/common';
 import { createRemoteJWKSet } from 'jose';
-import { createDatabase, IdentityStore, ListingMediaStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
+import { createDatabase, IdentityStore, ListingMediaStore, ListingPhotoReviewStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
 import { ClamAvScanner, LocalPrivateMediaStorage } from '@pachi/media';
 import { loadConfig } from './config.js';
 import { AccountController } from './account.controller.js';
@@ -18,6 +18,7 @@ import { ProviderStore } from '@pachi/database';
 import { PropertyController } from './property.controller.js';
 import { ProviderVerificationStore } from '@pachi/database';
 import { StaffVerificationController } from './staff-verification.controller.js';
+import { StaffListingPhotoController } from './staff-listing-photo.controller.js';
 
 const config = loadConfig();
 const { client } = createDatabase();
@@ -25,8 +26,8 @@ export const authDatabaseClient = client;
 const store = new IdentityStore(client);
 const phoneStore = new PhoneVerificationStore(client, config.PHONE_OTP_HMAC_SECRET);
 const mediaStore = new ListingMediaStore(client);
-const listingSubmissionStore = new ListingSubmissionStore(client);
-const providerVerificationStore = new ProviderVerificationStore(client, config.NODE_ENV === 'test' ? 'synthetic-test-only-provider-evidence-secret' : process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
+const listingSubmissionStore = new ListingSubmissionStore(client, config.NODE_ENV === 'test');
+const providerVerificationStore = new ProviderVerificationStore(client, config.NODE_ENV === 'test' ? 'synthetic-test-only-provider-evidence-secret' : process.env.VERIFICATION_EVIDENCE_SECRET ?? '', config.NODE_ENV === 'test');
 const mediaStorage = new LocalPrivateMediaStorage(config.MEDIA_STORAGE_ROOT);
 const mediaScanner = new ClamAvScanner(config.CLAMAV_HOST, config.CLAMAV_PORT);
 const smsProvider = new LocalSmsSink(config.NODE_ENV);
@@ -42,7 +43,7 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [StaffController, StaffVerificationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
@@ -51,6 +52,7 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
   { provide: ProviderStore, useExisting: 'PROVIDER_STORE' },
   { provide: 'PROPERTY_DRAFT_STORE', useValue: new PropertyDraftStore(client) },
   { provide: 'LISTING_MEDIA_STORE', useValue: mediaStore },
+  { provide: 'LISTING_PHOTO_REVIEW_STORE', useValue: new ListingPhotoReviewStore(client) },
   { provide: ListingMediaStore, useExisting: 'LISTING_MEDIA_STORE' },
   { provide: 'LISTING_SUBMISSION_STORE', useValue: listingSubmissionStore },
   { provide: ListingSubmissionStore, useExisting: 'LISTING_SUBMISSION_STORE' },

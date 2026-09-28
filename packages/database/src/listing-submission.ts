@@ -10,11 +10,11 @@ export type SubmitListingInput = { revisionId: string; offeringVersionId: string
 
 type ProviderRow = { account_id: string; account_kind: string; account_state: string; profile_state: string; verification_status: string; verification_current: boolean; user_state: string; phone_verified: boolean };
 type ListingRow = { id: string; provider_account_id: string; property_id: string; relationship_id: string; purpose: ListingPurpose; publication_status: string; moderation_status: string; revision_id: string; revision_version: number; title: string | null; description: string | null; property_type: string; property_state: string; region: string; city: string; neighborhood: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null; relationship_status: string; relationship_current: boolean; offering_id: string; offering_purpose: string; offering_version_id: string; currency: string; amount_minor: number | string | null; pricing_period: string; available_from: string | null };
-type MediaRow = { listing_media_id: string; media_asset_id: string; display_order: number; is_cover: boolean; lifecycle: string };
+type MediaRow = { listing_media_id: string; media_asset_id: string; display_order: number; is_cover: boolean; lifecycle: string; review_status: string };
 type DbSubmission = { id: string; listing_id: string; listing_revision_id: string; offering_version_id: string; submitted_at: Date | string; media_snapshot: ListingSubmissionRecord['mediaSnapshot'] };
 
 export class ListingSubmissionStore {
-  public constructor(private readonly client: postgres.Sql) {}
+  public constructor(private readonly client: postgres.Sql, private readonly allowSyntheticVerification = false) {}
 
   public async readiness(userId: string, listingId: string): Promise<ListingReadiness> {
     return this.client.begin(async (tx) => this.evaluate(tx, userId, listingId));
@@ -82,7 +82,7 @@ export class ListingSubmissionStore {
     add('MEDIA_REQUIRED', 'media', 'Listing photos', media.length > 0 && media.some((item) => item.lifecycle === 'READY'), 'Add at least one processed photo to this listing.');
     add('MEDIA_PROCESSING_INCOMPLETE', 'media', 'Photo processing', media.length > 0 && media.every((item) => item.lifecycle === 'READY'), 'Wait for every selected photo to finish processing or remove photos that failed.');
     add('MEDIA_COVER_REQUIRED', 'media.cover', 'Cover photo', media.filter((item) => item.lifecycle === 'READY' && item.is_cover).length === 1, 'Choose one processed photo as the cover.');
-    add('MEDIA_APPROVAL_UNAVAILABLE', 'media.approval', 'Photo content approval', false, 'Photo content approval is not implemented yet. A processed photo is not an approved photo, so submission remains blocked.');
+    add('MEDIA_CONTENT_APPROVAL_REQUIRED', 'media.approval', 'Photo content approval', media.length > 0 && media.every(item => item.lifecycle === 'READY' && item.review_status === 'APPROVED'), 'Every current photo needs a separate content approval. Replace photos marked changes required or rejected.');
     add('ACCOUNT_NOT_ELIGIBLE', 'provider.account', 'Account eligibility', provider.user_state === 'ACTIVE' && provider.phone_verified, 'An active, phone-confirmed account is required to submit.');
     add('PROVIDER_NOT_ACTIVE', 'provider.profile', 'Provider profile', provider.profile_state === 'ACTIVE' && provider.account_state === 'ACTIVE', 'An active provider profile and account are required to submit.');
     add('PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE', 'provider.verification', 'Provider identity verification', provider.verification_current, 'Submit provider identity evidence and wait for an authorized decision before listing submission.');
@@ -95,8 +95,8 @@ export class ListingSubmissionStore {
 
   private async provider(tx: postgres.TransactionSql, userId: string, lock: boolean): Promise<ProviderRow | null> {
     const rows = lock
-      ? await tx<ProviderRow[]>`SELECT a.id AS account_id, a.kind AS account_kind, a.state AS account_state, p.state AS profile_state, p.verification_status, u.account_state AS user_state, EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id = u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) AS phone_verified, EXISTS (SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) AS verification_current FROM users u JOIN provider_profiles p ON p.user_id = u.id JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE u.id = ${userId} FOR UPDATE OF u, p, a`
-      : await tx<ProviderRow[]>`SELECT a.id AS account_id, a.kind AS account_kind, a.state AS account_state, p.state AS profile_state, p.verification_status, u.account_state AS user_state, EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id = u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) AS phone_verified, EXISTS (SELECT 1 FROM verification_claims vc WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL) AS verification_current FROM users u JOIN provider_profiles p ON p.user_id = u.id JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE u.id = ${userId}`;
+      ? await tx<ProviderRow[]>`SELECT a.id AS account_id, a.kind AS account_kind, a.state AS account_state, p.state AS profile_state, p.verification_status, u.account_state AS user_state, EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id = u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) AS phone_verified, EXISTS (SELECT 1 FROM verification_claims vc JOIN verification_cases c ON c.id=vc.source_case_id WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL AND (c.policy_version <> 'provider-identity-synthetic-v1' OR ${this.allowSyntheticVerification})) AS verification_current FROM users u JOIN provider_profiles p ON p.user_id = u.id JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE u.id = ${userId} FOR UPDATE OF u, p, a`
+      : await tx<ProviderRow[]>`SELECT a.id AS account_id, a.kind AS account_kind, a.state AS account_state, p.state AS profile_state, p.verification_status, u.account_state AS user_state, EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id = u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) AS phone_verified, EXISTS (SELECT 1 FROM verification_claims vc JOIN verification_cases c ON c.id=vc.source_case_id WHERE vc.provider_profile_id=p.id AND vc.status='VERIFIED' AND vc.valid_until>now() AND vc.revoked_at IS NULL AND (c.policy_version <> 'provider-identity-synthetic-v1' OR ${this.allowSyntheticVerification})) AS verification_current FROM users u JOIN provider_profiles p ON p.user_id = u.id JOIN provider_accounts a ON a.provider_profile_id = p.id WHERE u.id = ${userId}`;
     return rows[0] ?? null;
   }
 
@@ -109,8 +109,8 @@ export class ListingSubmissionStore {
 
   private async media(tx: postgres.TransactionSql, listingId: string, lock: boolean): Promise<MediaRow[]> {
     return lock
-      ? tx<MediaRow[]>`SELECT lm.id AS listing_media_id, lm.media_asset_id, lm.display_order, lm.is_cover, ma.lifecycle FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order FOR UPDATE OF lm, ma`
-      : tx<MediaRow[]>`SELECT lm.id AS listing_media_id, lm.media_asset_id, lm.display_order, lm.is_cover, ma.lifecycle FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order`;
+      ? tx<MediaRow[]>`SELECT lm.id AS listing_media_id, lm.media_asset_id, lm.display_order, lm.is_cover, lm.review_status, ma.lifecycle FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order FOR UPDATE OF lm, ma`
+      : tx<MediaRow[]>`SELECT lm.id AS listing_media_id, lm.media_asset_id, lm.display_order, lm.is_cover, lm.review_status, ma.lifecycle FROM listing_media lm JOIN media_assets ma ON ma.id = lm.media_asset_id WHERE lm.listing_id = ${listingId} AND lm.removed_at IS NULL ORDER BY lm.display_order`;
   }
 }
 

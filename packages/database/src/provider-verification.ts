@@ -14,7 +14,7 @@ export type ProviderVerificationCase = { id: string; provider_profile_id: string
 type CaseRow = { id: string; provider_profile_id: string; applicant_user_id: string; assigned_staff_user_id: string | null; state: VerificationState; version: number; policy_version: string; submitted_at: Date; decision_at: Date | null; reason_code: string | null; valid_until: Date | null; previous_case_id: string | null };
 type Grant = { role: string; scope: StaffScope };
 export class ProviderVerificationStore {
-  constructor(private readonly client: postgres.Sql, private readonly evidenceSecret: string, private readonly clock: () => Date = () => new Date()) {}
+  constructor(private readonly client: postgres.Sql, private readonly evidenceSecret: string, private readonly allowSyntheticEligibility = false, private readonly clock: () => Date = () => new Date()) {}
 
   private key(): Buffer {
     if (this.evidenceSecret.length < 32) throw new IdentityError('CONFIGURATION', 'Evidence encryption is unavailable');
@@ -128,10 +128,13 @@ export class ProviderVerificationStore {
       await tx`INSERT INTO verification_decisions(case_id,reviewer_user_id,outcome,reason_code,policy_version,evidence_hashes,valid_until,request_id,decided_at) VALUES (${caseId},${staff.row.user_id},${input.outcome},${input.reasonCode},${row.policy_version},${JSON.stringify(hashes.map(h => ({type:h.evidence_type,sha256:h.sha256})))}::jsonb,${validUntil?.toISOString() ?? null},${input.requestId},${now.toISOString()})`;
       const updated = await tx<CaseRow[]>`UPDATE verification_cases SET state=${input.outcome},version=version+1,reviewer_user_id=${staff.row.user_id},decision_at=${now.toISOString()},reason_code=${input.reasonCode},valid_until=${validUntil?.toISOString() ?? null} WHERE id=${caseId} RETURNING *`;
       await tx`UPDATE verification_evidence SET delete_after=${new Date(+now + 30 * 86400_000).toISOString()} WHERE case_id=${caseId}`;
-      if (input.outcome === 'VERIFIED') {
+      if (input.outcome === 'VERIFIED' && this.allowSyntheticEligibility) {
         await tx`INSERT INTO verification_claims(provider_profile_id,claim_type,status,source_case_id,valid_from,valid_until) VALUES (${row.provider_profile_id},'PROVIDER_IDENTITY','VERIFIED',${caseId},${now.toISOString()},${validUntil!.toISOString()}) ON CONFLICT (provider_profile_id) DO UPDATE SET status='VERIFIED',source_case_id=EXCLUDED.source_case_id,valid_from=EXCLUDED.valid_from,valid_until=EXCLUDED.valid_until,revoked_at=NULL`;
         await tx`UPDATE provider_profiles SET state=CASE WHEN state='PENDING_VERIFICATION' THEN 'ACTIVE' ELSE state END,verification_status='VERIFIED',updated_at=now() WHERE id=${row.provider_profile_id}`;
         await tx`UPDATE provider_accounts SET state='ACTIVE',updated_at=now() WHERE provider_profile_id=${row.provider_profile_id} AND state IN ('DRAFT','PENDING_VERIFICATION')`;
+      } else if (input.outcome === 'VERIFIED') {
+        // The local synthetic review can complete a case, but cannot grant real provider capability.
+        await tx`UPDATE provider_profiles SET state=CASE WHEN state='PENDING_VERIFICATION' THEN 'DRAFT' ELSE state END,verification_status='NOT_VERIFIED',updated_at=now() WHERE id=${row.provider_profile_id}`;
       } else {
         await tx`UPDATE provider_profiles SET state=CASE WHEN state='PENDING_VERIFICATION' THEN 'DRAFT' ELSE state END,verification_status=CASE WHEN EXISTS(SELECT 1 FROM verification_claims WHERE provider_profile_id=${row.provider_profile_id} AND status='VERIFIED' AND valid_until>now() AND revoked_at IS NULL) THEN 'VERIFIED' ELSE ${input.outcome} END,updated_at=now() WHERE id=${row.provider_profile_id}`;
       }

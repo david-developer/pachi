@@ -5,10 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { generateKeyPair, SignJWT } from 'jose';
-import { createDatabase, StaffStore, ProviderVerificationStore } from '@pachi/database';
+import { createDatabase, StaffStore, ProviderVerificationStore, ListingPhotoReviewStore, PropertyDraftStore } from '@pachi/database';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { StaffVerificationController } from './staff-verification.controller.js';
+import { StaffListingPhotoController } from './staff-listing-photo.controller.js';
 const integration = process.env.DATABASE_TEST_URL ? test : test.skip;
 void integration(
   'actual staff HTTP controller accepts only registered staff tokens and live grants',
@@ -19,6 +20,7 @@ void integration(
     assert.equal(parsed.pathname, '/pachi_test');
     const { client } = createDatabase(url),
       { privateKey, publicKey } = await generateKeyPair('RS256');
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
     const verifier = new CognitoAccessTokenVerifier({
       issuer: 'https://local.test/staff',
       getKey: async () => publicKey,
@@ -28,12 +30,14 @@ void integration(
       strictStaff: true,
     });
     const store = new StaffStore(client, 'synthetic-staff-secret-long-enough-for-encryption');
-    const verificationStore = new ProviderVerificationStore(client,'synthetic-evidence-key-for-http-staff-test');
+    const verificationStore = new ProviderVerificationStore(client,'synthetic-evidence-key-for-http-staff-test',true);
     @Module({
-      controllers: [StaffController, StaffVerificationController],
+      controllers: [StaffController, StaffVerificationController, StaffListingPhotoController],
       providers: [
         { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(store, verifier) },
         { provide: 'PROVIDER_VERIFICATION_STORE', useValue: verificationStore },
+        { provide: 'LISTING_PHOTO_REVIEW_STORE', useValue: new ListingPhotoReviewStore(client) },
+        { provide: 'LOCAL_PRIVATE_MEDIA_STORAGE', useValue: { readVariant: async () => Buffer.from('synthetic-private-preview') } },
       ],
     })
     class TestApp {}
@@ -105,6 +109,30 @@ void integration(
       assert.equal((await fetch(`${caseUrl}/evidence/LIVE_SELFIE`,{headers:{authorization:`Bearer ${good}`}})).status,200);
       assert.equal((await decision({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'})).status,201);
       assert.equal((await decision({expected_version:2,outcome:'VERIFIED',reason_code:'EVIDENCE_ACCEPTED'})).status,409);
+      const photoUrl=`http://127.0.0.1:${address.port}/v1/staff/listing-photos`;
+      assert.deepEqual((await (await fetch(photoUrl,{headers:{authorization:`Bearer ${good}`}})).json() as {photos:unknown[]}).photos,[]);
+      const propertyStore=new PropertyDraftStore(client);
+      const property=await propertyStore.createProperty(applicant,{propertyType:'APARTMENT',region:'Littoral',city:'Douala',neighborhood:'Akwa',relationshipType:'OWNER'});
+      const listing=await propertyStore.createDraft(applicant,{propertyId:property.id,purpose:'RENT',title:'Staff photo HTTP fixture'});
+      const providerAccount=await client<{id:string}[]>`SELECT id FROM provider_accounts WHERE provider_profile_id=${profile[0]!.id}`;
+      const mediaAsset=await client<{id:string}[]>`INSERT INTO media_assets(owner_provider_account_id,classification,storage_reference,lifecycle,original_mime,original_bytes,derivative_manifest) VALUES (${providerAccount[0]!.id},'PUBLIC_MARKETPLACE',${randomUUID()},'READY','image/png',100,'{"320":{"mime":"image/webp","width":8,"height":6,"bytes":80}}'::jsonb) RETURNING id`;
+      const association=await client<{id:string}[]>`INSERT INTO listing_media(listing_id,media_asset_id,display_order,is_cover,attached_by_user_id) VALUES (${listing.id},${mediaAsset[0]!.id},0,true,${applicant}) RETURNING id`;
+      const listingGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'LISTING_MODERATOR','{"kind":"region","id":"Littoral","permissions":["listing:moderate"]}'::jsonb,now()+interval '1 day','test','isolated listing photo HTTP') RETURNING id`;
+      const pending=await (await fetch(photoUrl,{headers:{authorization:`Bearer ${good}`}})).json() as {photos:Array<{id:string;media_asset_id:string;version:number}>};
+      assert.equal(pending.photos[0]?.id,association[0]!.id);
+      const photoDecision=(payload:unknown)=>fetch(`${photoUrl}/${association[0]!.id}/decision`,{method:'POST',headers:{authorization:`Bearer ${good}`,'content-type':'application/json'},body:JSON.stringify(payload)});
+      const command={media_asset_id:mediaAsset[0]!.id,expected_version:1,outcome:'APPROVED',reason_code:'CONTENT_REVIEWED',idempotency_key:randomUUID()};
+      assert.equal((await photoDecision(command)).status,409); // preview is required
+      const previewResponse=await fetch(`${photoUrl}/${association[0]!.id}/variants/320`,{headers:{authorization:`Bearer ${good}`}});
+      assert.equal(previewResponse.status,200);
+      assert.equal(previewResponse.headers.get('cache-control'),'private, no-store');
+      assert.equal(await previewResponse.text(),'synthetic-private-preview');
+      assert.equal((await photoDecision(command)).status,201);
+      const duplicatePhotoDecision=await photoDecision(command);
+      assert.equal(duplicatePhotoDecision.status,201,await duplicatePhotoDecision.text()); // same idempotency key
+      assert.equal((await client`SELECT review_status FROM listing_media WHERE id=${association[0]!.id}`)[0]?.review_status,'APPROVED');
+      await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${listingGrant[0]!.id}`;
+      assert.equal((await fetch(`${photoUrl}/${association[0]!.id}/variants/320`,{headers:{authorization:`Bearer ${good}`}})).status,403);
       await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${officerGrant[0]!.id}`;
       assert.equal((await caseGet()).status,403);
       for (const extra of [
@@ -145,6 +173,7 @@ void integration(
       assert.equal((await get(good)).status, 401);
     } finally {
       await app.close();
+      await client`TRUNCATE users RESTART IDENTITY CASCADE`;
       await client.end();
     }
   },

@@ -63,6 +63,33 @@ paths:
       description: Recent authenticated admin:permissions_manage operator assigns an officer who already has an unexpired case scoped provider:verify grant. Assignment does not grant review rights.
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [staff_user_id, expected_version], properties: { staff_user_id: { type: string, format: uuid }, expected_version: { type: integer, minimum: 1 } } } } } }
       responses: { '201': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Scope or step up required }, '409': { description: Stale version } }
+  /v1/staff/listing-photos:
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Pending READY photos in the current LISTING_MODERATOR region scope, excluding the moderator's own listing. Production local storage adapter remains disabled.
+      responses:
+        '200': { description: Scoped photo queue, content: { application/json: { schema: { type: object, required: [photos], properties: { photos: { type: array, items: { $ref: '#/components/schemas/ListingPhotoReviewItem' } } } } } } }
+        '401': { description: Staff authentication required }
+        '503': { description: Private photo storage adapter unavailable }
+  /v1/staff/listing-photos/{id}/variants/{width}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: width, in: path, required: true, schema: { type: integer, enum: [320, 640] } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Recent authenticated LISTING_MODERATOR in exact region scope receives an audited private preview of a current READY pending photo.
+      responses:
+        '200': { description: Private no-store image preview, content: { image/webp: { schema: { type: string, format: binary } } } }
+        '403': { description: Scope or recent reauthentication required }
+        '409': { description: Photo is no longer pending }
+  /v1/staff/listing-photos/{id}/decision:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Versioned review of the exact photo association and asset. Any decision requires an audited preview by the same moderator. Decision, audit and outbox commit together; no publication occurs.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [media_asset_id, expected_version, outcome, reason_code, idempotency_key], properties: { media_asset_id: { type: string, format: uuid }, expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [APPROVED, CHANGES_REQUIRED, REJECTED] }, reason_code: { type: string, pattern: '^[A-Z][A-Z0-9_]{2,63}$' }, idempotency_key: { type: string, format: uuid } } } } } }
+      responses:
+        '201': { description: Recorded or idempotently replayed decision, content: { application/json: { schema: { $ref: '#/components/schemas/ListingPhotoReviewItem' } } } }
+        '403': { description: Scope or recent reauthentication required }
+        '409': { description: Invalid, stale or conflicting decision }
   /v1/auth/bootstrap:
     post:
       summary: Resolve an access-token identity and register its session
@@ -554,13 +581,15 @@ components:
         mime: { const: image/webp }
     ListingMediaResponse:
       type: object
-      required: [id, media_asset_id, display_order, is_cover, status, mime_type, size_bytes, width, height, variants, failure_code, retryable]
+      required: [id, media_asset_id, display_order, is_cover, status, review_status, next_action, mime_type, size_bytes, width, height, variants, failure_code, retryable]
       properties:
         id: { type: string, format: uuid }
         media_asset_id: { type: string, format: uuid }
         display_order: { type: integer, minimum: 0 }
         is_cover: { type: boolean }
         status: { type: string, enum: [UPLOAD_AUTHORIZED, UPLOADED_QUARANTINED, PROCESSING, READY, FAILED, REJECTED, DELETION_PENDING, DELETED] }
+        review_status: { type: string, enum: [NOT_REVIEWED, APPROVED, CHANGES_REQUIRED, REJECTED] }
+        next_action: { type: string, enum: [WAIT_FOR_PROCESSING, WAIT_FOR_REVIEW, NONE, REPLACE_PHOTO, RETRY_OR_REMOVE] }
         mime_type: { type: [string, 'null'], enum: [image/jpeg, image/png, image/webp, null] }
         size_bytes: { type: [integer, 'null'] }
         width: { type: [integer, 'null'] }
@@ -568,6 +597,20 @@ components:
         variants: { type: array, items: { $ref: '#/components/schemas/ListingMediaVariant' } }
         failure_code: { type: [string, 'null'], enum: [SCAN_UNAVAILABLE, PROCESSING_UNAVAILABLE, SOURCE_MISSING, INVALID_IMAGE, IMAGE_TOO_LARGE, UNSUPPORTED_IMAGE, INFECTED_FILE, PROCESSING_FAILED, UPLOAD_FAILED, CHECKSUM_MISMATCH, null] }
         retryable: { type: boolean }
+    ListingPhotoReviewItem:
+      type: object
+      required: [id, listing_id, media_asset_id, region, listing_title, status, version, reason_code, is_cover, attached_at]
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        media_asset_id: { type: string, format: uuid }
+        region: { type: string }
+        listing_title: { type: [string, 'null'] }
+        status: { type: string, enum: [NOT_REVIEWED, APPROVED, CHANGES_REQUIRED, REJECTED] }
+        version: { type: integer, minimum: 1 }
+        reason_code: { type: [string, 'null'] }
+        is_cover: { type: boolean }
+        attached_at: { type: string, format: date-time }
     ListingMediaUploadResponse:
       type: object
       required: [media_asset_id, status]
@@ -584,7 +627,7 @@ components:
       type: object
       required: [code, field, label, status, message]
       properties:
-        code: { type: string, enum: [LISTING_TITLE_REQUIRED, LISTING_DESCRIPTION_REQUIRED, PROPERTY_SPECIFICATION_REQUIRED, PROPERTY_LOCATION_REQUIRED, PROPERTY_RECORD_UNAVAILABLE, PROPERTY_RELATIONSHIP_NOT_CURRENT, PROPERTY_AUTHORITY_REVIEW_UNAVAILABLE, GEOGRAPHIC_REGION_NOT_ENABLED, OFFERING_TERMS_INCOMPLETE, MEDIA_REQUIRED, MEDIA_PROCESSING_INCOMPLETE, MEDIA_COVER_REQUIRED, MEDIA_APPROVAL_UNAVAILABLE, ACCOUNT_NOT_ELIGIBLE, PROVIDER_NOT_ACTIVE, PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE, PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE] }
+        code: { type: string, enum: [LISTING_TITLE_REQUIRED, LISTING_DESCRIPTION_REQUIRED, PROPERTY_SPECIFICATION_REQUIRED, PROPERTY_LOCATION_REQUIRED, PROPERTY_RECORD_UNAVAILABLE, PROPERTY_RELATIONSHIP_NOT_CURRENT, PROPERTY_AUTHORITY_REVIEW_UNAVAILABLE, GEOGRAPHIC_REGION_NOT_ENABLED, OFFERING_TERMS_INCOMPLETE, MEDIA_REQUIRED, MEDIA_PROCESSING_INCOMPLETE, MEDIA_COVER_REQUIRED, MEDIA_CONTENT_APPROVAL_REQUIRED, ACCOUNT_NOT_ELIGIBLE, PROVIDER_NOT_ACTIVE, PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE, PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE] }
         field: { type: string }
         label: { type: string }
         status: { type: string, enum: [READY, BLOCKED] }
