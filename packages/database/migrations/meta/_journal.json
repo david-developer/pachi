@@ -141,6 +141,13 @@
       "when": 1790899200000,
       "tag": "0019_listing_photo_review_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790985600000,
+      "tag": "0020_property_specification_version",
+      "breakpoints": true
     }
   ]
 }

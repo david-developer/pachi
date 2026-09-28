@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 type Session = { authenticated: boolean; accountState?: string; participationAllowed?: boolean; csrfToken?: string };
-type Property = { id: string; property_type: string; region: string; city: string; neighborhood: string; relationship_type: string };
+type Property = { id: string; version: number; property_type: string; region: string; city: string; neighborhood: string; relationship_type: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null };
 type Draft = { id: string; property_id: string; purpose: string; title: string | null; description: string | null; amount_minor: number | null; pricing_period: string; negotiable: boolean; deposit_amount_minor: number | null; advance_months: number | null; minimum_lease_months: number | null; utilities_included: boolean | null; service_charge_amount_minor: number | null; weekly_amount_minor: number | null; minimum_nights: number | null; guest_limit: number | null; check_in_time: string | null; check_out_time: string | null; cleaning_fee_minor: number | null; available_from: string | null; currency: string; publication_status: 'DRAFT' | 'PENDING_REVIEW'; version: number };
 type DraftPhoto = { id: string; media_asset_id: string; display_order: number; is_cover: boolean; status: 'UPLOAD_AUTHORIZED' | 'UPLOADED_QUARANTINED' | 'PROCESSING' | 'READY' | 'FAILED' | 'REJECTED' | 'DELETION_PENDING' | 'DELETED'; review_status: 'NOT_REVIEWED' | 'APPROVED' | 'CHANGES_REQUIRED' | 'REJECTED'; next_action: 'WAIT_FOR_PROCESSING' | 'WAIT_FOR_REVIEW' | 'NONE' | 'REPLACE_PHOTO' | 'RETRY_OR_REMOVE'; mime_type: string | null; size_bytes: number | null; width: number | null; height: number | null; variants: Array<{ width: number; height: number; bytes: number; mime: string }>; failure_code: string | null; retryable: boolean };
 type Readiness = { listing_id: string; publication_status: 'DRAFT' | 'PENDING_REVIEW'; moderation_status: 'NOT_REVIEWED' | 'IN_REVIEW'; revision_id: string; revision_version: number; offering_id: string; offering_version_id: string; can_submit: boolean; checks: Array<{ code: string; field: string; label: string; status: 'READY' | 'BLOCKED'; message: string | null }>; submission: { id: string; submitted_at: string } | null };
@@ -14,6 +14,10 @@ export default function ProviderWorkspace() {
   const [photos, setPhotos] = useState<DraftPhoto[]>([]); const [photoError, setPhotoError] = useState(''); const [photoProgress, setPhotoProgress] = useState<number | null>(null); const [photoBusy, setPhotoBusy] = useState(false);
   const [readiness, setReadiness] = useState<Readiness | null>(null); const [submissionBusy, setSubmissionBusy] = useState(false); const [publicationStatus, setPublicationStatus] = useState<'DRAFT' | 'PENDING_REVIEW'>('DRAFT');
   const [property, setProperty] = useState({ property_type: 'APARTMENT', region: 'Littoral', city: 'Douala', neighborhood: '', relationship_type: 'OWNER' });
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [specifications, setSpecifications] = useState({ bedrooms: '', bathrooms: '', size_sqm: '', furnishing: '' });
+  const [specificationError, setSpecificationError] = useState('');
+  const [specificationBusy, setSpecificationBusy] = useState(false);
   const [draft, setDraft] = useState({ property_id: '', purpose: 'RENT', title: '', description: '', amount_minor: '', pricing_period: 'MONTHLY', negotiable: false, deposit_amount_minor: '', advance_months: '', minimum_lease_months: '', utilities_included: '', service_charge_amount_minor: '', weekly_amount_minor: '', minimum_nights: '', guest_limit: '', check_in_time: '', check_out_time: '', cleaning_fee_minor: '', available_from: '' });
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [csrf, setCsrf] = useState('');
@@ -25,6 +29,7 @@ export default function ProviderWorkspace() {
   const [photoRefreshing, setPhotoRefreshing] = useState(false);
   const [photoRefreshMessage, setPhotoRefreshMessage] = useState('');
   const photoScope = useRef({ draftId: null as string | null, generation: 0, request: 0, poll: 0 });
+  const readinessRequest = useRef(0);
   function photoScopeCurrent(id: string, generation: number) { return photoScope.current.draftId === id && photoScope.current.generation === generation; }
   function selectPhotoDraft(id: string | null) {
     const previous = photoScope.current;
@@ -63,6 +68,31 @@ export default function ProviderWorkspace() {
   }
 
   async function createProperty(event: React.FormEvent) { event.preventDefault(); setBusy(true); setError(''); setMessage(''); try { const response = await fetch('/api/account/properties', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(property) }); if (!response.ok) throw new Error(); setMessage('Property draft saved.'); await load(); } catch { setError('Property could not be saved. Check the required fields.'); } finally { setBusy(false); } }
+  function editSpecifications(saved: Property) {
+    setEditingPropertyId(saved.id);
+    setSpecifications({ bedrooms: saved.bedrooms?.toString() ?? '', bathrooms: saved.bathrooms?.toString() ?? '', size_sqm: saved.size_sqm ?? '', furnishing: saved.furnishing ?? '' });
+    setSpecificationError('');
+  }
+  async function saveSpecifications(event: React.FormEvent) {
+    event.preventDefault();
+    const current = properties.find((item) => item.id === editingPropertyId);
+    if (!current) { setSpecificationError('This property is no longer available. Refresh the page.'); return; }
+    const integer = (value: string) => value.trim() === '' ? null : Number(value);
+    const bedrooms = integer(specifications.bedrooms);
+    const bathrooms = integer(specifications.bathrooms);
+    const size = specifications.size_sqm.trim() === '' ? null : Number(specifications.size_sqm);
+    if ([bedrooms, bathrooms].some((value) => value !== null && (!Number.isSafeInteger(value) || value < 0 || value > 2147483647)) || (size !== null && (!Number.isFinite(size) || size <= 0))) { setSpecificationError('Bedrooms and bathrooms must be nonnegative whole numbers; size must be positive. Your entries are still here.'); return; }
+    setSpecificationBusy(true); setSpecificationError(''); setMessage('');
+    try {
+      const response = await fetch(`/api/account/properties/${current.id}/specifications`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify({ expected_version: current.version, bedrooms, bathrooms, size_sqm: size, furnishing: specifications.furnishing || null }) });
+      if (!response.ok) throw new Error(response.status === 409 ? 'Property details were invalid, changed elsewhere, or can no longer be edited. Your entries are still here; refresh only after copying them.' : 'Property specifications could not be saved. Your entries are still here; try again.');
+      const saved = await response.json() as Property;
+      setProperties((previous) => previous.map((item) => item.id === saved.id ? saved : item));
+      setMessage('Property specifications saved.');
+      if (editingDraftId && drafts.some((item) => item.id === editingDraftId && item.property_id === saved.id)) await loadReadiness(editingDraftId).catch(() => setSpecificationError('Specifications were saved, but readiness could not be refreshed. Use Refresh checklist.'));
+    } catch (issue) { setSpecificationError(issue instanceof Error ? issue.message : 'Property specifications could not be saved. Your entries are still here.'); }
+    finally { setSpecificationBusy(false); }
+  }
   async function loadPhotos(listingId: string): Promise<DraftPhoto[] | null> {
     if (photoScope.current.draftId !== listingId) return null;
     const generation = photoScope.current.generation;
@@ -92,7 +122,7 @@ export default function ProviderWorkspace() {
       if (photoScopeCurrent(listingId, generation)) setPhotoError(error instanceof Error ? error.message : 'Photo status could not be refreshed. Try again.');
     } finally { if (photoScopeCurrent(listingId, generation)) setPhotoRefreshing(false); }
   }
-  async function loadReadiness(listingId: string) { const generation = photoScope.current.generation; const response = await fetch(`/api/account/listing-drafts/${listingId}/readiness`, { cache: 'no-store' }); const result = await response.json() as Readiness; if (!response.ok) throw new Error(); if (photoScopeCurrent(listingId, generation)) setReadiness(result); return result; }
+  async function loadReadiness(listingId: string) { const generation = photoScope.current.generation; const request = ++readinessRequest.current; const response = await fetch(`/api/account/listing-drafts/${listingId}/readiness`, { cache: 'no-store' }); const result = await response.json() as Readiness; if (!response.ok) throw new Error(); if (photoScopeCurrent(listingId, generation) && request === readinessRequest.current) setReadiness(result); return result; }
   async function submitDraft() { if (!editingDraftId || !readiness?.can_submit) return; setSubmissionBusy(true); setError(''); try { const response = await fetch(`/api/account/listing-drafts/${editingDraftId}/submissions`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf, 'idempotency-key': crypto.randomUUID() }, body: JSON.stringify({ revision_id: readiness.revision_id, offering_version_id: readiness.offering_version_id }) }); const result = await response.json() as { readiness?: Readiness }; if (result.readiness) { setReadiness(result.readiness); setPublicationStatus(result.readiness.publication_status); } if (!response.ok) throw new Error('Submission was not accepted. Review the checklist and refresh readiness.'); setMessage('Submitted for review. This is not approval or publication.'); await load(); } catch (submitError) { setError(submitError instanceof Error ? submitError.message : 'Submission could not be completed.'); } finally { setSubmissionBusy(false); } }
   function uploadFile(listingId: string, file: File, onProgress: (percent: number) => void): Promise<void> { return new Promise((resolve, reject) => { const request = new XMLHttpRequest(); request.open('POST', `/api/account/listing-drafts/${listingId}/media`); request.setRequestHeader('x-csrf-token', csrf); request.setRequestHeader('content-type', file.type); request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); }; request.onload = () => request.status === 202 ? resolve() : reject(new Error(request.status === 413 ? 'Photo exceeds the 15 MiB limit.' : 'Photo upload failed. Choose a JPEG, PNG, or WebP image and retry.')); request.onerror = () => reject(new Error('Connection interrupted. The photo was not confirmed; check its status before retrying.')); request.send(file); }); }
   async function waitForPhotoProcessing(listingId: string) {
@@ -147,7 +177,21 @@ export default function ProviderWorkspace() {
 <label>City<input value={property.city} onChange={(e) => setProperty({ ...property, city: e.target.value })} required /></label>
 <label>Neighborhood<input value={property.neighborhood} onChange={(e) => setProperty({ ...property, neighborhood: e.target.value })} required /></label>
 <button className="primary" disabled={busy}>Save property</button>
-</form></div><div className="tool"><h2>Your properties</h2>{properties.length ? <ul>{properties.map((item) => <li key={item.id}><strong>{item.property_type}</strong><span>{item.city} · {item.neighborhood}</span></li>)}</ul> : <p className="muted">No properties saved yet.</p>}</div></section><section id="drafts" className="workspaceGrid"><div className="tool">
+</form></div><div className="tool"><h2>Your properties</h2>
+{properties.length ? <ul>{properties.map((item) => <li key={item.id}><strong>{item.property_type}</strong><span>{item.city} · {item.neighborhood}</span>{drafts.some((draftItem) => draftItem.property_id === item.id) && <span>Drafts: {drafts.filter((draftItem) => draftItem.property_id === item.id).map((draftItem) => draftItem.title || 'Untitled draft').join(', ')}</span>}<button className="linkButton" type="button" onClick={() => editSpecifications(item)}>Edit specifications</button></li>)}</ul> : <p className="muted">No properties saved yet.</p>}
+{editingPropertyId && <form aria-label="Edit property specifications" onSubmit={(event) => { void saveSpecifications(event); }}>
+  <h3>Property specifications</h3>
+  <p className="muted">Enter only physical details you know. The current checklist needs at least one of bedrooms, bathrooms, size or furnishing.</p>
+  {specificationError && <p className="error" role="alert">{specificationError}</p>}
+  <fieldset disabled={specificationBusy}>
+    <label>Bedrooms<input type="number" min="0" step="1" value={specifications.bedrooms} onChange={(event) => setSpecifications({ ...specifications, bedrooms: event.target.value })} /></label>
+    <label>Bathrooms<input type="number" min="0" step="1" value={specifications.bathrooms} onChange={(event) => setSpecifications({ ...specifications, bathrooms: event.target.value })} /></label>
+    <label>Size in square metres<input type="number" min="0" step="any" value={specifications.size_sqm} onChange={(event) => setSpecifications({ ...specifications, size_sqm: event.target.value })} /></label>
+    <label>Furnishing<select value={specifications.furnishing} onChange={(event) => setSpecifications({ ...specifications, furnishing: event.target.value })}><option value="">Not specified</option><option value="FURNISHED">Furnished</option><option value="UNFURNISHED">Unfurnished</option><option value="PARTLY_FURNISHED">Partly furnished</option></select></label>
+    <button className="primary" type="submit">{specificationBusy ? 'Saving…' : 'Save specifications'}</button>
+    <button className="secondary" type="button" onClick={() => { setEditingPropertyId(null); setSpecificationError(''); }}>Cancel</button>
+  </fieldset>
+</form>}</div></section><section id="drafts" className="workspaceGrid"><div className="tool">
     <h2>{editingDraftId ? (publicationStatus === 'PENDING_REVIEW' ? 'Listing under review' : 'Edit private listing draft') : 'New private listing draft'}</h2>
     {editingDraftId && <button className="linkButton" type="button" onClick={startNewDraft}>Create another draft</button>}
     <form onSubmit={(event) => { void saveDraft(event); }}>

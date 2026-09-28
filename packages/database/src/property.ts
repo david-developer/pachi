@@ -10,7 +10,8 @@ export type RelationshipType = typeof relationshipTypes[number];
 type OfferingTermsInput = { amountMinor?: number | null | undefined; pricingPeriod?: string | undefined; negotiable?: boolean | undefined; depositAmountMinor?: number | null | undefined; advanceMonths?: number | null | undefined; minimumLeaseMonths?: number | null | undefined; utilitiesIncluded?: boolean | null | undefined; serviceChargeAmountMinor?: number | null | undefined; weeklyAmountMinor?: number | null | undefined; minimumNights?: number | null | undefined; guestLimit?: number | null | undefined; checkInTime?: string | null | undefined; checkOutTime?: string | null | undefined; cleaningFeeMinor?: number | null | undefined; availableFrom?: string | null | undefined };
 
 type ProviderContext = { account_id: string; user_state: string; profile_state: string; verification_status: string };
-export type PropertyDraft = { id: string; propertyType: PropertyType; region: 'Southwest' | 'Littoral'; city: string; neighborhood: string; landmark: string | null; bedrooms: number | null; bathrooms: number | null; sizeSqm: string | null; furnishing: string | null; relationshipId: string; relationshipType: RelationshipType; authorizationStatus: 'DECLARED' };
+export type PropertyDraft = { id: string; version: number; propertyType: PropertyType; region: 'Southwest' | 'Littoral'; city: string; neighborhood: string; landmark: string | null; bedrooms: number | null; bathrooms: number | null; sizeSqm: string | null; furnishing: string | null; relationshipId: string; relationshipType: RelationshipType; authorizationStatus: 'DECLARED' };
+export type PropertySpecificationsUpdate = { expectedVersion: number; bedrooms?: number | null | undefined; bathrooms?: number | null | undefined; sizeSqm?: number | null | undefined; furnishing?: string | null | undefined };
 export type ListingDraft = { id: string; propertyId: string; providerAccountId: string; purpose: ListingPurpose; publicationStatus: 'DRAFT' | 'PENDING_REVIEW'; moderationStatus: 'NOT_REVIEWED' | 'IN_REVIEW'; revisionId: string; version: number; title: string | null; description: string | null; offeringId: string; offeringVersionId: string; currency: 'XAF'; amountMinor: number | null; pricingPeriod: 'MONTHLY' | 'TOTAL' | 'NIGHTLY'; negotiable: boolean; depositAmountMinor: number | null; advanceMonths: number | null; minimumLeaseMonths: number | null; utilitiesIncluded: boolean | null; serviceChargeAmountMinor: number | null; weeklyAmountMinor: number | null; minimumNights: number | null; guestLimit: number | null; checkInTime: string | null; checkOutTime: string | null; cleaningFeeMinor: number | null; availableFrom: string | null };
 
 export class PropertyDraftStore {
@@ -18,7 +19,7 @@ export class PropertyDraftStore {
 
   public async properties(userId: string): Promise<PropertyDraft[]> {
     const provider = await this.requireDraftProvider(userId);
-    const rows = await this.client<PropertyRow[]>`SELECT p.id, p.property_type, p.region, p.city, p.neighborhood, p.landmark, p.bedrooms, p.bathrooms, p.size_sqm::text, p.furnishing, r.id AS relationship_id, r.relationship_type, r.authorization_status FROM properties p JOIN provider_property_relationships r ON r.property_id = p.id WHERE r.provider_account_id = ${provider.account_id} ORDER BY p.updated_at DESC`;
+    const rows = await this.client<PropertyRow[]>`SELECT p.id, p.version, p.property_type, p.region, p.city, p.neighborhood, p.landmark, p.bedrooms, p.bathrooms, p.size_sqm::text, p.furnishing, r.id AS relationship_id, r.relationship_type, r.authorization_status FROM properties p JOIN provider_property_relationships r ON r.property_id = p.id WHERE r.provider_account_id = ${provider.account_id} ORDER BY p.updated_at DESC`;
     return rows.map(mapProperty);
   }
 
@@ -30,8 +31,30 @@ export class PropertyDraftStore {
       const property = properties[0]; if (!property) throw new IdentityError('PROPERTY_CREATE_FAILED', 'Property could not be created');
       const relationships = await transaction<{ id: string }[]>`INSERT INTO provider_property_relationships (property_id, provider_account_id, relationship_type) VALUES (${property.id}, ${provider.account_id}, ${input.relationshipType}) RETURNING id`;
       const relationship = relationships[0]; if (!relationship) throw new IdentityError('RELATIONSHIP_CREATE_FAILED', 'Property relationship could not be created');
-      const result = await transaction<PropertyRow[]>`SELECT p.id, p.property_type, p.region, p.city, p.neighborhood, p.landmark, p.bedrooms, p.bathrooms, p.size_sqm::text, p.furnishing, r.id AS relationship_id, r.relationship_type, r.authorization_status FROM properties p JOIN provider_property_relationships r ON r.property_id = p.id WHERE p.id = ${property.id}`;
+      const result = await transaction<PropertyRow[]>`SELECT p.id, p.version, p.property_type, p.region, p.city, p.neighborhood, p.landmark, p.bedrooms, p.bathrooms, p.size_sqm::text, p.furnishing, r.id AS relationship_id, r.relationship_type, r.authorization_status FROM properties p JOIN provider_property_relationships r ON r.property_id = p.id WHERE p.id = ${property.id}`;
       const row = result[0]; if (!row) throw new IdentityError('PROPERTY_READ_FAILED', 'Property could not be read');
+      return mapProperty(row);
+    });
+  }
+
+  public async updateSpecifications(userId: string, propertyId: string, input: PropertySpecificationsUpdate): Promise<PropertyDraft> {
+    if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1 || !['bedrooms', 'bathrooms', 'sizeSqm', 'furnishing'].some((key) => input[key as keyof PropertySpecificationsUpdate] !== undefined)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Choose at least one valid property specification');
+    validateSpecifications(input);
+    return this.client.begin(async (transaction) => {
+      const providers = await transaction<{ account_id: string }[]>`SELECT a.id AS account_id FROM users u JOIN provider_profiles pp ON pp.user_id=u.id JOIN provider_accounts a ON a.provider_profile_id=pp.id WHERE u.id=${userId} AND u.account_state='ACTIVE' AND pp.state IN ('DRAFT','ACTIVE') AND a.state IN ('DRAFT','ACTIVE') AND EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id=u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) FOR UPDATE OF u,pp,a`;
+      const provider = providers[0];
+      if (!provider) throw new IdentityError('PROVIDER_ELIGIBILITY_REQUIRED', 'Active phone-confirmed provider profile required');
+      const owned = await transaction<{ id: string }[]>`SELECT p.id FROM properties p JOIN provider_property_relationships r ON r.property_id=p.id WHERE p.id=${propertyId} AND p.created_by_user_id=${userId} AND p.record_state IN ('ACTIVE','POSSIBLE_DUPLICATE') AND r.provider_account_id=${provider.account_id} AND r.authorization_status IN ('DECLARED','PENDING','VERIFIED') AND (r.valid_from IS NULL OR r.valid_from<=now()) AND (r.valid_until IS NULL OR r.valid_until>now())`;
+      if (!owned[0]) throw new IdentityError('PROPERTY_SCOPE_DENIED', 'Property is not available');
+      const listings = await transaction<{ publication_status: string }[]>`SELECT publication_status FROM listings WHERE property_id=${propertyId} FOR UPDATE`;
+      if (listings.some((listing) => listing.publication_status !== 'DRAFT')) throw new IdentityError('PROPERTY_EDIT_STATE_INVALID', 'Property specifications cannot change while a listing is under review or published');
+      const current = await transaction<{ version: number }[]>`SELECT version FROM properties WHERE id=${propertyId} FOR UPDATE`;
+      if (current[0]?.version !== input.expectedVersion) throw new IdentityError('STALE_VERSION', 'Property changed elsewhere; refresh before saving');
+      const submitted = await transaction<{ blocked: boolean }[]>`SELECT EXISTS(SELECT 1 FROM listings WHERE property_id=${propertyId} AND publication_status<>'DRAFT') AS blocked`;
+      if (submitted[0]?.blocked) throw new IdentityError('PROPERTY_EDIT_STATE_INVALID', 'Property specifications cannot change while a listing is under review or published');
+      await transaction`UPDATE properties SET bedrooms=CASE WHEN ${input.bedrooms !== undefined} THEN ${input.bedrooms ?? null} ELSE bedrooms END, bathrooms=CASE WHEN ${input.bathrooms !== undefined} THEN ${input.bathrooms ?? null} ELSE bathrooms END, size_sqm=CASE WHEN ${input.sizeSqm !== undefined} THEN ${input.sizeSqm ?? null} ELSE size_sqm END, furnishing=CASE WHEN ${input.furnishing !== undefined} THEN ${input.furnishing ?? null} ELSE furnishing END, version=version+1, updated_at=now() WHERE id=${propertyId}`;
+      const rows = await transaction<PropertyRow[]>`SELECT p.id, p.version, p.property_type, p.region, p.city, p.neighborhood, p.landmark, p.bedrooms, p.bathrooms, p.size_sqm::text, p.furnishing, r.id AS relationship_id, r.relationship_type, r.authorization_status FROM properties p JOIN provider_property_relationships r ON r.property_id=p.id WHERE p.id=${propertyId} AND r.provider_account_id=${provider.account_id}`;
+      const row = rows[0]; if (!row) throw new IdentityError('PROPERTY_READ_FAILED', 'Property could not be read');
       return mapProperty(row);
     });
   }
@@ -103,15 +126,20 @@ export class PropertyDraftStore {
   }
 }
 
-type PropertyRow = { id: string; property_type: PropertyType; region: 'Southwest' | 'Littoral'; city: string; neighborhood: string; landmark: string | null; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null; relationship_id: string; relationship_type: RelationshipType; authorization_status: 'DECLARED' };
+type PropertyRow = { id: string; version: number; property_type: PropertyType; region: 'Southwest' | 'Littoral'; city: string; neighborhood: string; landmark: string | null; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null; relationship_id: string; relationship_type: RelationshipType; authorization_status: 'DECLARED' };
 type ListingRow = { id: string; property_id: string; provider_account_id: string; purpose: ListingPurpose; publication_status: 'DRAFT' | 'PENDING_REVIEW'; moderation_status: 'NOT_REVIEWED' | 'IN_REVIEW'; revision_id: string; version: number; title: string | null; description: string | null; offering_id: string; offering_version_id: string; currency: 'XAF'; amount_minor: number | string | null; pricing_period: 'MONTHLY' | 'TOTAL' | 'NIGHTLY'; negotiable: boolean; deposit_amount_minor: number | string | null; advance_months: number | null; minimum_lease_months: number | null; utilities_included: boolean | null; service_charge_amount_minor: number | string | null; weekly_amount_minor: number | string | null; minimum_nights: number | null; guest_limit: number | null; check_in_time: string | null; check_out_time: string | null; cleaning_fee_minor: number | string | null; available_from: string | null };
-function mapProperty(row: PropertyRow): PropertyDraft { return { id: row.id, propertyType: row.property_type, region: row.region, city: row.city, neighborhood: row.neighborhood, landmark: row.landmark, bedrooms: row.bedrooms, bathrooms: row.bathrooms, sizeSqm: row.size_sqm, furnishing: row.furnishing, relationshipId: row.relationship_id, relationshipType: row.relationship_type, authorizationStatus: 'DECLARED' }; }
+function mapProperty(row: PropertyRow): PropertyDraft { return { id: row.id, version: row.version, propertyType: row.property_type, region: row.region, city: row.city, neighborhood: row.neighborhood, landmark: row.landmark, bedrooms: row.bedrooms, bathrooms: row.bathrooms, sizeSqm: row.size_sqm, furnishing: row.furnishing, relationshipId: row.relationship_id, relationshipType: row.relationship_type, authorizationStatus: 'DECLARED' }; }
 function mapDraft(row: ListingRow): ListingDraft { return { id: row.id, propertyId: row.property_id, providerAccountId: row.provider_account_id, purpose: row.purpose, publicationStatus: row.publication_status, moderationStatus: row.moderation_status, revisionId: row.revision_id, version: row.version, title: row.title, description: row.description, offeringId: row.offering_id, offeringVersionId: row.offering_version_id, currency: 'XAF', amountMinor: row.amount_minor === null ? null : Number(row.amount_minor), pricingPeriod: row.pricing_period, negotiable: row.negotiable, depositAmountMinor: row.deposit_amount_minor === null ? null : Number(row.deposit_amount_minor), advanceMonths: row.advance_months, minimumLeaseMonths: row.minimum_lease_months, utilitiesIncluded: row.utilities_included, serviceChargeAmountMinor: row.service_charge_amount_minor === null ? null : Number(row.service_charge_amount_minor), weeklyAmountMinor: row.weekly_amount_minor === null ? null : Number(row.weekly_amount_minor), minimumNights: row.minimum_nights, guestLimit: row.guest_limit, checkInTime: row.check_in_time, checkOutTime: row.check_out_time, cleaningFeeMinor: row.cleaning_fee_minor === null ? null : Number(row.cleaning_fee_minor), availableFrom: row.available_from }; }
 
 function validateProperty(input: { propertyType: string; region: string; city: string; neighborhood: string; bedrooms?: number | undefined; bathrooms?: number | undefined; sizeSqm?: number | undefined; furnishing?: string | undefined; relationshipType: string }): void {
   if (!propertyTypes.includes(input.propertyType as PropertyType) || !['Southwest', 'Littoral'].includes(input.region) || !input.city.trim() || !input.neighborhood.trim() || !relationshipTypes.includes(input.relationshipType as RelationshipType)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Property details are invalid');
-  for (const value of [input.bedrooms, input.bathrooms]) if (value !== undefined && (!Number.isInteger(value) || value < 0)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Property details are invalid');
-  if (input.sizeSqm !== undefined && (!Number.isFinite(input.sizeSqm) || input.sizeSqm <= 0)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Property details are invalid');
+  validateSpecifications(input);
+}
+
+function validateSpecifications(input: { bedrooms?: number | null | undefined; bathrooms?: number | null | undefined; sizeSqm?: number | null | undefined; furnishing?: string | null | undefined }): void {
+  for (const value of [input.bedrooms, input.bathrooms]) if (value !== undefined && value !== null && (!Number.isInteger(value) || value < 0 || value > 2147483647)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Bedrooms and bathrooms must be nonnegative whole numbers');
+  if (input.sizeSqm !== undefined && input.sizeSqm !== null && (!Number.isFinite(input.sizeSqm) || input.sizeSqm <= 0)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Property size must be positive');
+  if (input.furnishing !== undefined && input.furnishing !== null && !['FURNISHED','UNFURNISHED','PARTLY_FURNISHED'].includes(input.furnishing)) throw new IdentityError('PROPERTY_INPUT_INVALID', 'Furnishing is invalid');
 }
 
 function validateOfferingTerms(purpose: ListingPurpose, input: OfferingTermsInput): void {
