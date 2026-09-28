@@ -5,3 +5,5 @@ export { PhoneVerificationStore, PHONE_MAX_ATTEMPTS, PHONE_MAX_SENDS_PER_WINDOW,
 export type { PhoneChallenge, PhoneConfirmation } from './phone-verification.js';
 export { WebAuthSessionStore } from './web-session.js';
 export type { WebAuthSession } from './web-session.js';
+export { INDIVIDUAL_PROVIDER_TYPES, ProviderStore } from './provider.js';
+export type { IndividualProviderType, ProviderOnboarding } from './provider.js';

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { csrfValid, sameOrigin } from './csrf.js';
-import { safeReturnTo, WEB_AUTH_SCOPE } from './oidc.js';
+import { cognitoLogoutUrl, safeReturnTo, WEB_AUTH_SCOPE } from './oidc.js';
 import { sessionOptions } from './session.js';
 
 void test('rejects open redirects and accepts local relative return paths', () => {
@@ -30,4 +30,22 @@ void test('session cookie is encrypted, HttpOnly, SameSite, and path scoped', ()
 void test('requests the API-required participation scope', () => {
   assert.match(WEB_AUTH_SCOPE, /openid/);
   assert.match(WEB_AUTH_SCOPE, /pachi\/account/);
+});
+
+void test('builds Cognito managed logout URL separately from the local sign-out URI', () => {
+  const previous = { domain: process.env.COGNITO_DOMAIN, client: process.env.COGNITO_CLIENT_ID, logout: process.env.COGNITO_LOGOUT_URI };
+  process.env.COGNITO_DOMAIN = 'https://eu-west-1rdgl0xcsm.auth.eu-west-1.amazoncognito.com';
+  process.env.COGNITO_CLIENT_ID = 'test-client';
+  process.env.COGNITO_LOGOUT_URI = 'http://localhost:3000';
+  try {
+    const url = new URL(cognitoLogoutUrl() ?? '');
+    assert.equal(url.origin, 'https://eu-west-1rdgl0xcsm.auth.eu-west-1.amazoncognito.com');
+    assert.equal(url.pathname, '/logout');
+    assert.equal(url.searchParams.get('client_id'), 'test-client');
+    assert.equal(url.searchParams.get('logout_uri'), 'http://localhost:3000');
+  } finally {
+    if (previous.domain) process.env.COGNITO_DOMAIN = previous.domain; else delete process.env.COGNITO_DOMAIN;
+    if (previous.client) process.env.COGNITO_CLIENT_ID = previous.client; else delete process.env.COGNITO_CLIENT_ID;
+    if (previous.logout) process.env.COGNITO_LOGOUT_URI = previous.logout; else delete process.env.COGNITO_LOGOUT_URI;
+  }
 });

@@ -28,3 +28,5 @@ export type SessionListResponse = { sessions: SafeSessionResponse[] };
 export type OperationStatusResponse = { status: 'ok' };
 export type PhoneRequestResponse = { status: 'accepted'; challengeId: string };
 export type PhoneConfirmResponse = { status: 'verified'; activated: boolean };
+export type ProviderType = 'OWNER' | 'INDEPENDENT_AGENT' | 'PROPERTY_MANAGER';
+export type ProviderOnboardingResponse = { profile_id: string; account_id: string; provider_types: ProviderType[]; state: 'DRAFT' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'RESTRICTED' | 'SUSPENDED' | 'CLOSED'; verification_status: 'NOT_VERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NEEDS_RESUBMISSION'; display_name: string; bio: string | null; service_area: string | null };
