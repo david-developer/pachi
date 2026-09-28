@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { createRemoteJWKSet } from 'jose';
-import { createDatabase, IdentityStore, PhoneVerificationStore } from '@pachi/database';
+import { createDatabase, IdentityStore, PhoneVerificationStore, PropertyDraftStore } from '@pachi/database';
 import { loadConfig } from './config.js';
 import { AccountController } from './account.controller.js';
 import { AuthController } from './auth.controller.js';
@@ -10,6 +10,7 @@ import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { LocalSmsDevelopmentController, LocalSmsSink, PhoneVerificationController, PhoneVerificationService } from './phone.js';
 import { ProviderController } from './provider.controller.js';
 import { ProviderStore } from '@pachi/database';
+import { PropertyController } from './property.controller.js';
 
 const config = loadConfig();
 const { client } = createDatabase();
@@ -27,11 +28,13 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
     })
   : null;
 
-@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController], providers: [
+@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },
   { provide: ProviderStore, useExisting: 'PROVIDER_STORE' },
+  { provide: 'PROPERTY_DRAFT_STORE', useValue: new PropertyDraftStore(client) },
+  { provide: PropertyDraftStore, useExisting: 'PROPERTY_DRAFT_STORE' },
   { provide: PhoneVerificationStore, useValue: phoneStore },
   { provide: 'SMS_PROVIDER', useValue: smsProvider },
   { provide: LocalSmsSink, useValue: smsProvider },
