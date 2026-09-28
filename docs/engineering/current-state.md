@@ -27,7 +27,10 @@
   [36376512323](https://github.com/david-developer/pachi/actions/runs/36376512323)
   PASSED all steps, including both browser suites. Final documentation-only
   handoff commit is tested separately; inspect Checks for its exact HEAD rather
-  than substituting either earlier run. The final response reports that run.
+  than substituting either earlier run. Documentation checkpoint **5f7098e9ebde839250ce3c0c27de007d2f869046**
+  [36376739482](https://github.com/david-developer/pachi/actions/runs/36376739482)
+  also PASSED all steps. Later operational-note-only checkpoints are verified
+  against their own exact HEAD; see the final response/Checks run.
 - All eight canonical foundation criteria now have supporting implementation/test
   evidence (retaining the prior restore result); the separately requested real
   mapped-but-ungranted staff browser acceptance remains BLOCKED, so G1 is still
@@ -39,6 +42,10 @@
   read this exact new subject's MFA settings through runtime, validate pool/client,
   then one controlled private-window login. Do not count prior credential failure
   as ungranted denial or change MFA preferences to conceal it.
+- First renewal authorization response was supplied via a private local file and
+  submitted without output; AWS rejected it as expired. Started a fresh already-
+  authorized renewal; watching separate private authorization-code.txt and
+  submitting/clearing it automatically. Never share authorization codes in chat.
 - Current service probes web3000/admin3002/API3001 readiness all 200. Admin PID
   514185 still has pachi-staff-runtime; web PID595940 test issuer disabled.
   Historical web.log contains 12 ECONNREFUSED and 4 fetch-failed strings, no OOM
