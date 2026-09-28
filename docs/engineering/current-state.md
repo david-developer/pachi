@@ -1,5 +1,42 @@
 # Engineering handoff
 
+## Test-factor activation authorized and verified — 2026-09-28
+
+- Started clean on feat/staff-auth-permissions at
+  624906e700a06770ce7356e7936305774bc21941; its exact CI run 36410123701
+  completed SUCCESS. Comparison base unchanged; completed G1 evidence reused.
+- User explicitly superseded the earlier leave-MFA-unchanged decision and
+  authorized activating the existing factor for the ungranted fixture. Verified
+  source STS account451475820431 / IAM user pachi-david-dev; exact AdminGetUser
+  username and returned sub both f2a534d4-f011-70c9-e6b8-643b3289c687,
+  Enabled=true, CONFIRMED, MFA list/preference absent before mutation.
+- Executed ONE AdminSetUserMFAPreference through pachi-dev-source at
+  2026-09-28T10:34:57.322259Z: dedicated pool eu-west-1_7uju5eCyw, exact fixture
+  above, SoftwareTokenMfaSettings Enabled=true, PreferredMfa=true. SUCCESS.
+  No password reset, reassociation, pool/client policy change or grant write.
+- Independent pachi-staff-runtime readback: matching sub, UserMFASettingList
+  [SOFTWARE_TOKEN_MFA], PreferredMfaSetting SOFTWARE_TOKEN_MFA. Existing admin SDK
+  diagnostic resolves PachiStaffRuntimeReadOnly; all nineteen pool/client checks
+  PASS and existing attestRequiredTotp for this exact subject PASS. This proves
+  current configuration, not completion of the real-browser acceptance or step-up.
+- Existing admin listener PID514185 retained; no service restart needed for fresh
+  uncached policy reads. Marketplace services/data and all environment files/secrets
+  preserved. No application/schema changes or local application-suite reruns;
+  focused live readback/validator and documentation whitespace check performed.
+- Next user action: close previous private windows, open a fresh private window
+  at http://localhost:3002, select staff sign-in, use the separate ungranted test
+  account and its current password/authenticator code directly in Cognito. Report
+  return to Pachi without sending credentials. Then inspect the newest callback
+  for matching signed issuer/sub, freshness, pool/user MFA PASS and denial at
+  staff registration specifically because this mapped identity has no eligible
+  grant; independently recheck mapping/zero grants. Generic failure page alone
+  does not count. No grant will be added or changed.
+- G1 remains INCOMPLETE pending that browser evidence. Existing privileged grant
+  remains untouched (recorded expiry 2026-09-28T19:35:57.049Z); unexplained web
+  hang remains a separate unresolved root-cause item. This checkpoint's exact CI
+  is separate from the verified 624906e pass; report its status without repeated
+  polling while waiting for browser participation.
+
 ## Bounded ungranted-case diagnosis — 2026-09-28
 
 - Started clean at 72fa84f4bbe551d4129434a6a82df39ed67963c3 on
