@@ -54,6 +54,7 @@ void integrationTest('property and private listing draft HTTP workflow is eligib
     assert.ok(readinessAfterProfileEdit.checks.some(check => check.code === 'PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE' && check.status === 'BLOCKED'));
     assert.ok(readinessAfterProfileEdit.checks.some(check => check.code === 'PROPERTY_SPECIFICATION_REQUIRED' && check.status === 'BLOCKED'));
     const patchSpecifications = (accessToken: string, body: unknown) => fetch(`${base}/v1/account/properties/${property.id}/specifications`, { method: 'PATCH', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await fetch(`${base}/v1/account/properties/${property.id}/specifications`, { method: 'PATCH', headers: { authorization: `Bearer ${firstToken}` } })).status, 409);
     assert.equal((await patchSpecifications(secondToken, { expected_version: 1, bedrooms: 3 })).status, 404);
     assert.equal((await patchSpecifications(firstToken, { expected_version: 1, bedrooms: -1 })).status, 409);
     assert.equal((await patchSpecifications(firstToken, { expected_version: 1, furnishing: 'UNREVIEWED' })).status, 409);

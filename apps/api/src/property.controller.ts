@@ -34,7 +34,7 @@ export class PropertyController {
   @Patch('properties/:id/specifications')
   public async updatePropertySpecifications(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() body: PropertySpecificationsUpdateRequest): Promise<PropertyDraftResponse> {
     if (!isUuid(id)) throw new NotFoundException('Private resource is not available');
-    try { return propertyResponse(await this.store.updateSpecifications(this.userId(request), id, { expectedVersion: body.expected_version, bedrooms: body.bedrooms, bathrooms: body.bathrooms, sizeSqm: body.size_sqm, furnishing: body.furnishing })); }
+    try { return propertyResponse(await this.store.updateSpecifications(this.userId(request), id, { expectedVersion: body?.expected_version, bedrooms: body?.bedrooms, bathrooms: body?.bathrooms, sizeSqm: body?.size_sqm, furnishing: body?.furnishing })); }
     catch (error) { throw this.error(error); }
   }
 
