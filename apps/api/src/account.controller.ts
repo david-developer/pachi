@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, Post, Req, UseGuards } from '@nestjs/common';
 import type { AuthenticatedRequest } from './auth.guard.js';
 import { AuthGuard } from './auth.guard.js';
 import { IdentityStore } from '@pachi/database';
@@ -7,7 +7,7 @@ import type { AccountMeResponse, OperationStatusResponse, SessionListResponse } 
 @Controller('account')
 @UseGuards(AuthGuard)
 export class AccountController {
-  public constructor(private readonly store: IdentityStore) {}
+  public constructor(@Inject('IDENTITY_STORE') private readonly store: IdentityStore) {}
 
   @Get('me')
   public async me(@Req() request: AuthenticatedRequest): Promise<AccountMeResponse> {

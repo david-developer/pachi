@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedPrincipal } from '@pachi/database';
@@ -8,7 +8,7 @@ export type AuthenticatedRequest = Request & { principal?: AuthenticatedPrincipa
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  public constructor(private readonly auth: AuthService) {}
+  public constructor(@Inject('AUTH_SERVICE') private readonly auth: AuthService) {}
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();

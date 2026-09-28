@@ -247,9 +247,24 @@ importers:
 
   apps/web:
     dependencies:
+      '@pachi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@pachi/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      iron-session:
+        specifier: 9.0.1
+        version: 9.0.1
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       next:
         specifier: 16.3.6
         version: 16.3.6(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@24.5.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      openid-client:
+        specifier: 6.8.8
+        version: 6.8.8
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -272,6 +287,9 @@ importers:
       '@types/react-dom':
         specifier: 19.2.2
         version: 19.2.2(@types/react@19.2.2)
+      tsx:
+        specifier: 4.20.5
+        version: 4.20.5
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -2680,6 +2698,10 @@ packages:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
 
+  cookie@2.0.1:
+    resolution: {integrity: sha512-yuToqVvRrj6pfDXREyQAAv8SkAEk/8GS3jQRTiUMm66TVtBYmqQeoEjL2Lmq8Rpo6271vH76InTChTitEAm65w==}
+    engines: {node: '>=22'}
+
   core-js-compat@3.50.0:
     resolution: {integrity: sha512-XGpFGbMLHwSt74YLTKho7Ib242qi6O8MSX+sRokV4oz7iKXvQWGYZthjIhjRGMxjzVkAubBO512dKGYcefmX3Q==}
     engines: {node: '>=6.4.0'}
@@ -3387,6 +3409,13 @@ packages:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
     engines: {node: '>= 0.10'}
 
+  iron-session@9.0.1:
+    resolution: {integrity: sha512-ELSZdcLvA0AMhxUCY+rwKCh42UV88SqEb1ia/bHLF9G+6kScikO6mShtlIq+OtF2UlkZP0dmI2dMdG9vh4rebA==}
+    engines: {node: '>=22.13.0'}
+
+  iron-webcrypto@2.0.0:
+    resolution: {integrity: sha512-rtffZKDUHciZElM8mjFCufBC7nVhCxHYyWHESqs89OioEDz4parOofd8/uhrejh/INhQFfYQfByS22LlezR9sQ==}
+
   is-arrayish@0.3.4:
     resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
 
@@ -3945,6 +3974,9 @@ packages:
   nullthrows@1.1.1:
     resolution: {integrity: sha512-2vPPEi+Z7WqML2jZYddDIfy5Dqb0r2fze2zTxNNknZaFpVHU3mFB3R+DWeJWGVx0ecvttSGlJTI+WG+8Z4cDWw==}
 
+  oauth4webapi@3.8.8:
+    resolution: {integrity: sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng==}
+
   ob1@0.83.3:
     resolution: {integrity: sha512-egUxXCDwoWG06NGCS5s5AdcpnumHKJlfd3HH06P3m9TEMwwScfcY35wpQxbm9oHof+dM/lVH9Rfyu1elTVelSA==}
     engines: {node: '>=20.19.4'}
@@ -3987,6 +4019,9 @@ packages:
   open@8.4.2:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
+
+  openid-client@6.8.8:
+    resolution: {integrity: sha512-ZsucJA5Ad04Uv7YN4ql+s4GXNmb9uAYQwyJTsJx7CH/MX3JZioLE2pVKi1SC+YrbSLA4Px3Gi30dMjgOZtb6pA==}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -7526,6 +7561,8 @@ snapshots:
 
   cookie@0.7.2: {}
 
+  cookie@2.0.1: {}
+
   core-js-compat@3.50.0:
     dependencies:
       browserslist: 4.29.0
@@ -8253,6 +8290,15 @@ snapshots:
       loose-envify: 1.4.0
 
   ipaddr.js@1.9.1: {}
+
+  iron-session@9.0.1:
+    dependencies:
+      cookie: 2.0.1
+      iron-webcrypto: 2.0.0
+
+  iron-webcrypto@2.0.0:
+    dependencies:
+      uint8array-extras: 1.5.0
 
   is-arrayish@0.3.4: {}
 
@@ -8988,6 +9034,8 @@ snapshots:
 
   nullthrows@1.1.1: {}
 
+  oauth4webapi@3.8.8: {}
+
   ob1@0.83.3:
     dependencies:
       flow-enums-runtime: 0.0.6
@@ -9028,6 +9076,11 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  openid-client@6.8.8:
+    dependencies:
+      jose: 6.2.12
+      oauth4webapi: 3.8.8
 
   optionator@0.9.4:
     dependencies:

@@ -7,7 +7,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
-import { LocalSmsSink, PhoneVerificationController, PhoneVerificationService } from './phone.js';
+import { LocalSmsDevelopmentController, LocalSmsSink, PhoneVerificationController, PhoneVerificationService } from './phone.js';
 
 const config = loadConfig();
 const { client } = createDatabase();
@@ -24,13 +24,17 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
     })
   : null;
 
-@Module({ controllers: [AuthController, AccountController, PhoneVerificationController], providers: [
-  { provide: IdentityStore, useValue: store },
+@Module({ controllers: [AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController], providers: [
+  { provide: 'IDENTITY_STORE', useValue: store },
+  { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: PhoneVerificationStore, useValue: phoneStore },
   { provide: 'SMS_PROVIDER', useValue: smsProvider },
+  { provide: LocalSmsSink, useValue: smsProvider },
   { provide: CognitoAccessTokenVerifier, useValue: verifier },
-  { provide: AuthService, useFactory: () => new AuthService(store, verifier) },
+  { provide: 'AUTH_SERVICE', useFactory: () => new AuthService(store, verifier) },
+  { provide: AuthService, useExisting: 'AUTH_SERVICE' },
   AuthGuard,
-  { provide: PhoneVerificationService, useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) }
+  { provide: 'PHONE_VERIFICATION_SERVICE', useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) },
+  { provide: PhoneVerificationService, useExisting: 'PHONE_VERIFICATION_SERVICE' }
 ], exports: [AuthService] })
 export class AuthModule {}
