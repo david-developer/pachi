@@ -1,5 +1,57 @@
 # Engineering handoff
 
+## Bounded ungranted-case diagnosis — 2026-09-28
+
+- Started clean at 72fa84f4bbe551d4129434a6a82df39ed67963c3 on
+  feat/staff-auth-permissions; comparison base unchanged. Reused its passing
+  exact-commit Checks run 36408131447 and completed G1 evidence; no application,
+  environment, service, migration, membership or grant changes. Only this handoff
+  changed. Root/apps/web/apps/admin environment files and secrets preserved.
+- Read-only runtime AdminGetUser again matches exact dedicated username/sub
+  f2a534d4-f011-70c9-e6b8-643b3289c687: Enabled=true, CONFIRMED, both
+  UserMFASettingList and PreferredMfaSetting absent. LastModified is
+  2026-09-28T03:48:16.125Z; that generic timestamp does not prove MFA enrollment.
+- New evidence: after verifying source STS as
+  arn:aws:iam::451475820431:user/pachi-david-dev, read-only
+  AdminGetUserAuthFactors for that exact pool/username returned
+  ConfiguredUserAuthFactors=[PASSWORD,EMAIL_OTP,SOFTWARE_TOKEN], with both MFA
+  preference/list fields absent. Runtime permissions were not expanded. A software
+  token is reported as configured, but no MFA method is activated. EMAIL_OTP in
+  available factors is not evidence of enabled email MFA or a changed pool policy.
+- Enrollment completion remains only partially established: configured-factor
+  state persists, but neither this response nor CONFIRMED proves the historical
+  VerifySoftwareToken SUCCESS result or why activation was not persisted. A bounded
+  CloudTrail LookupEvents for VerifySoftwareToken at 03:30–04:10Z was denied with
+  AccessDeniedException. No permissions added; no raw event bodies exposed. An
+  already-authorized account administrator could inspect that enrollment window
+  for this exact subject and return only operation/time/result/target-match, if
+  such events are available. Absence of accessible audit evidence is not proof
+  that enrollment failed.
+- Existing callback c2eb8ada-1b14-4c44-92df-8eabef06f3ec at 03:58:03.010Z
+  established the signed identity/freshness but stopped at expired AWS credentials;
+  it did not record Cognito's enrollment result. Current readback still fails the
+  unchanged provider.ts requirement for UserMFASettingList=SOFTWARE_TOKEN_MFA
+  (MFA_UNPROVEN), before grant checks. Known mapping/zero-grant evidence preserved.
+- **Blocked on explicit user decision:** this acceptance cannot proceed with MFA
+  left in its present state. The smallest proposed next operation, only if newly
+  authorized, is activating the existing software-token factor for this exact test
+  subject (AdminSetUserMFAPreference, SoftwareTokenMfaSettings Enabled=true,
+  PreferredMfa=true), with readback; stop if Cognito rejects the registered factor.
+  This is a real configuration change, not read-only proof or completed acceptance.
+  No such operation was executed; no reset/reassociation, browser retry, policy
+  change or grant mutation requested/performed. If activation is declined, keep
+  the case blocked; investigate historical enrollment through an authorized
+  administrator if desired. Any subsequent enrollment recovery needs a separate
+  decision, with all codes/passwords browser-only.
+- G1 remains INCOMPLETE. No authenticated mapped-but-ungranted grant denial yet.
+  Marketplace web hang remains a separate unresolved root-cause issue; prior
+  recovery/browser confirmation is preserved. No application tests rerun for this
+  documentation-only checkpoint; git diff --check is the focused check. Its new
+  exact-commit CI must be reported separately from the reused 72fa84f pass.
+- Official semantics consulted: [factor inspection](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminGetUserAuthFactors.html),
+  [software-token verification](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_VerifySoftwareToken.html),
+  [MFA activation](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminSetUserMFAPreference.html).
+
 ## AWS access restored; test-user MFA remains blocked — 2026-09-28
 
 - Arrival on feat/staff-auth-permissions at a7d793cfaed6fcb1ebf707a21cef3ae6b3d4902b;
