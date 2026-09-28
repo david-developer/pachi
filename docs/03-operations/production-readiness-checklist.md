@@ -18,7 +18,7 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 | Gate | Required result | Current evidence state |
 |---|---|---|
 | G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | Documentation package prepared; repository replacement/commit still to be performed. |
-| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — real mapped-ungranted browser acceptance pending; see the [current G1 work](../engineering/current-state.md#g1-closure-work-in-progress--2026-09-28). |
+| G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | INCOMPLETE — real mapped-ungranted browser acceptance blocked by test-user MFA_UNPROVEN; user chose to leave MFA unchanged. See [current evidence](../engineering/current-state.md#aws-access-restored-test-user-mfa-remains-blocked--2026-09-28). |
 | G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN. |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |

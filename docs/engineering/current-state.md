@@ -1,6 +1,45 @@
 # Engineering handoff
 
+## AWS access restored; test-user MFA remains blocked — 2026-09-28
+
+- Arrival on feat/staff-auth-permissions at a7d793cfaed6fcb1ebf707a21cef3ae6b3d4902b;
+  its exact Checks run 36401298840 PASSED. Existing uncommitted operational notes
+  below were preserved. No application changes or migrations in this follow-up.
+- User completed AWS CLI local browser callback and reported credentials saved.
+  Independently verified STS: source profile pachi-dev-source is account451475820431,
+  arn:aws:iam::451475820431:user/pachi-david-dev; runtime CLI and admin SDK both
+  resolve arn:aws:sts::451475820431:assumed-role/PachiStaffRuntimeReadOnly/ sessions.
+  Stopped only task-owned redirect helper PID648985; CLI exited normally. No
+  marketplace/admin/API/worker process stopped, no environment secret changed.
+- All nineteen inspected pool/client policy checks PASS through runtime: required
+  TOTP-only MFA, local/admin-created identities, password12, managed login2,
+  confidential client equality, code flow, exact callback/logout, pachi/staff,
+  revocation, rotation/grace10, SRP-only, access5m; refresh lifetime480minutes.
+- Exact test username/sub f2a534d4-f011-70c9-e6b8-643b3289c687: SDK and independent
+  CLI AdminGetUser agree Enabled=true, UserStatus=CONFIRMED, UserMFASettingList
+  absent/null, PreferredMfaSetting absent/null. Existing attestRequiredTotp fails
+  at mfa_policy_validation with MFA_UNPROVEN. Not an SDK parsing difference,
+  wrong-user read or AWS credential failure. No MFA setting changed.
+- Rechecked dedicated issuer/sub mapping to 0a855b6b-31bc-4b8a-ac79-b8a311e5c7df;
+  zero StaffGrants. Original user's exact SUPER_ADMIN/platform pachi/only
+  admin:permissions_manage grant unchanged, not revoked, expiry
+  2026-09-28T19:35:57.049Z. No privileges written or renewed.
+- User explicitly chose **Leave MFA unchanged** after the targeted recovery was
+  proposed. No AdminSetUserMFAPreference, reset, reassociation or preference update
+  was executed. Do not infer permission for this fixture from the earlier original-
+  subject recovery. No further browser retry requested because current policy
+  validation fails before grant checks. Any future enrollment/configuration change
+  requires a new explicit user decision; preserve this boundary while blocked.
+- G1 remains INCOMPLETE: real mapped-but-ungranted browser grant-denial proof not
+  obtained. Prior callback stopped at expired AWS credentials; current MFA-policy
+  failure cannot be relabeled grant denial. No browser retry requested yet.
+  Existing real original-staff evidence, current-schema isolated restore and
+  marketplace recovery preserved; web hang root cause remains unresolved.
+
+
 ## G1 closure work in progress — 2026-09-28
+
+Historical work record: the AWS-restored/MFA-blocked section above is current.
 
 - Started clean on feat/staff-auth-permissions, HEAD 6b39452610993598b10a406d9435897578c3a410; comparison base unchanged. Exact CI eb3fb7bf4a78c11cf45dc14d6e93a246928e0811 / run 36348972375 and 6b39452610993598b10a406d9435897578c3a410 / run 36349003275 both PASSED. Prior real staff authentication/logout/reauth/revocation and restore evidence preserved below.
 - In-progress edits: failing CI security and OpenAPI/shared-type/route checks, patched dependencies, organization settings authorization foundation and isolated HTTP test. No organization product routes or mutation workflows added. Migration 0015 applied ONLY to localhost:5433/pachi_test; development baseline remains 0014. Local lint/typecheck/unit, database integration (8/8), API HTTP integration (5/5), contract drift negative tests and mobile exports pass; both implementation checkpoints passed exact-commit CI as recorded below.
@@ -15,6 +54,21 @@
 
 
 ### Current G1 closure status
+
+- Saved response was submitted privately, but CLI reported authorization-request
+  mismatch (not expiry). Source/runtime credentials remain expired. To remove
+  manual-copy/stale-link errors, started the already-authorized AWS login with
+  local callback port8400 and a no-log loopback redirect at http://localhost:8401.
+  User completes the browser flow as pachi-david-dev; no code/file editing needed.
+  Helper PID648985 and CLI PID648841 are task-owned and must be cleaned up after
+  completion. No application service, Cognito setting or grant changed.
+
+- Follow-up: user reported pasting a new AWS authorization code, but the exact
+  private authorization-code.txt on disk remains zero bytes, unchanged since
+  2026-09-28T08:58:16Z; no response was consumed. The bounded watcher timed out.
+  Source and runtime STS still report expired credentials; SDK validation cannot
+  proceed. Next action: save the editor buffer to that exact private file and
+  notify the agent; never paste the code into chat. User then reported editor access difficulty. Verified files/directories owned by david, mode0600/0700, no lock. Prepared fresh authorized renewal with ignored repository-local .local-dev/aws-login-instructions.txt and .local-dev/aws-authorization-code.txt; user instructed to open actual VS Code editor via Ctrl+O and save via Ctrl+S. Old identified waiting login process stopped; no service, MFA or grant changes made.
 
 - Checkpoint **26f0b4b20598ac7e7b3e488e4b8fb24cb576806e** exact CI
   [36376252388](https://github.com/david-developer/pachi/actions/runs/36376252388)
