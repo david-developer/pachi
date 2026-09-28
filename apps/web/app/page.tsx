@@ -21,7 +21,7 @@ export default function MarketplaceShell() {
   const [serviceArea, setServiceArea] = useState('');
 
   useEffect(() => {
-    fetch('/api/session', { cache: 'no-store' }).then((response) => response.json() as Promise<SessionState>).then((nextState) => { setState(nextState); if (nextState.authenticated) fetch('/api/account/provider', { cache: 'no-store' }).then((response) => response.json() as Promise<ProviderState>).then(setProvider).catch(() => setError('The provider profile could not be loaded.')); }).catch(() => setError('The session could not be checked. Refresh and try again.'));
+    fetch('/api/session', { cache: 'no-store' }).then(async (response) => { if (!response.ok) throw new Error('session_failed'); return response.json() as Promise<SessionState>; }).then((nextState) => { setState(nextState); if (nextState.authenticated) fetch('/api/account/provider', { cache: 'no-store' }).then(async (response) => { if (response.status === 401) throw new Error('session_expired'); if (!response.ok) throw new Error('provider_failed'); return response.json() as Promise<ProviderState>; }).then(setProvider).catch((providerError: unknown) => setError(providerError instanceof Error && providerError.message === 'session_expired' ? 'Your sign-in session has expired. Sign in again.' : 'The provider profile could not be loaded. Refresh and try again.')); }).catch(() => setError('The session could not be checked. Refresh and try again.'));
     const authError = new URLSearchParams(window.location.search).get('auth_error');
     if (authError) setError(authError === 'configuration' ? 'Web authentication is not configured for this environment.' : 'Authentication could not be completed. Try again.');
   }, []);

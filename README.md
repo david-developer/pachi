@@ -44,12 +44,32 @@ docker compose up -d postgres
 pnpm db:migrate
 ```
 
-Start the API and marketplace web in separate terminals after loading `.env`:
+Start the local API, marketplace web and media worker from the repository root
+after activating the pinned toolchain. Keep this command running in a terminal:
 
 ```bash
-pnpm --filter @pachi/api dev
-pnpm --filter @pachi/web dev
+docker compose up -d postgres clamav
+pnpm dev
 ```
+
+The launcher builds shared packages, reads existing ignored `.env` for API/worker
+and overlays `apps/web/.env` for web. It discards inherited application settings,
+`CI`, `DATABASE_TEST_URL`, test issuers and runtime hooks; it requires the local
+development database and configured Cognito verifier. Do not regenerate secrets
+or overwrite existing files with examples. The web file's client secret takes
+precedence over the root file for web. No migrations are run by startup.
+
+For separate terminals use `pnpm dev api`, `pnpm dev web`, and `pnpm dev worker`.
+The equivalent filtered app `dev` commands use the same launcher. Port conflicts
+and duplicate launchers fail with an explanation; inspect `ss -ltnp` and the
+identified PID's working directory before stopping a stale project process.
+Never use broad `pkill` patterns. Ctrl-C stops only services owned by that launcher.
+Do not run both the combined and individual commands for the same service.
+
+Read/update the shared [engineering handoff](docs/engineering/current-state.md)
+when resuming. It records verified recovery evidence, outstanding work and CI;
+health checks alone do not prove browser login. Authentication diagnostics log
+stage, duration, generated request ID and API status without callback queries.
 
 The API is available at `http://localhost:3001/v1/health/live` and
 `http://localhost:3001/v1/health/ready`. The marketplace shell runs on
@@ -111,10 +131,10 @@ draft list reloads the persisted current version.
 
 These routes are authenticated and provider-scoped. The API requires an ACTIVE,
 phone-confirmed user and an eligible individual provider profile; provider
-identity verification is not claimed by this local slice. Drafts remain
-`DRAFT`: there is no submission, publication, public search, moderation
-approval, payment, or property-edit workflow here. Private photo drafts are the
-next bounded slice described below. API paths and schemas are described in
+identity verification is not claimed by this local slice. Draft readiness and
+submission are described below; submission moves only a fully eligible exact
+revision to `PENDING_REVIEW`/`IN_REVIEW`. It does not approve, publish, or
+change market status. API paths and schemas are described in
 `apps/api/openapi.yaml`; TypeScript request and response types live in
 `packages/contracts`.
 
@@ -125,7 +145,7 @@ additional terminals:
 
 ```bash
 docker compose up -d clamav
-pnpm --filter @pachi/worker dev
+pnpm dev worker # only if it is not already running through pnpm dev
 ```
 
 The API writes originals to ignored `/.local-media/` quarantine storage. The
@@ -151,6 +171,36 @@ IAM separation, KMS, scoped presigned upload URLs, SQS/DLQ delivery, malware
 signature operations/monitoring, CloudFront authorization/invalidation,
 retention reconciliation and production orphan deletion controls remain
 unimplemented. This slice is not production-ready and is not G1 evidence.
+
+## Listing readiness and review submission
+
+After preparing a private draft, open it in the provider workspace and use
+**Listing readiness** to refresh the backend-owned checklist. The checklist
+covers current listing content, property specification and location, active
+property state, a current declared/verified relationship, enabled region,
+purpose-compatible XAF terms and availability, processed media and cover, and
+account/provider eligibility. The workspace displays stable blocker codes and
+field-level messages; client checks do not replace the API decision.
+
+When every required capability is available, **Submit for review** binds the
+current listing revision, offering version, ordered media and cover selection in
+an immutable submission snapshot. The command is authorization-checked and
+idempotent, records the existing audit event, and moves only the publication
+axis to `PENDING_REVIEW` while moderation becomes `IN_REVIEW`. Draft edits and
+photo changes are then unavailable until a documented review outcome permits
+correction. Approval, publication and market status remain separate staff or
+domain operations.
+
+This local foundation deliberately reports `MEDIA_APPROVAL_UNAVAILABLE` and
+`PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE`: `READY` media is not approved
+media, and the evidence-backed `PROVIDER_IDENTITY` capability is not present in
+the current workspace. Do not change verification records manually to make a
+submission succeed. A complete eligible submission walkthrough remains blocked
+until those approved capabilities are implemented; blocked readiness,
+cross-provider scope, stale versions, and duplicate-safe command behavior are
+covered against the disposable test database. If the web session expires or an
+API data request is unauthorized, the account and provider screens show a
+session/data error or sign-in prompt rather than presenting empty collections.
 
 ## Web authentication setup
 
@@ -198,3 +248,29 @@ staging/production AWS account separation or production readiness evidence.
 Run the foundation checks with `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, and `pnpm build`. These checks do not replace the documented
 G1-G6 evidence gates.
+
+Provider photo-refresh browser regressions use a fresh Chromium profile and
+synthetic API responses; they do not access real accounts or write development
+records. Install the pinned test browser once:
+
+```bash
+pnpm --filter @pachi/web exec playwright install --with-deps chromium --only-shell
+```
+
+On this Ubuntu 26.04 development host, the compatible Ubuntu 24.04 browser and
+its required libraries are already installed under ignored `.local-dev/browser/`.
+Use them from the repository root without changing system packages:
+
+```bash
+LD_LIBRARY_PATH="$PWD/.local-dev/browser/libs/usr/lib/x86_64-linux-gnu" \
+PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 \
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.local-dev/browser/browsers" \
+PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser
+```
+
+With the development web already running, use
+`PACHI_BROWSER_BASE_URL=http://localhost:3000 pnpm --filter @pachi/web test:browser`.
+After a production build, `pnpm --filter @pachi/web test:browser` starts an
+isolated server on 3100 and stops it afterward. CI runs this suite after build.
+It covers processing-to-ready, unsaved form input, request failures, draft
+switches and upload-poll races. Real-account acceptance remains separate.

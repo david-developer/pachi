@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "build": "tsc -p tsconfig.json", "dev": "tsx watch src/main.ts", "start": "node dist/main.js", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "node --test" },
+  "scripts": { "build": "tsc -p tsconfig.json", "dev": "node ../../scripts/dev.mjs worker", "start": "node dist/main.js", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "node --test" },
   "dependencies": { "@pachi/database": "workspace:*", "@pachi/media": "workspace:*" },
   "devDependencies": { "@pachi/eslint-config": "workspace:*", "@pachi/typescript-config": "workspace:*", "@types/node": "24.5.2", "tsx": "4.20.5", "typescript": "5.9.2" }
 }

@@ -14,6 +14,7 @@
     { "idx": 9, "version": "7", "when": 1759536000000, "tag": "0009_property_listing_drafts", "breakpoints": true },
     { "idx": 10, "version": "7", "when": 1759622400000, "tag": "0010_purpose_specific_offering_terms", "breakpoints": true },
     { "idx": 11, "version": "7", "when": 1759708800000, "tag": "0011_private_listing_media", "breakpoints": true },
-    { "idx": 12, "version": "7", "when": 1759795200000, "tag": "0012_media_checksum_failure", "breakpoints": true }
+    { "idx": 12, "version": "7", "when": 1759795200000, "tag": "0012_media_checksum_failure", "breakpoints": true },
+    { "idx": 13, "version": "7", "when": 1790380800000, "tag": "0013_listing_submission_snapshots", "breakpoints": true }
   ]
 }

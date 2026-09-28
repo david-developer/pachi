@@ -7,7 +7,7 @@
 
 ## Start here
 
-This is Pachi baseline 2.1, reconciled on 24 September 2026 at the project owner's request. It is the implementation reference for the repository. **Current progress is environment setup and documentation only. No scaffold, migrations executed, application implementation or deployment is claimed.**
+This is Pachi baseline 2.1, reconciled on 24 September 2026 at the project owner's request. It is the implementation reference for the repository. The original documentation delivery claimed environment setup and documentation only. Current implementation evidence and outstanding work are maintained in the single [engineering handoff](engineering/current-state.md); that operational record cannot amend product policy or certify launch readiness.
 
 The original full product scope remains. Delivery is incremental; an early working slice is not the full MVP. The project owner carries the engineering/product/operations responsibilities; named roles in the documents are permissions and responsibilities, not evidence of a staffed organization.
 

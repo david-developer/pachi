@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Personal Codex configuration and generated memory (repo skills live in .agents)
+/.codex/config.toml
+/.codex/*.config.toml
+/.codex/memories/
+
 # Logs
 *.log
 
@@ -13,8 +18,11 @@ dist/
 .expo/
 web-build/
 coverage/
+test-results/
+playwright-report/
 .turbo/
 /.local-media/
+/.local-dev/
 
 # OS files
 .DS_Store
