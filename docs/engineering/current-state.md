@@ -29,8 +29,10 @@
   handoff commit is tested separately; inspect Checks for its exact HEAD rather
   than substituting either earlier run. Documentation checkpoint **5f7098e9ebde839250ce3c0c27de007d2f869046**
   [36376739482](https://github.com/david-developer/pachi/actions/runs/36376739482)
-  also PASSED all steps. Later operational-note-only checkpoints are verified
-  against their own exact HEAD; see the final response/Checks run.
+  also PASSED all steps. Operational checkpoint **8d685200a68611b9503c43ed187db4a67f3345b1**
+  [36400923672](https://github.com/david-developer/pachi/actions/runs/36400923672)
+  PASSED all steps too. The final restore-evidence documentation commit is
+  verified against its own exact HEAD; see final response/Checks run.
 - All eight canonical foundation criteria now have supporting implementation/test
   evidence (retaining the prior restore result); the separately requested real
   mapped-but-ungranted staff browser acceptance remains BLOCKED, so G1 is still
@@ -46,6 +48,13 @@
   submitted without output; AWS rejected it as expired. Started a fresh already-
   authorized renewal; watching separate private authorization-code.txt and
   submitting/clearing it automatically. Never share authorization codes in chat.
+- Current-schema restore rerun justified by migration0015: source remains isolated
+  localhost:5433/pachi_test; offline target pachi-g1-restore-1790586119/pachi_restore.
+  PASS: 29 public table counts/full-row hashes, extensions and constraints match,
+  zero invalid indexes, source unchanged. 40.58 seconds; SHA256
+  4585f5b0c4f6af510df7731fdf745a6481690727677627349043921bdb9ba43a.
+  Private dump/evidence retained outside Git; only disposable target removed.
+  Prior 27-table evidence preserved; no deployed RPO/RTO or E04 claim.
 - Current service probes web3000/admin3002/API3001 readiness all 200. Admin PID
   514185 still has pachi-staff-runtime; web PID595940 test issuer disabled.
   Historical web.log contains 12 ECONNREFUSED and 4 fetch-failed strings, no OOM
