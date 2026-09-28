@@ -36,6 +36,7 @@ jobs:
       - run: pnpm --filter @pachi/database db:migrate:test
       - run: pnpm --filter @pachi/database build
       - run: pnpm --filter @pachi/contracts build
+      - run: pnpm --filter @pachi/media build
       - run: pnpm --filter @pachi/database test:integration
       - run: pnpm --filter @pachi/api test:integration
       - run: pnpm lint
