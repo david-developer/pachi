@@ -4,3 +4,13 @@ packages:
 allowBuilds:
   '@nestjs/core': true
   esbuild: true
+# Security fixes for transitive packages pinned by upstream tooling.
+overrides:
+  'path-to-regexp@>=8.0.0 <8.4.0': 8.4.0
+  'postcss@<8.5.23': 8.5.23
+  'esbuild@0.18.20': 0.25.12
+  'xcode>uuid': 11.1.1
+  'decode-uri-component@0.2.2': 0.5.0
+  'image-size@1.2.1': 2.0.3
+  # Metro 0.83.8 adapts filename inputs to the patched image-size v2 API.
+  'metro@0.83.3': 0.83.8

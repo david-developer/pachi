@@ -28,11 +28,15 @@ jobs:
       DATABASE_URL: postgresql://pachi_test:pachi_test_only@localhost:5433/pachi_test
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
         with: { version: 12.0.0 }
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - run: pnpm check:secrets
+      - run: pnpm check:dependencies
+      - run: pnpm check:contracts
       - run: pnpm --filter @pachi/database db:migrate:test
       - run: pnpm --filter @pachi/database build
       - run: pnpm --filter @pachi/contracts build
@@ -45,3 +49,4 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @pachi/web exec playwright install --with-deps chromium --only-shell
       - run: pnpm --filter @pachi/web test:browser
+      - run: pnpm --filter @pachi/admin test:browser

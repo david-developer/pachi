@@ -51,3 +51,11 @@ test('missing verifier and explicit test targets fail before launching services'
   assert.throws(() => developmentEnvironment(fixture(t, 'DATABASE_URL=postgresql://localhost:5433/pachi_test\n'), 'web', {}), /require localhost:5432/);
   assert.throws(() => developmentEnvironment(fixture(t, 'AUTH_ALLOW_TEST_ISSUER=true\n'), 'api', {}), /cannot enable the test issuer/);
 });
+
+test('admin overlays only its own file and ignores inherited test settings', (t) => {
+  const root=fixture(t);mkdirSync(new URL('apps/admin/',root),{recursive:true});
+  writeFileSync(new URL('apps/admin/.env',root),'STAFF_ORIGIN=http://localhost:3002\nSTAFF_SESSION_SECRET=synthetic-staff-session-secret-not-web\n');
+  const env=developmentEnvironment(root,'admin',{STAFF_COGNITO_ISSUER:'https://local.test/evil',AUTH_ALLOW_TEST_ISSUER:'true',DATABASE_URL:'postgresql://localhost:5433/pachi_test'});
+  assert.equal(env.STAFF_COGNITO_ISSUER,undefined);assert.equal(env.STAFF_ORIGIN,'http://localhost:3002');assert.equal(env.AUTH_ALLOW_TEST_ISSUER,'false');
+  assert.equal(new URL(env.DATABASE_URL).port,'5432');
+});

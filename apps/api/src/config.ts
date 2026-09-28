@@ -9,6 +9,9 @@ const schema = z.object({
   COGNITO_JWKS_URI: z.preprocess((value) => value === '' ? undefined : value, z.string().url().optional()),
   COGNITO_CLIENT_IDS: z.string().default('').transform((value) => value.split(',').map((item) => item.trim()).filter(Boolean)),
   AUTH_REQUIRED_SCOPES: z.string().default('').transform((value) => value.split(/\s+/).map((item) => item.trim()).filter(Boolean)),
+  STAFF_COGNITO_ISSUER: z.string().default(''),
+  STAFF_COGNITO_CLIENT_ID: z.string().default(''),
+  STAFF_API_AUDIENCE: z.string().default(''),
   AUTH_ALLOW_TEST_ISSUER: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   PHONE_OTP_HMAC_SECRET: z.string().default('local-only-phone-otp-secret'),
   SMS_PROVIDER: z.enum(['local', 'aws']).default('local'),
@@ -16,6 +19,9 @@ const schema = z.object({
   CLAMAV_HOST: z.string().default('127.0.0.1'),
   CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310)
 }).superRefine((config, context) => {
+  if (config.STAFF_COGNITO_ISSUER || config.STAFF_COGNITO_CLIENT_ID) {
+    if (!config.STAFF_COGNITO_CLIENT_ID || !/^https:\/\/cognito-idp\.[a-z0-9-]+\.amazonaws\.com\/[a-z0-9-]+_[A-Za-z0-9]+$/.test(config.STAFF_COGNITO_ISSUER) || config.STAFF_COGNITO_ISSUER === config.COGNITO_ISSUER || config.COGNITO_CLIENT_IDS.includes(config.STAFF_COGNITO_CLIENT_ID)) context.addIssue({code: 'custom', message: 'Staff requires a distinct Cognito pool and client', path: ['STAFF_COGNITO_ISSUER']});
+  }
   if (config.NODE_ENV === 'production') {
     if (!config.COGNITO_ISSUER || !config.COGNITO_JWKS_URI || config.COGNITO_CLIENT_IDS.length === 0) {
       context.addIssue({ code: 'custom', message: 'Production requires Cognito issuer, JWKS URI, and client IDs', path: ['COGNITO_ISSUER'] });

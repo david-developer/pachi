@@ -4,6 +4,39 @@ info:
   version: 0.1.0
   description: Identity foundation and private individual-provider property/listing draft operations. Listings remain private until an eligible revision is submitted for review; approval and publication are separate operations.
 paths:
+  /v1/health/live:
+    get:
+      security: []
+      responses:
+        '200': { description: Process liveness }
+  /v1/health/ready:
+    get:
+      security: []
+      responses:
+        '200': { description: Database readiness }
+        '503': { description: Database unavailable }
+  /v1/dev/local-sms/{challengeId}:
+    parameters:
+      - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      description: Development-only loopback SMS sink; unavailable in production. A challenge identifier is required.
+      security: []
+      responses:
+        '200': { description: Local development delivery }
+        '404': { description: Not available }
+  /v1/staff/session:
+    get:
+      summary: Read the current registered staff session and eligible grants
+      description: Requires a signed staff-client access token with pachi/staff scope, server-recorded required-TOTP evidence, an eligible application identity, unexpired session and current grant. Marketplace tokens/cookies are not accepted. No public staff bootstrap endpoint exists.
+      security: [{ staffBearerAuth: [] }]
+      responses:
+        '200':
+          description: Safe staff projection without internal authentication identifiers
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffSession' }
+        '401': { description: Invalid staff token, missing registration/MFA evidence, revoked session or idle/absolute expiry }
+        '403': { description: No current eligible StaffGrant }
   /v1/auth/bootstrap:
     post:
       summary: Resolve an access-token identity and register its session
@@ -256,8 +289,33 @@ paths:
         '409': { description: Account restricted or phone already owned }
 components:
   securitySchemes:
+    staffBearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Separate staff issuer/client access token with pachi/staff scope }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
+    StaffSession:
+      type: object
+      additionalProperties: false
+      required: [display_name, grants, absolute_expires_at, idle_expires_at, reauthentication_expires_at]
+      properties:
+        display_name: { type: string }
+        absolute_expires_at: { type: string, format: date-time }
+        idle_expires_at: { type: string, format: date-time }
+        reauthentication_expires_at: { type: string, format: date-time }
+        grants:
+          type: array
+          items:
+            type: object
+            required: [role, scope, expires_at]
+            properties:
+              role: { type: string, enum: [SUPER_ADMIN, VERIFICATION_OFFICER, LISTING_MODERATOR, TRUST_SAFETY_MODERATOR, SUPPORT_AGENT, ANALYST] }
+              expires_at: { type: string, format: date-time }
+              scope:
+                type: object
+                required: [kind, id, permissions]
+                properties:
+                  kind: { type: string, enum: [platform, region, case] }
+                  id: { type: string }
+                  permissions: { type: array, items: { type: string } }
     BootstrapRequest:
       type: object
       properties: { device_label: { type: string, maxLength: 120 } }
@@ -275,14 +333,14 @@ components:
       properties:
         user_id: { type: string, format: uuid }
         session_id: { type: string, format: uuid }
-        account_state: { type: string }
+        account_state: { type: string, enum: [PENDING_PHONE, ACTIVE, LIMITED, SUSPENDED, DEACTIVATED, DELETION_PENDING, DELETED] }
         participation: { $ref: '#/components/schemas/Participation' }
     AccountResponse:
       type: object
       required: [id, account_state, participation]
       properties:
         id: { type: string, format: uuid }
-        account_state: { type: string }
+        account_state: { type: string, enum: [PENDING_PHONE, ACTIVE, LIMITED, SUSPENDED, DEACTIVATED, DELETION_PENDING, DELETED] }
         participation: { $ref: '#/components/schemas/Participation' }
     SafeSessionResponse:
       type: object
@@ -317,7 +375,7 @@ components:
         profile_id: { type: string, format: uuid }
         account_id: { type: string, format: uuid }
         provider_types: { type: array, items: { type: string, enum: [OWNER, INDEPENDENT_AGENT, PROPERTY_MANAGER] } }
-        state: { type: string }
+        state: { type: string, enum: [DRAFT, PENDING_VERIFICATION, ACTIVE, RESTRICTED, SUSPENDED, CLOSED] }
         verification_status: { type: string, enum: [NOT_VERIFIED, PENDING, VERIFIED, REJECTED, NEEDS_RESUBMISSION] }
         display_name: { type: string }
         bio: { type: [string, 'null'] }
@@ -338,7 +396,7 @@ components:
         furnishing: { type: string, enum: [FURNISHED, UNFURNISHED, PARTLY_FURNISHED] }
     PropertyDraftResponse:
       type: object
-      required: [id, property_type, region, city, neighborhood, relationship_id, relationship_type, authorization_status]
+      required: [id, property_type, region, city, neighborhood, relationship_id, relationship_type, authorization_status, landmark, bedrooms, bathrooms, size_sqm, furnishing]
       properties:
         id: { type: string, format: uuid }
         property_type: { type: string, enum: [HOUSE, APARTMENT, ROOM, LAND, COMMERCIAL] }
@@ -398,7 +456,7 @@ components:
         available_from: { type: [string, 'null'], format: date }
     ListingDraftResponse:
       type: object
-      required: [id, property_id, provider_account_id, purpose, publication_status, moderation_status, revision_id, version, offering_id, offering_version_id, currency, pricing_period, negotiable]
+      required: [id, property_id, provider_account_id, purpose, publication_status, moderation_status, revision_id, version, offering_id, offering_version_id, currency, title, description, amount_minor, pricing_period, negotiable, deposit_amount_minor, advance_months, minimum_lease_months, utilities_included, service_charge_amount_minor, weekly_amount_minor, minimum_nights, guest_limit, check_in_time, check_out_time, cleaning_fee_minor, available_from]
       properties:
         id: { type: string, format: uuid }
         property_id: { type: string, format: uuid }

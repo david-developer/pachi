@@ -63,3 +63,42 @@ Design choices above are settled. Before real users, demonstrate all login metho
 - [Cognito access-token claims](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html)
 
 These references support provider mechanics. Pachi session lifetimes, linking restrictions and phone gates are project decisions, not vendor defaults.
+
+## Staff implementation refinement — 2026-09-26
+
+Staff use a dedicated pool **within each environment**, in addition to their
+separate confidential client. Cognito required MFA is a pool-wide setting;
+changing the marketplace pool would unexpectedly mandate consumer MFA. This
+refinement preserves local staff identities and marketplace authentication policy.
+No existing pool is changed by the local implementation.
+
+The staff pool requires TOTP only, admin-created users, managed-login version 2,
+no federation, no remembered devices or custom authentication. Each staff login
+and step-up requests `prompt=login`, validates code/PKCE/state/nonce and signed
+ID-token `auth_time` against a single-use server transaction. The server inspects
+pool MFA, client, domain and local-user configuration through read-only Cognito
+APIs before recording `COGNITO_REQUIRED_TOTP` evidence. A missing permission,
+provider outage, classic UI or policy mismatch fails closed. This is a deduction
+from enforced provider policy and fresh signed authentication, **not** a claim
+that Cognito access/ID tokens contain `amr` or another MFA assertion.
+
+Staff sessions are a separately stored specialization of SecuritySession, with
+issuer/client/token-family uniqueness, identity mapping, account security version,
+encrypted tokens and current-grant checks. They are registered only by the trusted
+admin callback, never by a public API accepting caller-provided MFA evidence.
+Rotation is locked across processes, preserves authentication time and does not
+extend absolute expiry. Reauthentication creates a new session and revokes the
+old one. No staff business decision endpoints are added in this foundation.
+
+The operator identity command can create a new PENDING_PHONE Pachi principal for
+an AWS-verified staff subject. It cannot link an existing consumer principal.
+Grant provisioning is a separate audited command with explicit user ID and
+issuer/subject mapping. Normal dual-identity linking still requires the accepted
+proof-of-both-identities flow and is not implemented here. PENDING_PHONE staff
+may enter the staff portal with an explicit grant; this grants no marketplace
+participation. Other restricted account states are denied.
+
+See [local setup and evidence](../../../README.md#staff-authentication-setup).
+Provider mechanics: [required MFA](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa.html),
+[managed-login prompt](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html),
+[ID-token authentication time](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-id-token.html).

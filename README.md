@@ -274,3 +274,329 @@ After a production build, `pnpm --filter @pachi/web test:browser` starts an
 isolated server on 3100 and stops it afterward. CI runs this suite after build.
 It covers processing-to-ready, unsaved form input, request failures, draft
 switches and upload-poll races. Real-account acceptance remains separate.
+
+## Staff authentication setup
+
+The functional staff shell is separate at `http://localhost:3002`. The default
+`pnpm dev` still starts API/web/worker. Copy only the **new**
+`apps/admin/.env.example` to `apps/admin/.env` if that file does not already exist,
+then run `pnpm dev admin` in another terminal. The launcher reads root `.env`,
+overlays `apps/admin/.env`, filters inherited test settings and checks port 3002.
+An empty staff configuration displays configuration guidance. Marketplace
+configuration, secrets and cookies must remain unchanged. Admin uses a distinct
+`pachi_staff_session` cookie and encryption secret; no tokens reach browser JS.
+
+Before real staff login, provision a **new nonproduction staff pool**, not a
+change to the existing marketplace pool. ADR 0002 explains the isolation decision.
+Required setup (not performed by the repository):
+
+Required MFA is configured on a user pool, not on an individual app client.
+Enabling it on the marketplace pool would change sign-in requirements for its
+users, so staff must use a dedicated pool. Cognito managed login is available
+from the Essentials tier; with required MFA and TOTP enabled, managed login
+handles first-password setup and TOTP enrollment. See AWS's current guides for
+[pool MFA](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa.html),
+[TOTP](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa-totp.html),
+and [feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/feature-plans-features-essentials.html).
+
+1. In the nonproduction AWS account/region, create a Cognito Essentials-or-higher
+   pool with a Cognito domain using
+   [managed-login version 2](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-assign-domain-prefix.html),
+   minimum password length 12,
+   admin-created users only, required MFA (`ON`), software TOTP enabled, SMS/email
+   MFA disabled, no remembered-device configuration and no external IdPs. Keep
+   password-based local authentication (`AllowedFirstAuthFactors: [PASSWORD]`);
+   do not enable passkeys, custom or passwordless flows.
+2. Create resource-server identifier `pachi` and scope `staff`. Create a separate
+   confidential app client, supported provider `COGNITO` only, OAuth code grant
+   only, scopes `openid email pachi/staff`, token revocation enabled, access-token
+   validity **5 minutes**, refresh-token rotation enabled with **10 seconds**
+   grace. For explicit SDK flows allow only `ALLOW_USER_SRP_AUTH`; disable
+   `REFRESH_TOKEN_AUTH` and custom auth; Cognito does not support that refresh
+   flow together with token rotation
+   ([refresh-token guidance](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html)).
+   Use an 8-hour refresh validity (the app
+   independently enforces its 8-hour absolute / 30-minute idle maximum).
+3. Allow exactly callback `http://localhost:3002/api/auth/callback` and logout
+   `http://localhost:3002`. Assign managed-login branding to this client. Production
+   requires its own HTTPS origin, callback, client and pool, never localhost.
+4. Set the admin-only issuer, client ID/secret/domain, origin, independent random
+   session secret (at least 32 characters) and API URL in `apps/admin/.env`.
+   Set only `STAFF_COGNITO_ISSUER` and `STAFF_COGNITO_CLIENT_ID` in the API's root
+   `.env` as well. Do not add staff clients to `COGNITO_CLIENT_IDS`. Optional
+   `STAFF_API_AUDIENCE` validates a deliberately configured API audience; the
+   default code flow does not request resource binding.
+5. Give the admin server short-lived AWS credentials (local AWS SSO/profile,
+   workload role when deployed) for `DescribeUserPool`, `GetUserPoolMfaConfig`,
+   `DescribeUserPoolClient`, `DescribeUserPoolDomain` and `AdminGetUser`, scoped to
+   this staff pool where AWS supports resource scoping. It needs no pool mutation
+   permission. The operator commands additionally need controlled database write
+   access. Keep operator credential access separate from ordinary app users.
+6. Migration 0014 was applied on 2026-09-27 to the confirmed development target
+   `localhost:5432/pachi_local` with `pnpm db:migrate`. The reviewed migration
+   creates the four staff tables and does not modify existing marketplace rows.
+   Automated verification uses **only** `db:migrate:test` and
+   `localhost:5433/pachi_test`.
+7. Create a local Cognito staff user through the operator-controlled console,
+   have that person set their password/enroll TOTP in managed login. Never send
+   credentials or TOTP codes through chat. Record the verified **subject**, not
+   email. An initial login without a mapped grant is intentionally denied.
+
+Development configuration supplied by the user (2026-09-27): region `eu-west-1`,
+pool `eu-west-1_7uju5eCyw`, client `6o98a1sg9j9qghna441so80s2u`, issuer
+`https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_7uju5eCyw`, domain
+`https://eu-west-17uju5ecyw.auth.eu-west-1.amazoncognito.com`. Public OIDC discovery
+was independently reachable and matched the issuer/domain. This does **not** verify
+MFA, registration policy, client secret, scopes, rotation or token lifetimes.
+
+Those identifiers are configured in the ignored root/admin environment files.
+Marketplace settings and existing secrets were preserved. The client secret is now
+present in `apps/admin/.env` and passes local configuration validation. After
+editing this file, restart the identified admin launcher: its inherited settings
+take precedence over Next's dotenv reload. On 2026-09-27, restarting admin resolved
+login configuration 503 into the expected Cognito 303 redirect with PKCE; a
+marketplace-origin POST remains 403. This does not prove secret validity at token
+exchange, MFA, or authenticated access.
+
+The existing validator requires authenticated AWS API access. STS verified
+`pachi-dev-source` as `arn:aws:iam::451475820431:user/pachi-david-dev` on
+2026-09-27. Runtime-role provisioning is blocked by `iam:CreateRole` AccessDenied. IAM Identity Center/SSO is **not** a prerequisite: use an
+existing authorized IAM role/profile or ask the account administrator for a
+profile with these permissions. Four operations can be scoped to
+`arn:aws:cognito-idp:eu-west-1:451475820431:userpool/eu-west-1_7uju5eCyw`:
+`cognito-idp:DescribeUserPool`, `cognito-idp:GetUserPoolMfaConfig`,
+`cognito-idp:DescribeUserPoolClient`, `cognito-idp:AdminGetUser`.
+`cognito-idp:DescribeUserPoolDomain` requires `Resource: "*"`; restrict its
+`aws:RequestedRegion` condition to `eu-west-1`. No write/list/admin-wide policy
+is needed. An account administrator can use this policy after replacing the
+account placeholder with the actual development account ID:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:GetUserPoolMfaConfig",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:AdminGetUser"
+      ],
+      "Resource": "arn:aws:cognito-idp:eu-west-1:451475820431:userpool/eu-west-1_7uju5eCyw"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cognito-idp:DescribeUserPoolDomain",
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "eu-west-1" } }
+    }
+  ]
+}
+```
+
+ Cognito client credentials cannot replace these AWS IAM credentials.
+
+Existing IAM identity (STS verified; group/policy membership remains user-reported):
+`pachi-david-dev`, previously in `PachiCognitoDevelopers` with
+`AmazonCognitoPowerUser`. Preserve its resource-management access; do not create
+another IAM user or attach the read-only policy alongside broad policies and
+claim that narrows access. Profile names do not restrict IAM permissions.
+
+Use a separate assumed runtime role with only the read-only policy above, a trust
+policy restricted to the actual existing developer principal, and explicit
+`sts:AssumeRole` permission on that principal for this role. Account ID is verified;
+current developer permissions require administrator inspection.
+Keep the developer console-login source profile for management; run admin using
+only the role profile. Example `~/.aws/config` (placeholders must be resolved):
+
+```ini
+[profile pachi-staff-runtime]
+role_arn = arn:aws:iam::451475820431:role/PachiStaffRuntimeReadOnly
+source_profile = pachi-dev-source
+region = eu-west-1
+```
+
+Validate the resolved assumed-role ARN and effective policies before selecting
+this profile for the app. No IAM resources or policies have been changed here.
+
+#### Administrator console step: development runtime role
+
+Latest verification (2026-09-27): the role now exists. CLI and admin SDK resolve
+`pachi-staff-runtime` to the expected assumed role; trust and one-hour session
+limit are verified. Policy enumeration is denied, so complete role permissions
+remain administrator-reported. All required Cognito reads succeed. The existing
+pool/client checks now pass after authorized changes to minimum password length
+12 and SRP-only ExplicitAuthFlows; before/after comparisons preserved all other
+settings. The inspected user's MFA list remains empty, so full user attestation
+is pending. Admin was restarted with the runtime profile for a fresh managed-login
+TOTP attempt; callback enforcement is unchanged.
+See the [shared handoff](docs/engineering/current-state.md) for current evidence;
+the provisioning observations below describe the earlier setup attempt.
+
+Role inventory contains only three AWS service-linked roles; GetRole confirms
+`PachiStaffRuntimeReadOnly` is absent. CreateRole returned AccessDenied. Do not
+add IAM provisioning permissions to the developer to work around that denial.
+The local `pachi-staff-runtime` profile is prepared in `~/.aws/config`, but cannot
+resolve until the role and assumption permission exist. Admin has not been
+restarted with either AWS profile.
+
+An authorized account administrator should:
+
+1. Confirm the console account is `451475820431`. In **IAM → Roles**, check again
+   for `PachiStaffRuntimeReadOnly`; if it now exists, inspect its trust, attached
+   and inline policies, boundary and ownership instead of creating a duplicate.
+2. Choose **Create role → Custom trust policy** and paste
+   [staff-runtime-trust.json](docs/03-operations/iam/staff-runtime-trust.json).
+   This delegates to the account only when the caller ARN is exactly the existing
+   developer user; it requires that user's AssumeRole permission. The account
+   principal in this JSON does not mean authenticating with root credentials.
+   Preserve any applicable organization, boundary or administrator-required
+   security conditions; do not relax them to make assumption work.
+3. Select no broad managed policies. Name the role `PachiStaffRuntimeReadOnly`,
+   with maximum session duration **1 hour**, and create it. Under its Permissions,
+   choose **Add permissions → Create inline policy → JSON**, paste
+   [staff-runtime-permissions.json](docs/03-operations/iam/staff-runtime-permissions.json),
+   and name it `PachiStaffCognitoInspection`. This is the exact read-only policy
+   above; attach no other runtime permission policies.
+4. Under **IAM → Users → pachi-david-dev → Permissions**, inspect existing
+   permissions first. If the exact role is not already assumable, add the inline
+   policy [staff-runtime-assume.json](docs/03-operations/iam/staff-runtime-assume.json)
+   named `AssumePachiStaffRuntime`. Keep all existing developer management
+   permissions and applicable boundaries/conditions intact.
+5. Report that the role is ready (identifiers only). The next agent verifies CLI
+   and admin SDK assumed-role identity and policies, runs the existing Cognito
+   validator, and only then restarts admin with `AWS_PROFILE=pachi-staff-runtime`.
+   No Cognito setting or staff grant is changed by this IAM setup.
+
+The trust design follows [AWS account principals](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html#principal-accounts).
+
+
+AWS CLI 2.37.4 is available at `.local-dev/aws-cli/bin/aws`. The installed SDK's
+INI provider supports `login_session`, role profiles and credential processes.
+For an existing **non-root** console IAM/federated identity scoped to the policy
+above, an administrator must also permit `SignInLocalDevelopmentAccess` for
+browser-based local login. Then run from the repository root:
+
+```bash
+./.local-dev/aws-cli/bin/aws login --profile pachi-dev-source --region eu-west-1
+```
+
+Select that non-root development identity in your browser. This obtains temporary
+credentials without creating access keys or requiring SSO. See
+[AWS local-development login](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+If only root access exists, the account administrator must first provide a scoped
+non-root identity; do not connect the application as root. Share only the profile
+name after login, never credentials or browser authorization material.
+ Configure a named profile
+through the account's existing credential mechanism (SSO only if already used),
+keeping credentials in the user's AWS files, outside Git. Temporary role
+credentials in `~/.aws/credentials` require access key, secret key and session
+token together. Select the profile with `AWS_PROFILE=<profile>` when launching
+`pnpm dev admin` and the operator commands; the launcher forwards that selector.
+Do not put AWS credentials into chat or the repository environment files.
+
+Once the secret and AWS access are available, inspect actual policy before login.
+Open `http://localhost:3002`, choose **Sign in with staff account**, and use the
+explicitly selected local user in this dedicated pool. Replace a temporary
+password if prompted, then enroll an authenticator and enter its TOTP directly
+on Cognito. An authenticated user without a mapped grant must be denied first.
+Establish the dedicated issuer/subject unambiguously before using the audited
+identity/grant commands below; equal emails never identify the grant target.
+Real role/scope display, logout, TOTP reauthentication/session replacement and
+marketplace-token rejection have recorded evidence in the [shared handoff](docs/engineering/current-state.md).
+The separate real mapped-but-ungranted browser case remains pending; an earlier
+absent-mapping denial is not that case. The real reauthentication and server
+permission-guard freshness evidence do not certify unimplemented sensitive
+business operations or G1 completion.
+
+For operator commands, load the intended root/admin files explicitly in a clean
+operator shell (Node supports `--env-file`); do not reuse a test shell. From root:
+
+```bash
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-identity.mts /private/identity.json
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-grant.mts /private/grant.json
+node --env-file=.env --env-file=apps/admin/.env --import ./apps/admin/node_modules/tsx/dist/loader.mjs apps/admin/scripts/staff-revoke.mts /private/revoke.json
+```
+
+Keep input files outside Git, mode 0600. Identity input is
+`{operator, subject, displayName, reason}`; it creates a **new**, unprivileged
+PENDING_PHONE application user and prints its user ID. It refuses an already
+mapped subject and cannot merge/link the development provider. Grant input is
+`{operator, userId, subject, role, scope, reason, expiresAt}`; the issuer comes
+from staff configuration. Use the returned explicit user ID, an accountable
+operator/SSO identity, an operational reason of at least 10 characters and an
+explicit ISO expiry. Initial permission-management scope is
+`{"kind":"platform","id":"pachi","permissions":["admin:permissions_manage"]}`
+with `SUPER_ADMIN`. This grants no general private evidence/message access.
+Other role ceilings and case/region scope checks live in the staff policy module
+and follow the canonical role matrix. Revoke input is `{operator, grantId, reason}`;
+use the grant ID returned by the provisioning command. All
+successful operations and mapped failures append a staff audit record. Grant
+changes revoke existing staff sessions so the next login regenerates the cookie. The CLI
+is an operator boundary, not a public privilege-management API or dashboard.
+
+Open the admin app and sign in. Confirm eligible identity/role/scope summaries,
+logout and reauthentication; test denied login with an ungranted staff user.
+Sensitive future endpoints must use `requireStaffPermission`, current grant and
+resource eligibility, purpose/reason and audit. This foundation implements none
+of the verification, media approval, moderation or publication decisions.
+
+Automated policy, session, signed-token HTTP and Playwright checks use synthetic
+identities/isolated data. They do not prove real Cognito login, TOTP enrolment,
+AWS IAM configuration or provider rotation. Real staff acceptance remains pending
+until the new pool/client/user and these browser checks are completed. G1 and
+production readiness remain incomplete.
+
+### Isolated local backup/restore check
+
+Run `python3 scripts/check-local-restore.py` from the repository root with the
+existing `pachi-postgres-test-1` service running. It verifies the source is
+`localhost:5433/pachi_test`, captures a private custom-format dump outside Git,
+and restores into a new disposable container with no network or published port.
+It waits for the final PostgreSQL process, then creates the destination from
+`template0` so PostGIS initialization schemas cannot collide with the dump.
+It compares all public table counts/content hashes, extensions, constraints and
+index validity, verifies the source is unchanged, and removes only its own target
+container/anonymous volumes. Dumps and sanitized evidence remain under
+`~/.local/share/pachi/g1-restore` (0700 directory, 0600 files).
+
+This exercises the local mechanism in the accepted
+[restore procedure](docs/03-operations/deployment-and-operation-runbook.md#restore-procedure).
+It does not demonstrate deployed RDS recovery, media/identity/key restoration,
+cross-region recovery or E04. Current results belong in the
+[shared handoff](docs/engineering/current-state.md).
+
+### G1 security and consistency checks
+
+Run `pnpm check:secrets`, `pnpm check:dependencies`, and `pnpm check:contracts`.
+CI runs all three as ordinary failing steps (no `continue-on-error`).
+
+- Secret scanning uses [Gitleaks](https://github.com/gitleaks/gitleaks) 8.30.1,
+  SHA256-verified Linux x64 release, full fetched Git history and 100% redaction.
+  A generated disposable private-key canary must return failure first. Only two
+  exact historical synthetic-test finding fingerprints are ignored; reasons are
+  beside them in `.gitleaksignore`. No file/directory blanket exclusions.
+- [pnpm audit](https://pnpm.io/cli/audit) checks production AND development
+  dependencies at severity `low` and above; registry errors also fail. There are
+  no advisory exceptions. Scoped overrides in `pnpm-workspace.yaml` fix upstream
+  transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
+  Metro passes filenames to the removed v1 API. Mobile exports exercise this
+  compatibility; xcode's UUID v4 and query-string decoding retain their used APIs.
+- Contract checking generates types from OpenAPI in a temporary directory,
+  compares every shared schema bidirectionally with `@pachi/contracts`, and
+  checks the exact Nest controller method/path inventory plus SQL/journal
+  consistency. Negative mutations prove route, field-type and required-field
+  drift fail. BootstrapRequest remains an inline controller input, not an exported
+  shared DTO. This is structural consistency, not proof that arbitrary runtime
+  JSON conforms: HTTP integration tests exercise the implemented runtime guards.
+
+Migration 0015 adds organization authorization tables and a current-member unique
+index. `OrganizationSettingsGuard` is exported by the real auth module and checks
+current account, verified phone, organization and membership on every request.
+Its isolated HTTP harness uses the same signed token before and after revocation.
+No organization product endpoint, invitation, ownership transfer or mutation API
+is exposed. Those future operations must add their own assignment/step-up,
+transactional final-owner and audit checks; this settings guard grants none of
+those permissions. Apply migrations to development only when that slice needs
+these tables; G1 validation uses the guarded test database.

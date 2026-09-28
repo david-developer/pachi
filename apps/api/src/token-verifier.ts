@@ -7,6 +7,8 @@ export type TokenVerifierOptions = {
   allowedClientIds: ReadonlySet<string>;
   requiredScopes: ReadonlySet<string>;
   provider: IdentityProvider;
+  audience?: string;
+  strictStaff?: boolean;
 };
 
 export class TokenVerificationError extends Error {
@@ -21,13 +23,16 @@ export class CognitoAccessTokenVerifier {
     try {
       const result = await jwtVerify(token, this.options.getKey, {
         issuer: this.options.issuer,
-        algorithms: ['RS256']
+        algorithms: ['RS256'],
+        ...(this.options.strictStaff ? { requiredClaims: ['exp', 'iat', 'sub'] } : {}),
+        ...(this.options.audience ? { audience: this.options.audience } : {})
       });
       payload = result.payload;
     } catch {
       throw new TokenVerificationError('INVALID_TOKEN', 'The access token is invalid');
     }
 
+    if (this.options.strictStaff && payload.aud !== undefined && !this.options.audience) throw new TokenVerificationError('INVALID_AUDIENCE', 'Unexpected audience');
     if (payload.token_use !== 'access') throw new TokenVerificationError('INVALID_TOKEN_TYPE', 'Only access tokens are accepted');
     if (typeof payload.sub !== 'string' || payload.sub.length === 0) throw new TokenVerificationError('INVALID_SUBJECT', 'The token subject is invalid');
     if (typeof payload.client_id !== 'string' || !this.options.allowedClientIds.has(payload.client_id)) throw new TokenVerificationError('INVALID_CLIENT', 'The token client is not allowed');

@@ -25,8 +25,12 @@ All primary IDs are immutable application-owned UUIDs. Store timestamps in UTC a
 | Organization | legal/public names separated, organization_type, state, public_contact | REAL_ESTATE_AGENCY, PROPERTY_MANAGEMENT_COMPANY, CORPORATE_PROPERTY_OWNER, OTHER_APPROVED_PROVIDER. Business verification separate. |
 | OrganizationMembership | organization_id, user_id, role, state, inviter_id, invitation_expires_at, activated_at, revoked_at | One current membership per organization/user; memberships are many-to-many. At least one active OWNER unless organization is under explicit recovery. |
 | ResourceAssignment | organization_id, membership_id, listing_id or interaction_id, assigned_by, valid_until | Referenced resource belongs to same organization; assignment cannot increase role permissions. |
-| StaffGrant | user_id, role, permission_scope, active_from, expires_at, granted_by | Separate from organization roles. Cannot be edited by a normal profile endpoint. |
+| StaffGrant | user_id, role, permission_scope, active_from, expires_at, revoked_at, granted_by, reason | Separate from organization roles. Cannot be edited by a normal profile endpoint. |
 | CapabilityRestriction | subject_type/id, capability, reason_code, starts_at, ends_at, moderation_action_id | Narrow sanctions independent of account state; active restrictions checked at every affected operation. |
+
+Staff sessions specialize SecuritySession in a separate store with encrypted tokens,
+verified authentication time, MFA evidence and idle/absolute deadlines. StaffGrant
+revocation and expiry are evaluated on each protected request.
 
 Keep responsible `provider_account_id` distinct from `actor_user_id`. An agent's action belongs to the organization principal but remains attributable to that agent. Membership removal does not reassign historic ownership.
 
