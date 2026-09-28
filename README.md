@@ -45,6 +45,14 @@ The API is available at `http://localhost:3001/v1/health/live` and
 port 3000, the separate staff shell on port 3002, and Expo starts the
 mobile development shell with `pnpm --filter @pachi/mobile start`.
 
+The identity foundation exposes `POST /v1/auth/bootstrap`,
+`GET /v1/account/me`, `GET /v1/account/sessions`,
+`POST /v1/account/logout`, and `POST /v1/account/logout-all`. These
+endpoints accept Cognito access tokens only when Cognito settings are
+configured; local tests use a separate synthetic signed issuer and never
+enable that issuer in production. The response contract is in
+`packages/contracts` and the API description is in `apps/api/openapi.yaml`.
+
 Run the foundation checks with `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, and `pnpm build`. These checks do not replace the documented
 G1-G6 evidence gates.

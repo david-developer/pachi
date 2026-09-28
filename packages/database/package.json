@@ -11,7 +11,7 @@
     "db:migrate": "tsx src/migrate.ts",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test"
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": { "drizzle-orm": "0.44.5", "postgres": "3.4.7", "zod": "4.1.5" },
   "devDependencies": { "@pachi/eslint-config": "workspace:*", "@pachi/typescript-config": "workspace:*", "@types/node": "24.5.2", "drizzle-kit": "0.31.4", "tsx": "4.20.5", "typescript": "5.9.2" }
