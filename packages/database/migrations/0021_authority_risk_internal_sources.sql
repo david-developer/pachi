@@ -150,7 +150,18 @@ END $$;
 CREATE TRIGGER authority_adverse_capture AFTER INSERT OR UPDATE OF authorization_status ON provider_property_relationships FOR EACH ROW EXECUTE FUNCTION authority_capture_adverse_status();
 
 CREATE FUNCTION property_merge_no_cycle() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE source_state property_record_state;
 BEGIN
+  -- Keep the source state stable while checking lineage. An unlinked MERGED
+  -- property remains incomplete until an authorized merge is recorded.
+  SELECT record_state INTO source_state FROM properties WHERE id=NEW.source_property_id FOR SHARE;
+  IF source_state IS DISTINCT FROM 'MERGED' THEN
+    RAISE EXCEPTION 'property merge source must be MERGED';
+  END IF;
+  -- Serialize lineage checks before insertion. Without this lock, reciprocal
+  -- concurrent inserts could each miss the other's uncommitted edge.
+  PERFORM 1 FROM authority_risk_source_clock WHERE singleton FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'authority risk source clock unavailable'; END IF;
   IF EXISTS (
     WITH RECURSIVE successors(id) AS (
       SELECT NEW.canonical_property_id
@@ -161,3 +172,13 @@ BEGIN
   RETURN NEW;
 END $$;
 CREATE TRIGGER property_merge_cycle BEFORE INSERT ON property_merges FOR EACH ROW EXECUTE FUNCTION property_merge_no_cycle();
+
+CREATE FUNCTION property_merge_state_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.record_state <> 'MERGED' AND EXISTS (
+    SELECT 1 FROM property_merges WHERE source_property_id=NEW.id
+  ) THEN RAISE EXCEPTION 'property merge source must remain MERGED'; END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER property_merge_source_state BEFORE UPDATE OF record_state ON properties
+FOR EACH ROW EXECUTE FUNCTION property_merge_state_guard();

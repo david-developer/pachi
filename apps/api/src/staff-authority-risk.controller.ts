@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, Headers, Inject, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, Headers, Inject, Param, ParseUUIDPipe, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { AuthorityRiskStore, IdentityError, StaffAccessError, type AuthorityRiskCaseInput, type AuthorityRiskDecisionInput } from '@pachi/database';
@@ -9,6 +9,7 @@ export class StaffAuthorityRiskController {
   constructor(@Inject('STAFF_AUTH_SERVICE') private readonly auth: StaffAuthService, @Inject('AUTHORITY_RISK_STORE') private readonly store: AuthorityRiskStore) {}
   private error(error: unknown): never {
     if (error instanceof StaffAccessError || error instanceof IdentityError) {
+      if (error.code === 'AUTH_REQUIRED') throw new UnauthorizedException(error.code);
       if (error.code === 'RESOURCE_SCOPE_DENIED' || error.code === 'STEP_UP_REQUIRED') throw new ForbiddenException(error.code);
       throw new ConflictException(error.code);
     }

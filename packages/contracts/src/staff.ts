@@ -14,7 +14,6 @@ export type StaffScope = {
 export type AuthorityRiskStatus = {
   status: 'CLEAR' | 'HOLD' | 'INCOMPLETE' | 'STALE' | 'UNEVALUATED';
   next_action: string;
-  evaluation_id: string | null;
 };
 export type AuthorityRiskCase = {
   id: string;

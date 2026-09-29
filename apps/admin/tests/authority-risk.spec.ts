@@ -15,18 +15,7 @@ test('synthetic case-scoped moderator records an allegation and versioned decisi
       current={id:caseId,property_id:propertyId,relationship_id:relationshipId,principal_id:null,subject_scope:'RELATIONSHIP',trigger_kind:'REPRESENTATION',allegation_kind:'REPORTED',state:'OPEN',version:1,reason_code:'STRUCTURED_REFERENCE_CONFLICT',safe_remediation:'Contact support for authority review.',source_provenance:'STAFF_OBSERVATION',received_at:new Date().toISOString(),source_review_action_id:null};
       return route.fulfill({status:201,json:current});
     }
-    if(path===`/api/authority-risk-cases/${caseId}/decision`){
-      const payload=route.request().postDataJSON();
-      expect(route.request().headers()['x-csrf-token']).toBe('synthetic-csrf');
-      if(payload.outcome==='REVIEW_SOURCE'){
-        expect(payload).toMatchObject({expected_version:1,reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:relationshipId});
-        current={...current!,version:2,source_review_action_id:'00000000-0000-4000-8000-000000000103'};
-        return route.fulfill({status:201,json:current});
-      }
-      expect(payload).toMatchObject({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:'00000000-0000-4000-8000-000000000103'});
-      current={...current!,state:'RESOLVED',version:3};
-      return route.fulfill({status:201,json:current});
-    }
+    if(path===`/api/authority-risk-cases/${caseId}/decision`) throw new Error('Unsupported source decision must not be sent by staff UI');
     if(path===`/api/authority-risk-cases/${caseId}` && current) return route.fulfill({json:current});
     throw new Error(`Unexpected synthetic route: ${path}`);
   });
@@ -40,13 +29,6 @@ test('synthetic case-scoped moderator records an allegation and versioned decisi
   await section.getByLabel('Reason code').fill('STRUCTURED_REFERENCE_CONFLICT');
   await section.getByRole('button',{name:'Record allegation or finding'}).click();
   await expect(section.getByText(/REPRESENTATION · REPORTED · OPEN/)).toBeVisible();
-  await section.getByLabel('Internal reference type').selectOption('RELATIONSHIP');
-  await section.getByLabel('Internal reference ID').fill(relationshipId);
-  await section.getByLabel('Source finding').selectOption('SOURCE_SUPPORTS_DISPROOF');
-  await section.getByRole('button',{name:'Record case decision'}).click();
-  await expect(section.getByRole('status')).toContainText('Internal source review recorded.');
-  await section.getByLabel('Decision').selectOption('RESOLVE');
-  await section.getByRole('button',{name:'Record case decision'}).click();
-  await expect(section.getByText(/REPRESENTATION · REPORTED · RESOLVED/)).toBeVisible();
-  await expect(section.getByRole('status')).toContainText('A fresh system evaluation is required.');
+  await expect(section.getByText(/Source review and hold resolution are unavailable/)).toBeVisible();
+  await expect(section.getByRole('button',{name:'Record case decision'})).toBeDisabled();
 });

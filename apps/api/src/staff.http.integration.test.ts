@@ -128,11 +128,9 @@ void integration(
       const riskDecision=(body:unknown)=>fetch(`${riskUrl}/${riskCaseId}/decision`,{method:'POST',headers:riskHeaders,body:JSON.stringify(body)});
       assert.equal((await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:property.id})).status,409);
       const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:property.relationshipId});
-      assert.equal(sourceReview.status,201);
-      const sourceAction=(await sourceReview.json() as {source_review_action_id:string}).source_review_action_id;
-      assert.ok(sourceAction);
-      assert.equal((await riskDecision({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:sourceAction})).status,201);
-      assert.equal((await riskDecision({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:sourceAction})).status,409);
+      assert.equal(sourceReview.status,409); // No immutable, probative internal source is implemented.
+      assert.equal((await riskDecision({expected_version:1,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:property.relationshipId})).status,409);
+      assert.equal((await client`SELECT state FROM authority_risk_cases WHERE id=${riskCaseId}`)[0]?.state,'OPEN');
       await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskGrant[0]!.id}`;
       await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskEvidenceGrant[0]!.id}`;
       assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,403);

@@ -13,7 +13,7 @@ test('synthetic provider requests a scoped system evaluation and still sees inde
     if(path===`/api/account/listing-drafts/${draft.id}/media`) return route.fulfill({json:{media:[]}});
     if(path===`/api/account/listing-drafts/${draft.id}/authority-risk/evaluate`){
       expect(route.request().method()).toBe('POST'); expect(route.request().headers()['x-csrf-token']).toBe('synthetic-csrf'); evaluated=true;
-      return route.fulfill({json:{status:'CLEAR',next_action:'No authority risk action is required under the evaluated internal rules.',evaluation_id:'synthetic-evaluation'}});
+      return route.fulfill({json:{status:'CLEAR',next_action:'No authority risk action is required under the evaluated internal rules.'}});
     }
     if(path===`/api/account/listing-drafts/${draft.id}/readiness`) return route.fulfill({json:{publication_status:'DRAFT',moderation_status:'NOT_REVIEWED',can_submit:false,checks:[
       {code:'PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE',label:'Authority risk-hold evaluation',status:evaluated?'READY':'BLOCKED',message:evaluated?null:'Request a fresh authority risk evaluation.'},
