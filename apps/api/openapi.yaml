@@ -46,8 +46,8 @@ paths:
   /v1/staff/authority-risk-cases:
     post:
       security: [{ staffBearerAuth: [] }]
-      description: Assigned TRUST_SAFETY_MODERATOR records a scoped reported allegation. Case ID and property must match an existing current case grant; no document intake.
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [id, propertyId, subjectScope, triggerKind, allegationKind, provenance, reasonCode], properties: { id: { type: string, format: uuid }, propertyId: { type: string, format: uuid }, relationshipId: { type: [string, 'null'], format: uuid }, principalId: { type: [string, 'null'], format: uuid }, subjectScope: { type: string, enum: [PROPERTY, RELATIONSHIP, PRINCIPAL] }, triggerKind: { type: string, enum: [DISPUTE, REPRESENTATION, FRAUD] }, allegationKind: { type: string, enum: [REPORTED] }, provenance: { type: string, enum: [STAFF_OBSERVATION, PROVIDER_REPORT, THIRD_PARTY_REPORT] }, reasonCode: { type: string } } } } } }
+      description: Assigned TRUST_SAFETY_MODERATOR records a scoped reported allegation. Only a relationship-scoped LISTING_RELATIONSHIP_PRINCIPAL_CONFLICT may cite an internal listing ID; no document intake.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [id, propertyId, subjectScope, triggerKind, allegationKind, provenance, reasonCode], properties: { id: { type: string, format: uuid }, propertyId: { type: string, format: uuid }, relationshipId: { type: [string, 'null'], format: uuid }, principalId: { type: [string, 'null'], format: uuid }, subjectScope: { type: string, enum: [PROPERTY, RELATIONSHIP, PRINCIPAL] }, triggerKind: { type: string, enum: [DISPUTE, REPRESENTATION, FRAUD] }, allegationKind: { type: string, enum: [REPORTED] }, provenance: { type: string, enum: [STAFF_OBSERVATION, PROVIDER_REPORT, THIRD_PARTY_REPORT] }, reasonCode: { type: string }, evidenceRefType: { type: [string, 'null'], enum: [LISTING, null] }, evidenceRefId: { type: [string, 'null'], format: uuid } } } } } }
       responses: { '201': { description: Audited precautionary case, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Current case grant, assignment or step up missing }, '409': { description: Invalid subject or reference } }
   /v1/staff/authority-risk-cases/{id}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
@@ -55,6 +55,12 @@ paths:
       security: [{ staffBearerAuth: [] }]
       description: Assigned case-scoped moderator reads safe case status. Private source references require separate evidence access.
       responses: { '200': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Scope denied } }
+  /v1/staff/authority-risk-cases/{id}/internal-source:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned case/property-bound moderator with separate case evidence:read grant and recent reauthentication reads an audited, current internal listing/relationship principal comparison. Unsupported cases have no source access.
+      responses: { '200': { description: Private structured internal source, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskInternalSource' } } } }, '403': { description: Current scope or reauthentication missing }, '409': { description: Unsupported or unavailable source } }
   /v1/staff/authority-risk-cases/{id}/claim-legacy:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     post:
@@ -66,9 +72,9 @@ paths:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     post:
       security: [{ staffBearerAuth: [] }]
-      description: Decision endpoint reserved for evidence-backed authority review. Source review, confirmation and resolution return EVIDENCE_INCOMPLETE in v1 because existing structured record IDs do not prove or disprove a reported trigger. Assigned case scope, a current grant and recent TOTP are still checked. No document intake is enabled under E01.
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version, outcome, reason_code, evidence_ref_type, evidence_ref_id], properties: { expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [REVIEW_SOURCE, CONFIRM, RESOLVE] }, reason_code: { type: string }, evidence_ref_type: { type: string, enum: [PROPERTY, RELATIONSHIP, CASE_ACTION, MERGE] }, evidence_ref_id: { type: string, format: uuid } } } } } }
-      responses: { '401': { description: Current staff session required }, '403': { description: Assigned scope or recent reauthentication missing }, '409': { description: Evidence-backed decisions unavailable or case version stale } }
+      description: Versioned source review, confirmation or specific disproof for the supported relationship-scoped listing/principal contradiction only. Source conclusions must match current structured records; evidence:read, current assignment, exact case/property grant and recent reauthentication are required. Other trigger decisions remain blocked under E01.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version, outcome, reason_code, evidence_ref_type, evidence_ref_id], properties: { expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [REVIEW_SOURCE, CONFIRM, RESOLVE] }, reason_code: { type: string }, evidence_ref_type: { type: string, enum: [PROPERTY, RELATIONSHIP, CASE_ACTION, MERGE, LISTING] }, evidence_ref_id: { type: string, format: uuid } } } } } }
+      responses: { '201': { description: Audited supported decision, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '401': { description: Current staff session required }, '403': { description: Assigned scope, evidence grant or recent reauthentication missing }, '409': { description: Unsupported evidence, source changed or case version stale } }
   /v1/staff/verification-cases/{id}/evidence/{kind}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: kind, in: path, required: true, schema: { type: string, enum: [GOVERNMENT_ID, LIVE_SELFIE] } }]
     get:
@@ -473,6 +479,21 @@ components:
         source_provenance: { type: string }
         received_at: { type: [string, 'null'] }
         source_review_action_id: { type: [string, 'null'] }
+    AuthorityRiskInternalSource:
+      type: object
+      required: [kind, case_id, case_version, listing_id, listing_version, listing_provider_account_id, relationship_id, relationship_version, relationship_provider_account_id, property_id, finding]
+      properties:
+        kind: { type: string, enum: [LISTING_RELATIONSHIP_PRINCIPAL] }
+        case_id: { type: string }
+        case_version: { type: integer }
+        listing_id: { type: string }
+        listing_version: { type: integer }
+        listing_provider_account_id: { type: string }
+        relationship_id: { type: string }
+        relationship_version: { type: integer }
+        relationship_provider_account_id: { type: string }
+        property_id: { type: string }
+        finding: { type: string, enum: [PRESENT, ABSENT] }
     BootstrapRequest:
       type: object
       properties: { device_label: { type: string, maxLength: 120 } }

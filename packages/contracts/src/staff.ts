@@ -31,6 +31,19 @@ export type AuthorityRiskCase = {
   received_at: string | null;
   source_review_action_id: string | null;
 };
+export type AuthorityRiskInternalSource = {
+  kind: 'LISTING_RELATIONSHIP_PRINCIPAL';
+  case_id: string;
+  case_version: number;
+  listing_id: string;
+  listing_version: number;
+  listing_provider_account_id: string;
+  relationship_id: string;
+  relationship_version: number;
+  relationship_provider_account_id: string;
+  property_id: string;
+  finding: 'PRESENT' | 'ABSENT';
+};
 export type StaffSessionResponse = {
   display_name: string;
   grants: { role: StaffRole; scope: StaffScope; expires_at: string }[];

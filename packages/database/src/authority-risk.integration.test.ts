@@ -81,7 +81,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal((await submissions.readiness(owner.id,draft.id)).checks.find(c=>c.code==='PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE')?.status,'BLOCKED');
     await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
     await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${evidenceGrant[0]!.id}`;
-    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'RESOLVE',reasonCode:'TRIGGER_DISPROVED',evidenceRefType:'RELATIONSHIP',evidenceRefId:home.relationshipId,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
+    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'RESOLVE',reasonCode:'TRIGGER_DISPROVED',evidenceRefType:'RELATIONSHIP',evidenceRefId:home.relationshipId,requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
     assert.equal((await store.evaluate(home.relationshipId)).outcome,'HOLD');
     assert.equal((await client`SELECT count(*)::int AS count FROM authority_risk_case_actions WHERE case_id=${caseId}`)[0]?.count,1);
     assert.equal((await client`SELECT count(*)::int AS count FROM audit_events WHERE target_id=${caseId} AND action='AUTHORITY_RISK_CASE_OPENED'`)[0]?.count,1);

@@ -119,18 +119,23 @@ void integration(
       const riskCaseId=randomUUID();
       const riskUrl=`http://127.0.0.1:${address.port}/v1/staff/authority-risk-cases`;
       const riskHeaders={authorization:`Bearer ${good}`,'content-type':'application/json'};
-      const riskInput={id:riskCaseId,propertyId:property.id,relationshipId:property.relationshipId,subjectScope:'RELATIONSHIP',triggerKind:'REPRESENTATION',allegationKind:'REPORTED',provenance:'STAFF_OBSERVATION',reasonCode:'STRUCTURED_REFERENCE_CONFLICT'};
+      const riskInput={id:riskCaseId,propertyId:property.id,relationshipId:property.relationshipId,subjectScope:'RELATIONSHIP',triggerKind:'REPRESENTATION',allegationKind:'REPORTED',provenance:'STAFF_OBSERVATION',reasonCode:'LISTING_RELATIONSHIP_PRINCIPAL_CONFLICT',evidenceRefType:'LISTING',evidenceRefId:listing.id};
       assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,403);
       const riskGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,property_id:property.id,permissions:['authority:risk_decide']})}::jsonb,now()+interval '1 day','test','isolated authority HTTP') RETURNING id`;
       const riskEvidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated authority source review') RETURNING id`;
       assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,201);
       assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,200);
+      const internalSource=await fetch(`${riskUrl}/${riskCaseId}/internal-source`,{headers:{authorization:`Bearer ${good}`}});
+      assert.equal(internalSource.status,200);
+      assert.equal((await internalSource.json() as {finding:string}).finding,'ABSENT');
       const riskDecision=(body:unknown)=>fetch(`${riskUrl}/${riskCaseId}/decision`,{method:'POST',headers:riskHeaders,body:JSON.stringify(body)});
       assert.equal((await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:property.id})).status,409);
-      const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:property.relationshipId});
-      assert.equal(sourceReview.status,409); // No immutable, probative internal source is implemented.
-      assert.equal((await riskDecision({expected_version:1,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:property.relationshipId})).status,409);
-      assert.equal((await client`SELECT state FROM authority_risk_cases WHERE id=${riskCaseId}`)[0]?.state,'OPEN');
+      const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'LISTING',evidence_ref_id:listing.id});
+      assert.equal(sourceReview.status,201);
+      const reviewed=await sourceReview.json() as {source_review_action_id:string;version:number};
+      assert.equal(reviewed.version,2);
+      assert.equal((await riskDecision({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:reviewed.source_review_action_id})).status,201);
+      assert.equal((await client`SELECT state FROM authority_risk_cases WHERE id=${riskCaseId}`)[0]?.state,'RESOLVED');
       await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskGrant[0]!.id}`;
       await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskEvidenceGrant[0]!.id}`;
       assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,403);

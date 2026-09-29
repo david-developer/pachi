@@ -133,6 +133,21 @@ authority documents cannot be collected, reviewed or used for claim-based
 remediation until its notice, document, retention, deletion and backup
 decisions are approved.
 
+The bounded internal representation review compares a
+specific Listing's structured `provider_account_id` with its named current
+ProviderPropertyRelationship's `provider_account_id`. The listing and
+relationship must refer to the same property, and the case must be scoped to
+that exact relationship and listing. An assigned reviewer with current
+case/property-bound `authority:risk_decide` and `evidence:read` grants records
+an audited source snapshot. A mismatch can support confirmation of this
+specific reported inconsistency; a current match can support disproof and
+resolution of this specific case. Source versions are checked again when the
+decision is written, followed by a fresh evaluation. This review establishes
+neither ownership nor a general compatibility rule. Disputes, fraud findings
+and adverse authority history have no approved internal evidence path for
+confirmation or resolution in this version; those decisions remain blocked
+pending appropriate evidence and E01 where documents would be required.
+
 | Example | Required result |
 |---|---|
 | Current OWNER declaration; complete source findings all absent | CLEAR for that declaration/rule version only; no authority badge. |

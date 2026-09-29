@@ -1,7 +1,7 @@
 import { Body, ConflictException, Controller, ForbiddenException, Get, Headers, Inject, Param, ParseUUIDPipe, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
-import { AuthorityRiskStore, IdentityError, StaffAccessError, type AuthorityRiskCaseInput, type AuthorityRiskDecisionInput } from '@pachi/database';
+import { AuthorityRiskStore, IdentityError, StaffAccessError, type AuthorityRiskCaseInput, type AuthorityRiskDecisionInput, type AuthorityRiskInternalSource } from '@pachi/database';
 import { StaffAuthService } from './staff.controller.js';
 
 @Controller('staff/authority-risk-cases')
@@ -31,6 +31,11 @@ export class StaffAuthorityRiskController {
   @Get(':id')
   async detail(@Headers('authorization') authorization: string | undefined, @Param('id', ParseUUIDPipe) id: string) {
     try { return await this.store.case(await this.auth.principal(authorization), id); }
+    catch (error) { this.error(error); }
+  }
+  @Get(':id/internal-source')
+  async internalSource(@Headers('authorization') authorization: string | undefined, @Param('id', ParseUUIDPipe) id: string, @Req() request: Request): Promise<AuthorityRiskInternalSource> {
+    try { return await this.store.internalSource(await this.auth.principal(authorization), id, requestId(request)); }
     catch (error) { this.error(error); }
   }
   @Post(':id/claim-legacy')
