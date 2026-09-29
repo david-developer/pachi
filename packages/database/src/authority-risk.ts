@@ -203,19 +203,20 @@ export class AuthorityRiskStore {
       if (!row || row.assigned_staff_user_id!==staff.row.user_id) throw new IdentityError('RESOURCE_SCOPE_DENIED','Case is unavailable');
       this.authorize(staff,id,row.property_id);
       await this.noSelfReview(tx,staff,row.property_id,row.principal_id);
+      await this.currentGrant(tx,staff,id,row.property_id,'evidence:read');
+      const action=input.outcome==='REVIEW_SOURCE'?'SOURCE_REVIEWED':input.outcome==='CONFIRM'?'FINDING_CONFIRMED':'RESOLVED';
+      const repeated=await tx<{id:string}[]>`SELECT a.id FROM authority_risk_case_actions a JOIN audit_events e ON e.request_id=a.request_id::text AND e.target_id=a.case_id::text AND e.action='AUTHORITY_RISK_CASE_DECIDED' WHERE a.request_id=${input.requestId} AND a.case_id=${id} AND a.actor_user_id=${staff.row.user_id} AND a.action=${action} AND a.reason_code=${input.reasonCode} AND a.evidence_ref_type=${input.evidenceRefType} AND a.evidence_ref_id=${input.evidenceRefId} AND e.safe_metadata->>'prior_version'=${String(input.expectedVersion)} LIMIT 1`;
+      if (repeated[0]) return safeCase(row, repeated[0].id);
       if (row.version!==input.expectedVersion || row.state!=='OPEN') throw new IdentityError('STALE_VERSION','Case changed');
       if (input.outcome==='REVIEW_SOURCE') {
         if (input.evidenceRefType==='CASE_ACTION' || !['SOURCE_SUPPORTS_FINDING','SOURCE_SUPPORTS_DISPROOF'].includes(input.reasonCode)) throw new IdentityError('INVALID_INPUT','Review a permitted internal source with a specific finding');
-        await this.currentGrant(tx,staff,id,row.property_id,'evidence:read');
         await this.evidenceReference(tx,input.evidenceRefType,input.evidenceRefId,row.property_id);
       } else {
         if (input.evidenceRefType!=='CASE_ACTION' || input.outcome==='CONFIRM' && (row.allegation_kind!=='REPORTED' || input.reasonCode!=='FINDING_CONFIRMED') || input.outcome==='RESOLVE' && input.reasonCode!=='TRIGGER_DISPROVED') throw new IdentityError('INVALID_INPUT','Decision requires a reviewed internal source');
-        await this.currentGrant(tx,staff,id,row.property_id,'evidence:read');
         const support=await tx<{reason_code:string}[]>`SELECT reason_code FROM authority_risk_case_actions WHERE id=${input.evidenceRefId} AND case_id=${id} AND action='SOURCE_REVIEWED'`;
         if (support[0]?.reason_code!==(input.outcome==='CONFIRM'?'SOURCE_SUPPORTS_FINDING':'SOURCE_SUPPORTS_DISPROOF')) throw new IdentityError('EVIDENCE_INCOMPLETE','A supporting source review is required');
       }
       const updated=await tx<Case[]>`UPDATE authority_risk_cases SET allegation_kind=CASE WHEN ${input.outcome}='CONFIRM' THEN 'ESTABLISHED' ELSE allegation_kind END,state=CASE WHEN ${input.outcome}='RESOLVE' THEN 'RESOLVED' ELSE state END,resolved_at=CASE WHEN ${input.outcome}='RESOLVE' THEN ${this.clock().toISOString()}::timestamptz ELSE resolved_at END,version=version+1 WHERE id=${id} AND version=${input.expectedVersion} RETURNING *`;
-      const action=input.outcome==='REVIEW_SOURCE'?'SOURCE_REVIEWED':input.outcome==='CONFIRM'?'FINDING_CONFIRMED':'RESOLVED';
       const recorded=await tx<{id:string}[]>`INSERT INTO authority_risk_case_actions(case_id,action,actor_user_id,reason_code,evidence_ref_type,evidence_ref_id,request_id) VALUES (${id},${action},${staff.row.user_id},${input.reasonCode},${input.evidenceRefType},${input.evidenceRefId},${input.requestId}) RETURNING id`;
       await tx`INSERT INTO audit_events(actor_user_id,action,target_type,target_id,reason_code,request_id,safe_metadata) VALUES (${staff.row.user_id},'AUTHORITY_RISK_CASE_DECIDED','AuthorityRiskCase',${id},${input.reasonCode},${input.requestId},${JSON.stringify({outcome:input.outcome,prior_version:input.expectedVersion,rule_version:AUTHORITY_RISK_RULE})}::jsonb)`;
       return safeCase(updated[0]!,input.outcome==='REVIEW_SOURCE'?recorded[0]!.id:input.evidenceRefId);

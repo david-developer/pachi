@@ -64,8 +64,10 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${evidenceGrant[0]!.id}`;
     await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:caseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated internal source review restored')`;
-    const reviewed=await store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()});
+    const reviewInput={expectedVersion:1,outcome:'REVIEW_SOURCE' as const,reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY' as const,evidenceRefId:home.id,requestId:randomUUID()};
+    const reviewed=await store.decide(staff,caseId,reviewInput);
     assert.ok(reviewed.source_review_action_id);
+    assert.equal((await store.decide(staff,caseId,reviewInput)).version,reviewed.version);
     const decisions=await Promise.allSettled([0,1].map(()=>store.decide(staff,caseId,{expectedVersion:2,outcome:'RESOLVE',reasonCode:'TRIGGER_DISPROVED',evidenceRefType:'CASE_ACTION',evidenceRefId:reviewed.source_review_action_id!,requestId:randomUUID()})));
     assert.deepEqual(decisions.map(x=>x.status).sort(),['fulfilled','rejected']);
     assert.equal((await readAuthorityRisk(client,home.relationshipId,account[0]!.id)).status,'STALE');
