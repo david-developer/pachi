@@ -34,6 +34,76 @@ Every listing requires a matching, current ProviderPropertyRelationship. In ordi
 
 A pending authority application does not erase an otherwise valid declaration. A rejected/revoked/expired relationship is not publishable; creating a new declaration cannot bypass its unresolved adverse case. Expiry of the optional verification badge alone may return a still-valid, nonadverse relationship to an unverified declaration projection, with the old decision preserved. This differs from expiry of the relationship's authorization period, which blocks publication.
 
+### Proposed authority risk evaluation procedure — pending owner approval
+
+This procedure is **proposed, not active policy**. It evaluates the risk condition
+for a particular current declaration; it does not decide PROPERTY_AUTHORITY or
+prove ownership. The existing trigger set is: (1) a documented unresolved
+ownership/control dispute; (2) a prior REJECTED or REVOKED authority claim or
+relationship affecting the property or claimed principal without case resolution, including a
+replacement declaration; (3) inconsistent representation of the principal,
+provider, property or authorized capacity; and (4) concrete fraud evidence
+identified by staff in a scoped case. A pending evidence application alone is
+not a trigger. An expired relationship blocks under the separate relationship
+validity rule; expiry is not silently converted to a CLEAR risk finding.
+
+The proposed named system evaluator reads the current declaration, linked
+authority decisions and unresolved property/principal cases at a consistent
+version. It records `PRESENT`, `ABSENT` or `UNAVAILABLE` for **each** trigger,
+with source identifiers/versions and the rule version. It may record `CLEAR`
+only when all required sources were successfully checked and every trigger is
+`ABSENT`. This is a completed finding, not an inference from a missing hold
+row. Any present trigger records `HOLD` even if another source is unavailable,
+with its reason, linked/opened private
+case, source reference, actionable remediation and review owner/date; a staff-originated finding must already
+have an authorized case decision. Missing/failed source reads, an incomplete
+finding or a stale declaration/rule version remain blocking. The provider sees
+only safe status and next action, never fraud signals or third-party evidence.
+
+An assigned case-scoped TRUST_SAFETY_MODERATOR with the **proposed**
+`authority:risk_decide` permission, a current grant and recent MFA-backed
+reauthentication could record a human trigger or resolve its hold, with a reason,
+supporting case/evidence reference and immutable audit action. No provider may
+self-clear; SUPER_ADMIN would not inherit this decision. A
+VERIFICATION_OFFICER's separate evidence-backed PROPERTY_AUTHORITY decision
+could support remediation but would not itself clear the hold. Resolution must
+link either a current verified claim plus a case decision, or a documented case
+finding that the triggering allegation was overturned; the latter route is an
+**open owner choice** because the existing policy does not state when a
+disproved trigger may return to ordinary declaration sufficiency. Resolution
+does not erase the adverse record, and a fresh evaluation must follow it.
+
+The evaluator and decision writer would compare the relationship, case/source
+and rule versions under transaction locks. A changed or expired declaration,
+new/reopened dispute, new adverse decision or fraud finding, changed
+representation, revoked/expired authority claim, property merge or changed rule
+version makes an earlier CLEAR stale and blocks until re-evaluation. Conflicting
+or stale concurrent decisions fail; a retry with the same idempotency key and
+identical decision returns the recorded result, while a different payload
+cannot reuse that key. A later HOLD cannot be overwritten by an earlier CLEAR.
+Submission and publication must read the current decision and sources in their
+guarded transaction. Holding a published listing suppresses visibility through
+the existing safety-hold path; resolution never republishes it automatically.
+
+Open approval choices: confirm (a) whether the named system evaluator may
+record CLEAR/HOLD after the complete source check, (b) the case-scoped
+TRUST_SAFETY_MODERATOR permission and whether a disproved trigger may be
+resolved without a verified claim, and (c) the authoritative source inventory
+and versioning for disputes, adverse history and representation, including
+which representation mismatches count and how adverse history follows property
+merges or a changed principal, so a complete evaluation can be demonstrated.
+These choices must be recorded before the
+blocker can change. E01 remains closed: real authority documents cannot be
+collected, reviewed or used for claim-based remediation until its notice,
+document, retention, deletion and backup decisions are approved.
+
+| Proposed example | Required result |
+|---|---|
+| Current OWNER declaration; complete source findings all absent | CLEAR for that declaration/rule version only; no authority badge. |
+| Open ownership dispute or unresolved prior REJECTED claim | HOLD with linked case, safe reason/remediation; declaration alone cannot submit. |
+| Reviewer overturns a false dispute, or a current verified authority claim supports remediation | If the proposed resolution route is approved, authorized audited resolution, then STALE until a fresh complete evaluation; no automatic listing restoration. |
+| Provider changes relationship type/principal or creates another declaration | Old CLEAR is STALE; prior HOLD/adverse history remains linked and cannot be bypassed. |
+
 ## Evidence policy
 
 | Subject/category | Accepted evidence class for manual workflow | Checks |

@@ -65,6 +65,22 @@ An agent may create a draft within the organization only through an operation th
 
 Platform staff use the separate staff application/client with MFA. Sensitive evidence access, verification decisions, owner recovery/transfer, permission grants, account suspension and destructive moderation require recent step-up (within 15 minutes), a reason and audit record. Routine staff session idle/absolute limits are in ADR 0002.
 
+### Proposed authority risk actions — pending owner approval
+
+| Actor | Proposed action and scope | Boundary |
+|---|---|---|
+| Named system evaluator | Record a complete version-bound CLEAR or derived HOLD from canonical sources | No staff grant; cannot override unavailable findings, resolve a human hold or issue PROPERTY_AUTHORITY. |
+| TRUST_SAFETY_MODERATOR | Add a documented trigger, place or resolve a hold using new `authority:risk_decide` | Current assigned **case-scoped** grant, purpose, no own property/provider/organization, recent MFA-backed step-up, reason, private evidence/case reference and immutable audit. |
+| VERIFICATION_OFFICER | Decide PROPERTY_AUTHORITY in its separate assigned verification case once E01 permits real intake | Existing role description fits claim review; no authority-risk CLEAR/hold resolution or inferred grant from this proposal. A specific claim permission still needs approval before that future workflow. |
+| Provider/organization actor | Read own safe status/remediation and submit eligible evidence under the separate intake policy | Cannot evaluate, place or clear a hold; E01 currently disables real evidence intake. |
+
+The proposed `authority:risk_decide` is a single narrow addition to the
+TRUST_SAFETY_MODERATOR ceiling, not a grant to any person. `moderation:act` and
+SUPER_ADMIN do not imply it. Evidence access additionally requires the existing
+case-scoped `evidence:read` grant and fresh authorization; the new permission
+alone cannot read private documents or third-party reports. Denied and stale
+attempts retain the existing safe error and audit rules.
+
 Temporary capability restrictions up to 7 days can be applied by TRUST_SAFETY_MODERATOR within an assigned case. Longer/permanent restrictions, full account suspension and staff permission changes require explicit elevated permission and step-up. Emergency hiding of suspected dangerous public content is allowed to assigned listing/safety staff, with immediate audit and case follow-up. An appeal cannot automatically lift an active safety hold.
 
 ## Publication predicate

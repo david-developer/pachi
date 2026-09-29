@@ -47,6 +47,21 @@ Keep responsible `provider_account_id` distinct from `actor_user_id`. An agent's
 
 `PropertyAuthority` in older documents means ProviderPropertyRelationship; do not create a competing authority aggregate. A risk hold records reason, reviewer and required remediation. An expired relationship cannot be made current by editing the client date. A pending evidence case does not invalidate a still-current declaration by itself.
 
+### Proposed authority risk evaluation record — pending owner approval
+
+This is a proposed projection on the existing provider-property relationship,
+not a new authority claim or approved schema. Each immutable evaluation/hold
+decision would identify the relationship, property, provider principal and
+evaluated declaration version; rule/policy version; each canonical trigger's
+`PRESENT`, `ABSENT` or `UNAVAILABLE` finding and source record/version; outcome;
+reason code; case and private evidence references where applicable; required
+remediation and hold review owner/date; actor or named system principal;
+request/idempotency key; and UTC decision time. A hold-resolution action would link its prior hold and supporting
+case/claim decision instead of overwriting it. Restricted evidence and fraud
+details would remain in the private case, never in public listing projections.
+An absent row, an unavailable source or a replaced declaration would not mean
+`CLEAR`.
+
 ## Listing and Offering
 
 | Entity | Required fields | Invariants |
