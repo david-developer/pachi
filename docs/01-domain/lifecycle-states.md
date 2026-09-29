@@ -28,16 +28,20 @@ Property states: ACTIVE, POSSIBLE_DUPLICATE, MERGED, ARCHIVED, REMOVED. ACTIVE �
 
 ProviderPropertyRelationship authorization states: DECLARED, PENDING, VERIFIED, REJECTED, EXPIRED, REVOKED. Declaration creates DECLARED. Evidence submission may display PENDING while preserving a valid declaration; approval → VERIFIED; negative decision → REJECTED; elapsed validity → EXPIRED; withdrawn authority → REVOKED. New declaration/evidence after an adverse outcome requires a case resolution; it cannot bypass a risk hold. Optional authority assurance expiry changes the live relationship projection from VERIFIED to DECLARED only if a still-valid declaration remains and no adverse case/hold exists; preserve the expired VerificationClaim. Expiry of the relationship authorization period itself sets EXPIRED and blocks publication. Revocation sets REVOKED and cannot automatically fall back to a declaration. These events are independent of provider identity; validity dates are always checked.
 
-### Proposed risk evaluation transitions — pending owner approval
+### Risk evaluation direction — owner approved 2026-09-29; record details proposed
 
 Risk evaluation is separate from the relationship authorization enum and the
-PROPERTY_AUTHORITY claim. Effective `UNEVALUATED`/`STALE`/`FAILED` remain
-blocking. A complete current evaluation transitions to `CLEAR` only with all
-canonical triggers absent, or `HOLD` with documented trigger, reason and
-remediation. A new trigger or relevant declaration/case/claim/rule change makes
-an earlier CLEAR `STALE` immediately; an existing HOLD persists across a new
-declaration. Authorized hold resolution appends `RESOLVED` to that hold's case
-history and returns the risk evaluation to `STALE`, never directly to CLEAR.
+PROPERTY_AUTHORITY claim. Effective `UNEVALUATED`/`INCOMPLETE`/`STALE`/`FAILED`
+remain blocking. A complete current evaluation transitions to `CLEAR` only
+with all canonical triggers absent. A documented present trigger creates an
+evidenced `HOLD`, even if coverage is also INCOMPLETE; those two facts remain
+distinct. A new trigger or relevant declaration/case/claim/rule change makes
+an earlier CLEAR `STALE` immediately; an existing HOLD remains in history and
+continues to apply to new declarations within its recorded subject/scope, not
+automatically to a different principal. Authorized hold resolution appends
+`RESOLVED` to that hold's case history and returns the risk evaluation to
+`STALE`, never directly to CLEAR;
+other unresolved holds remain effective.
 Only a subsequent complete current evaluation may yield CLEAR. A repeated
 identical decision is idempotent; stale or conflicting concurrent decisions
 cannot overwrite the current result.

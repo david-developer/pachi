@@ -354,19 +354,20 @@ provider may hold a DECLARED, PENDING, VERIFIED, REJECTED, EXPIRED or
 REVOKED relationship to a specific property. Only VERIFIED authority may
 display a property-authority badge. A valid DECLARED relationship is sufficient for ordinary MVP publication; a recorded risk hold may require VERIFIED authority before submission or publication. PENDING evidence does not erase an otherwise valid declaration. REJECTED, EXPIRED and REVOKED relationships cannot publish until resolved.
 
-### Proposed authority risk evaluation amendment — pending owner approval
+### Authority risk evaluation direction — owner approved 2026-09-29; source mapping pending review
 
-This proposal is **not an accepted requirement or permission grant**. A current
-declaration could satisfy the authority risk check only after a completed,
-version-bound evaluation records no unresolved trigger from the existing
-authority policy. `CLEAR` would mean only that the evaluated rules found no
-unresolved authority risk; it would not verify ownership, create a
-PROPERTY_AUTHORITY claim or grant a badge. Missing, failed or stale evaluation
-would remain blocking. A documented trigger would record a hold, reason and
-required remediation; an authorized, audited resolution and a fresh evaluation
-would be needed before clearance. The proposed detailed record, permissions and
-transitions appear in the verification model, domain model, roles and lifecycle
-documents. E01 continues to prohibit real authority-document intake.
+The owner approved this **direction**, not the remaining source/schema details
+in draft PR #15. A current declaration can satisfy the authority risk check
+only after a completed, version-bound evaluation finds no unresolved canonical
+trigger. `CLEAR` means no unresolved risk under those rules; it does not verify
+ownership, create a PROPERTY_AUTHORITY claim or grant a badge. Missing,
+unavailable, inconsistent, failed or stale required sources cannot yield
+`CLEAR`. Documented triggers require a reasoned hold and remediation; resolving
+one hold requires an authorized, evidence-supported audited decision and a
+fresh evaluation. Independent verified-authority requirements and other holds
+remain effective. The proposed authoritative-source mapping and persistence
+details in the domain documents still require review before implementation.
+E01 continues to prohibit real authority-document intake.
 
 ## 6.2 Verification types and subjects
 
