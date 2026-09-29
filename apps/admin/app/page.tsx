@@ -32,7 +32,7 @@ export default function Page() {
   const [riskEvidenceType, setRiskEvidenceType] = useState<'PROPERTY'|'RELATIONSHIP'|'CASE_ACTION'|'MERGE'>('PROPERTY');
   const [riskEvidenceId, setRiskEvidenceId] = useState('');
   const [riskDecision, setRiskDecision] = useState<'REVIEW_SOURCE'|'CONFIRM'|'RESOLVE'>('REVIEW_SOURCE');
-  const [riskSourceConclusion, setRiskSourceConclusion] = useState<'SOURCE_SUPPORTS_DISPROOF'|'SOURCE_SUPPORTS_FINDING'>('SOURCE_SUPPORTS_DISPROOF');
+  const [riskSourceConclusion, setRiskSourceConclusion] = useState<'SOURCE_SUPPORTS_DISPROOF'|'SOURCE_SUPPORTS_FINDING'>('SOURCE_SUPPORTS_FINDING');
   const [riskCase, setRiskCase] = useState<AuthorityCase|null>(null);
   const [riskStatus, setRiskStatus] = useState('');
   useEffect(() => {

@@ -210,6 +210,7 @@ export class AuthorityRiskStore {
       if (row.version!==input.expectedVersion || row.state!=='OPEN') throw new IdentityError('STALE_VERSION','Case changed');
       if (input.outcome==='REVIEW_SOURCE') {
         if (input.evidenceRefType==='CASE_ACTION' || !['SOURCE_SUPPORTS_FINDING','SOURCE_SUPPORTS_DISPROOF'].includes(input.reasonCode)) throw new IdentityError('INVALID_INPUT','Review a permitted internal source with a specific finding');
+        if (input.reasonCode==='SOURCE_SUPPORTS_DISPROOF' && (row.trigger_kind!=='REPRESENTATION' || row.subject_scope!=='RELATIONSHIP' || input.evidenceRefType!=='RELATIONSHIP' || input.evidenceRefId!==row.relationship_id)) throw new IdentityError('EVIDENCE_INCOMPLETE','This internal source cannot disprove the reported trigger');
         await this.evidenceReference(tx,input.evidenceRefType,input.evidenceRefId,row.property_id);
       } else {
         if (input.evidenceRefType!=='CASE_ACTION' || input.outcome==='CONFIRM' && (row.allegation_kind!=='REPORTED' || input.reasonCode!=='FINDING_CONFIRMED') || input.outcome==='RESOLVE' && input.reasonCode!=='TRIGGER_DISPROVED') throw new IdentityError('INVALID_INPUT','Decision requires a reviewed internal source');

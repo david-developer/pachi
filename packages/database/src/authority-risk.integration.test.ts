@@ -45,7 +45,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     const grant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(scope)}::jsonb,now()+interval '1 day','test','isolated authority case') RETURNING id`;
     const evidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:caseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated internal source review') RETURNING id`;
     const staff=principal(moderator.id,scope);
-    const input={id:caseId,propertyId:home.id,subjectScope:'PROPERTY' as const,triggerKind:'DISPUTE' as const,allegationKind:'REPORTED' as const,provenance:'THIRD_PARTY_REPORT' as const,reasonCode:'DISPUTED_CONTROL',requestId:randomUUID()};
+    const input={id:caseId,propertyId:home.id,relationshipId:home.relationshipId,subjectScope:'RELATIONSHIP' as const,triggerKind:'REPRESENTATION' as const,allegationKind:'REPORTED' as const,provenance:'THIRD_PARTY_REPORT' as const,reasonCode:'STRUCTURED_REFERENCE_CONFLICT',requestId:randomUUID()};
     await assert.rejects(store.openCase(principal(admin.id,{kind:'platform',id:'pachi',permissions:['admin:permissions_manage']},new Date(),'SUPER_ADMIN'),input),{code:'RESOURCE_SCOPE_DENIED'});
     await assert.rejects(store.openCase(principal(moderator.id,{...scope,property_id:randomUUID()}),input),{code:'RESOURCE_SCOPE_DENIED'});
     await assert.rejects(store.openCase(principal(moderator.id,scope,new Date(Date.now()-16*60_000)),input),{code:'STEP_UP_REQUIRED'});
@@ -60,11 +60,11 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal(hold.outcome,'HOLD');
     assert.equal((hold as {applicable_case_ids:string[]}).applicable_case_ids.includes(caseId),true);
     assert.equal((await submissions.readiness(owner.id,draft.id)).checks.find(c=>c.code==='PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE')?.status,'BLOCKED');
-    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:randomUUID(),requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
+    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
     await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${evidenceGrant[0]!.id}`;
-    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
+    await assert.rejects(store.decide(staff,caseId,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'RELATIONSHIP',evidenceRefId:home.relationshipId,requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:caseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated internal source review restored')`;
-    const reviewInput={expectedVersion:1,outcome:'REVIEW_SOURCE' as const,reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY' as const,evidenceRefId:home.id,requestId:randomUUID()};
+    const reviewInput={expectedVersion:1,outcome:'REVIEW_SOURCE' as const,reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'RELATIONSHIP' as const,evidenceRefId:home.relationshipId,requestId:randomUUID()};
     const reviewed=await store.decide(staff,caseId,reviewInput);
     assert.ok(reviewed.source_review_action_id);
     assert.equal((await store.decide(staff,caseId,reviewInput)).version,reviewed.version);
@@ -98,8 +98,10 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'CLEAR');
     const thirdCase=randomUUID(); const thirdScope={...scope,id:thirdCase};
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(thirdScope)}::jsonb,now()+interval '1 day','test','isolated merged property case')`;
-    await store.openCase(principal(moderator.id,thirdScope),{...input,id:thirdCase,requestId:randomUUID()});
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:thirdCase,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated merged source review')`;
+    await store.openCase(principal(moderator.id,thirdScope),{...input,id:thirdCase,relationshipId:null,subjectScope:'PROPERTY',triggerKind:'DISPUTE',reasonCode:'DISPUTED_CONTROL',requestId:randomUUID()});
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'HOLD');
+    await assert.rejects(store.decide(principal(moderator.id,thirdScope),thirdCase,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
     assert.equal((await readAuthorityRisk(client,canonical.relationshipId,otherAccount[0]!.id)).status,'HOLD');
     await assert.rejects(client`INSERT INTO property_merges(source_property_id,canonical_property_id,reason_code) VALUES (${canonical.id},${home.id},'INVALID_CYCLE')`,/property merge cycle/);
     assert.equal((await client`SELECT count(*)::int AS count FROM property_merges WHERE id=${merge[0]!.id}`)[0]?.count,1);
@@ -116,8 +118,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal(claimed.version,2);
     await client`UPDATE provider_property_relationships SET authorization_status='DECLARED' WHERE id=${canonical.relationshipId}`;
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'HOLD');
-    const legacySource=await store.decide(principal(moderator.id,legacyScope),legacy[0]!.id,{expectedVersion:2,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:canonical.id,requestId:randomUUID()});
-    await store.decide(principal(moderator.id,legacyScope),legacy[0]!.id,{expectedVersion:3,outcome:'RESOLVE',reasonCode:'TRIGGER_DISPROVED',evidenceRefType:'CASE_ACTION',evidenceRefId:legacySource.source_review_action_id!,requestId:randomUUID()});
+    await assert.rejects(store.decide(principal(moderator.id,legacyScope),legacy[0]!.id,{expectedVersion:2,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:canonical.id,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'HOLD'); // merged-property dispute remains
 
     // Direct source mutation racing evaluation cannot leave an effective stale CLEAR.
@@ -125,7 +126,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     await store.evaluate(isolated.relationshipId);
     const fourthCase=randomUUID(); const fourthScope={kind:'case' as const,id:fourthCase,property_id:isolated.id,permissions:['authority:risk_decide']};
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(fourthScope)}::jsonb,now()+interval '1 day','test','isolated race')`;
-    await Promise.all([store.evaluate(isolated.relationshipId),store.openCase(principal(moderator.id,fourthScope),{...input,id:fourthCase,propertyId:isolated.id,requestId:randomUUID()})]);
+    await Promise.all([store.evaluate(isolated.relationshipId),store.openCase(principal(moderator.id,fourthScope),{...input,id:fourthCase,propertyId:isolated.id,relationshipId:null,subjectScope:'PROPERTY',triggerKind:'DISPUTE',reasonCode:'DISPUTED_CONTROL',requestId:randomUUID()})]);
     assert.notEqual((await readAuthorityRisk(client,isolated.relationshipId,otherAccount[0]!.id)).status,'CLEAR');
     assert.equal((await store.evaluate(isolated.relationshipId)).outcome,'HOLD');
     await client`DELETE FROM authority_risk_source_clock WHERE singleton`;

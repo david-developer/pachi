@@ -66,7 +66,7 @@ paths:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     post:
       security: [{ staffBearerAuth: [] }]
-      description: Assigned moderator reviews a permitted internal source, then confirms or resolves a specific trigger by referencing that audited source-review action. Current grant and recent TOTP required; resolution stales evaluation and never grants authority.
+      description: Assigned moderator reviews a permitted internal source, then confirms or resolves a specific trigger by referencing that audited source-review action. In v1, internal-source disproval is limited to a relationship-scoped representation finding and that same relationship's structured record. A property pointer cannot disprove a dispute, fraud finding, or adverse authority history. Current case and evidence grants plus recent TOTP required; resolution stales evaluation and never grants authority.
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version, outcome, reason_code, evidence_ref_type, evidence_ref_id], properties: { expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [REVIEW_SOURCE, CONFIRM, RESOLVE] }, reason_code: { type: string }, evidence_ref_type: { type: string, enum: [PROPERTY, RELATIONSHIP, CASE_ACTION, MERGE] }, evidence_ref_id: { type: string, format: uuid } } } } } }
       responses: { '201': { description: Audited versioned decision, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Scope or step up missing }, '409': { description: Missing support or stale decision } }
   /v1/staff/verification-cases/{id}/evidence/{kind}:

@@ -119,15 +119,15 @@ void integration(
       const riskCaseId=randomUUID();
       const riskUrl=`http://127.0.0.1:${address.port}/v1/staff/authority-risk-cases`;
       const riskHeaders={authorization:`Bearer ${good}`,'content-type':'application/json'};
-      const riskInput={id:riskCaseId,propertyId:property.id,subjectScope:'PROPERTY',triggerKind:'DISPUTE',allegationKind:'REPORTED',provenance:'STAFF_OBSERVATION',reasonCode:'DISPUTED_CONTROL'};
+      const riskInput={id:riskCaseId,propertyId:property.id,relationshipId:property.relationshipId,subjectScope:'RELATIONSHIP',triggerKind:'REPRESENTATION',allegationKind:'REPORTED',provenance:'STAFF_OBSERVATION',reasonCode:'STRUCTURED_REFERENCE_CONFLICT'};
       assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,403);
       const riskGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,property_id:property.id,permissions:['authority:risk_decide']})}::jsonb,now()+interval '1 day','test','isolated authority HTTP') RETURNING id`;
       const riskEvidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated authority source review') RETURNING id`;
       assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,201);
       assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,200);
       const riskDecision=(body:unknown)=>fetch(`${riskUrl}/${riskCaseId}/decision`,{method:'POST',headers:riskHeaders,body:JSON.stringify(body)});
-      assert.equal((await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:randomUUID()})).status,403);
-      const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:property.id});
+      assert.equal((await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:property.id})).status,409);
+      const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'RELATIONSHIP',evidence_ref_id:property.relationshipId});
       assert.equal(sourceReview.status,201);
       const sourceAction=(await sourceReview.json() as {source_review_action_id:string}).source_review_action_id;
       assert.ok(sourceAction);
