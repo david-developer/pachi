@@ -9,6 +9,7 @@ export const STAFF_PERMISSIONS = {
     'moderation:act',
     'review:moderate',
     'appeal:resolve',
+    'authority:risk_decide',
     'user:restrict',
     'user:suspend',
     'evidence:read',
@@ -21,6 +22,7 @@ export type StaffScope = {
   kind: 'platform' | 'region' | 'case';
   id: string;
   permissions: string[];
+  property_id?: string;
 };
 export class StaffAccessError extends Error {
   constructor(
@@ -46,6 +48,7 @@ export function validStaffScope(role: string, value: unknown): value is StaffSco
   if (s.kind === 'platform' && s.id !== 'pachi') return false;
   if (role === 'LISTING_MODERATOR' && s.kind === 'platform') return false;
   if (!Array.isArray(s.permissions) || !s.permissions.length) return false;
+  if (s.permissions.includes('authority:risk_decide') && (s.kind !== 'case' || typeof s.property_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s.property_id))) return false;
   const ceiling: readonly string[] = STAFF_PERMISSIONS[role as StaffRole];
   if (!s.permissions.every((p) => typeof p === 'string' && ceiling.includes(p))) return false;
   // Private evidence, support context and recovery always need a concrete case.
@@ -63,6 +66,7 @@ export function validStaffScope(role: string, value: unknown): value is StaffSco
         'moderation:act',
         'review:moderate',
         'appeal:resolve',
+        'authority:risk_decide',
       ].includes(p),
     ) &&
     s.kind !== 'case'

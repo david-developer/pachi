@@ -1,7 +1,7 @@
 import { Body, ConflictException, Controller, Delete, Get, HttpCode, Inject, NotFoundException, Param, Patch, PayloadTooLargeException, Post, Put, Req, Res, UnauthorizedException, UseGuards, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Response } from 'express';
-import { IdentityError, ListingMediaStore, ListingSubmissionStore, PropertyDraftStore, type ListingDraft, type ListingMediaItem, type ListingReadiness, type ListingSubmissionRecord, type PropertyDraft } from '@pachi/database';
+import { AuthorityRiskStore, IdentityError, ListingMediaStore, ListingSubmissionStore, PropertyDraftStore, type ListingDraft, type ListingMediaItem, type ListingReadiness, type ListingSubmissionRecord, type PropertyDraft } from '@pachi/database';
 import { LocalPrivateMediaStorage, MAX_ORIGINAL_BYTES, sniffListingImage } from '@pachi/media';
 import type { AuthenticatedRequest } from './auth.guard.js';
 import { AuthGuard } from './auth.guard.js';
@@ -14,6 +14,7 @@ export class PropertyController {
     @Inject('PROPERTY_DRAFT_STORE') private readonly store: PropertyDraftStore,
     @Inject('LISTING_MEDIA_STORE') private readonly mediaStore: ListingMediaStore,
     @Inject('LISTING_SUBMISSION_STORE') private readonly submissionStore: ListingSubmissionStore,
+    @Inject('AUTHORITY_RISK_STORE') private readonly authorityRiskStore: AuthorityRiskStore,
     @Inject('LOCAL_PRIVATE_MEDIA_STORAGE') private readonly mediaStorage: LocalPrivateMediaStorage
   ) {}
 
@@ -53,6 +54,13 @@ export class PropertyController {
   @Get('listing-drafts/:id/readiness')
   public async listingReadiness(@Req() request: AuthenticatedRequest, @Param('id') id: string): Promise<ListingReadinessResponse> {
     try { return readinessResponse(await this.submissionStore.readiness(this.userId(request), id)); }
+    catch (error) { throw this.error(error); }
+  }
+
+  @Post('listing-drafts/:id/authority-risk/evaluate')
+  public async evaluateAuthorityRisk(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    if (!isUuid(id)) throw new NotFoundException('Private resource is not available');
+    try { return await this.authorityRiskStore.evaluateOwned(this.userId(request), id); }
     catch (error) { throw this.error(error); }
   }
 
@@ -148,7 +156,7 @@ export class PropertyController {
   }
 
   private userId(request: AuthenticatedRequest): string { if (!request.principal) throw new UnauthorizedException('Authentication required'); return request.principal.userId; }
-  private error(error: unknown): Error { return error instanceof IdentityError ? ['DRAFT_READ_FAILED', 'MEDIA_DRAFT_SCOPE_DENIED', 'MEDIA_SCOPE_DENIED', 'MEDIA_UPLOAD_SCOPE_DENIED', 'SUBMISSION_SCOPE_DENIED', 'PROPERTY_SCOPE_DENIED'].includes(error.code) ? new NotFoundException('Private resource is not available') : new ConflictException(error.message) : error as Error; }
+  private error(error: unknown): Error { return error instanceof IdentityError ? ['DRAFT_READ_FAILED', 'MEDIA_DRAFT_SCOPE_DENIED', 'MEDIA_SCOPE_DENIED', 'MEDIA_UPLOAD_SCOPE_DENIED', 'SUBMISSION_SCOPE_DENIED', 'PROPERTY_SCOPE_DENIED', 'RESOURCE_SCOPE_DENIED'].includes(error.code) ? new NotFoundException('Private resource is not available') : new ConflictException(error.message) : error as Error; }
 }
 
 async function readUploadBody(request: AuthenticatedRequest): Promise<Buffer> {

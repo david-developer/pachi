@@ -43,6 +43,32 @@ paths:
       security: [{ staffBearerAuth: [] }]
       description: Assigned officer reads case metadata; case scoped provider:verify grant required.
       responses: { '200': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/ProviderVerificationCase' } } } }, '403': { description: Case scope denied } }
+  /v1/staff/authority-risk-cases:
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned TRUST_SAFETY_MODERATOR records a scoped reported allegation. Case ID and property must match an existing current case grant; no document intake.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [id, propertyId, subjectScope, triggerKind, allegationKind, provenance, reasonCode], properties: { id: { type: string, format: uuid }, propertyId: { type: string, format: uuid }, relationshipId: { type: [string, 'null'], format: uuid }, principalId: { type: [string, 'null'], format: uuid }, subjectScope: { type: string, enum: [PROPERTY, RELATIONSHIP, PRINCIPAL] }, triggerKind: { type: string, enum: [DISPUTE, REPRESENTATION, FRAUD] }, allegationKind: { type: string, enum: [REPORTED] }, provenance: { type: string, enum: [STAFF_OBSERVATION, PROVIDER_REPORT, THIRD_PARTY_REPORT] }, reasonCode: { type: string } } } } } }
+      responses: { '201': { description: Audited precautionary case, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Current case grant, assignment or step up missing }, '409': { description: Invalid subject or reference } }
+  /v1/staff/authority-risk-cases/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned case-scoped moderator reads safe case status. Private source references require separate evidence access.
+      responses: { '200': { description: Assigned case, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Scope denied } }
+  /v1/staff/authority-risk-cases/{id}/claim-legacy:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Scoped moderator takes the explicitly granted legacy review case without inventing a historic actor or decision.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version], properties: { expected_version: { type: integer, minimum: 1 } } } } } }
+      responses: { '201': { description: Audited assignment, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Scope denied }, '409': { description: Stale version } }
+  /v1/staff/authority-risk-cases/{id}/decision:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Assigned moderator reviews a permitted internal source, then confirms or resolves a specific trigger by referencing that audited source-review action. Current grant and recent TOTP required; resolution stales evaluation and never grants authority.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [expected_version, outcome, reason_code, evidence_ref_type, evidence_ref_id], properties: { expected_version: { type: integer, minimum: 1 }, outcome: { type: string, enum: [REVIEW_SOURCE, CONFIRM, RESOLVE] }, reason_code: { type: string }, evidence_ref_type: { type: string, enum: [PROPERTY, RELATIONSHIP, CASE_ACTION, MERGE] }, evidence_ref_id: { type: string, format: uuid } } } } } }
+      responses: { '201': { description: Audited versioned decision, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskCase' } } } }, '403': { description: Scope or step up missing }, '409': { description: Missing support or stale decision } }
   /v1/staff/verification-cases/{id}/evidence/{kind}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: kind, in: path, required: true, schema: { type: string, enum: [GOVERNMENT_ID, LIVE_SELFIE] } }]
     get:
@@ -236,6 +262,12 @@ paths:
         '401': { description: Authentication required }
         '404': { description: Draft does not exist or is outside the current provider scope }
         '409': { description: Provider is not eligible for private workspace access }
+  /v1/account/listing-drafts/{id}/authority-risk/evaluate:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ bearerAuth: [] }]
+      description: Owner requests the named system evaluator for an own DRAFT. CLEAR checks Pachi internal sources only; it does not prove ownership, accept evidence, submit or publish.
+      responses: { '201': { description: Current internal authority risk status, content: { application/json: { schema: { $ref: '#/components/schemas/AuthorityRiskStatus' } } } }, '404': { description: Draft is outside provider scope }, '409': { description: Evaluation unavailable } }
   /v1/account/listing-drafts/{id}/submissions:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -416,6 +448,32 @@ components:
                   kind: { type: string, enum: [platform, region, case] }
                   id: { type: string }
                   permissions: { type: array, items: { type: string } }
+                  property_id: { type: string }
+    AuthorityRiskStatus:
+      type: object
+      required: [status, next_action, evaluation_id]
+      properties:
+        status: { type: string, enum: [CLEAR, HOLD, INCOMPLETE, STALE, UNEVALUATED] }
+        next_action: { type: string }
+        evaluation_id: { type: [string, 'null'] }
+    AuthorityRiskCase:
+      type: object
+      required: [id, property_id, relationship_id, principal_id, subject_scope, trigger_kind, allegation_kind, state, version, reason_code, safe_remediation, source_provenance, received_at, source_review_action_id]
+      properties:
+        id: { type: string }
+        property_id: { type: string }
+        relationship_id: { type: [string, 'null'] }
+        principal_id: { type: [string, 'null'] }
+        subject_scope: { type: string }
+        trigger_kind: { type: string }
+        allegation_kind: { type: string }
+        state: { type: string }
+        version: { type: integer }
+        reason_code: { type: string }
+        safe_remediation: { type: string }
+        source_provenance: { type: string }
+        received_at: { type: [string, 'null'] }
+        source_review_action_id: { type: [string, 'null'] }
     BootstrapRequest:
       type: object
       properties: { device_label: { type: string, maxLength: 120 } }

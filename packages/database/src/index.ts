@@ -13,6 +13,8 @@ export { ListingPhotoReviewStore } from './listing-photo-review.js';
 export type { PhotoReviewItem, PhotoReviewStatus } from './listing-photo-review.js';
 export type { ListingMediaItem, MediaCleanupJob, MediaLifecycle, MediaProcessingJob, MediaUploadIntent } from './listing-media.js';
 export { ListingSubmissionStore } from './listing-submission.js';
+export { AuthorityRiskStore, readAuthorityRisk, AUTHORITY_RISK_RULE } from './authority-risk.js';
+export type { AuthorityRiskCase, AuthorityRiskCaseInput, AuthorityRiskDecisionInput, AuthorityRiskStatus } from './authority-risk.js';
 export type { ListingReadiness, ListingReadinessCheck, ListingSubmissionRecord, ListingSubmissionResult, SubmitListingInput } from './listing-submission.js';
 export type { ListingDraft, ListingPurpose, PropertyDraft, PropertyType, RelationshipType } from './property.js';
 export * from './staff-policy.js';

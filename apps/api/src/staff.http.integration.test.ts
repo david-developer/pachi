@@ -5,11 +5,12 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { generateKeyPair, SignJWT } from 'jose';
-import { createDatabase, StaffStore, ProviderVerificationStore, ListingPhotoReviewStore, PropertyDraftStore } from '@pachi/database';
+import { AuthorityRiskStore, createDatabase, StaffStore, ProviderVerificationStore, ListingPhotoReviewStore, PropertyDraftStore } from '@pachi/database';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { StaffVerificationController } from './staff-verification.controller.js';
 import { StaffListingPhotoController } from './staff-listing-photo.controller.js';
+import { StaffAuthorityRiskController } from './staff-authority-risk.controller.js';
 const integration = process.env.DATABASE_TEST_URL ? test : test.skip;
 void integration(
   'actual staff HTTP controller accepts only registered staff tokens and live grants',
@@ -32,11 +33,12 @@ void integration(
     const store = new StaffStore(client, 'synthetic-staff-secret-long-enough-for-encryption');
     const verificationStore = new ProviderVerificationStore(client,'synthetic-evidence-key-for-http-staff-test',true);
     @Module({
-      controllers: [StaffController, StaffVerificationController, StaffListingPhotoController],
+      controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffAuthorityRiskController],
       providers: [
         { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(store, verifier) },
         { provide: 'PROVIDER_VERIFICATION_STORE', useValue: verificationStore },
         { provide: 'LISTING_PHOTO_REVIEW_STORE', useValue: new ListingPhotoReviewStore(client) },
+        { provide: 'AUTHORITY_RISK_STORE', useValue: new AuthorityRiskStore(client) },
         { provide: 'LOCAL_PRIVATE_MEDIA_STORAGE', useValue: { readVariant: async () => Buffer.from('synthetic-private-preview') } },
       ],
     })
@@ -114,6 +116,26 @@ void integration(
       const propertyStore=new PropertyDraftStore(client);
       const property=await propertyStore.createProperty(applicant,{propertyType:'APARTMENT',region:'Littoral',city:'Douala',neighborhood:'Akwa',relationshipType:'OWNER'});
       const listing=await propertyStore.createDraft(applicant,{propertyId:property.id,purpose:'RENT',title:'Staff photo HTTP fixture'});
+      const riskCaseId=randomUUID();
+      const riskUrl=`http://127.0.0.1:${address.port}/v1/staff/authority-risk-cases`;
+      const riskHeaders={authorization:`Bearer ${good}`,'content-type':'application/json'};
+      const riskInput={id:riskCaseId,propertyId:property.id,subjectScope:'PROPERTY',triggerKind:'DISPUTE',allegationKind:'REPORTED',provenance:'STAFF_OBSERVATION',reasonCode:'DISPUTED_CONTROL'};
+      assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,403);
+      const riskGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,property_id:property.id,permissions:['authority:risk_decide']})}::jsonb,now()+interval '1 day','test','isolated authority HTTP') RETURNING id`;
+      const riskEvidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${userId},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:riskCaseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated authority source review') RETURNING id`;
+      assert.equal((await fetch(riskUrl,{method:'POST',headers:riskHeaders,body:JSON.stringify(riskInput)})).status,201);
+      assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,200);
+      const riskDecision=(body:unknown)=>fetch(`${riskUrl}/${riskCaseId}/decision`,{method:'POST',headers:riskHeaders,body:JSON.stringify(body)});
+      assert.equal((await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:randomUUID()})).status,403);
+      const sourceReview=await riskDecision({expected_version:1,outcome:'REVIEW_SOURCE',reason_code:'SOURCE_SUPPORTS_DISPROOF',evidence_ref_type:'PROPERTY',evidence_ref_id:property.id});
+      assert.equal(sourceReview.status,201);
+      const sourceAction=(await sourceReview.json() as {source_review_action_id:string}).source_review_action_id;
+      assert.ok(sourceAction);
+      assert.equal((await riskDecision({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:sourceAction})).status,201);
+      assert.equal((await riskDecision({expected_version:2,outcome:'RESOLVE',reason_code:'TRIGGER_DISPROVED',evidence_ref_type:'CASE_ACTION',evidence_ref_id:sourceAction})).status,409);
+      await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskGrant[0]!.id}`;
+      await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${riskEvidenceGrant[0]!.id}`;
+      assert.equal((await fetch(`${riskUrl}/${riskCaseId}`,{headers:{authorization:`Bearer ${good}`}})).status,403);
       const providerAccount=await client<{id:string}[]>`SELECT id FROM provider_accounts WHERE provider_profile_id=${profile[0]!.id}`;
       const mediaAsset=await client<{id:string}[]>`INSERT INTO media_assets(owner_provider_account_id,classification,storage_reference,lifecycle,original_mime,original_bytes,derivative_manifest) VALUES (${providerAccount[0]!.id},'PUBLIC_MARKETPLACE',${randomUUID()},'READY','image/png',100,'{"320":{"mime":"image/webp","width":8,"height":6,"bytes":80}}'::jsonb) RETURNING id`;
       const association=await client<{id:string}[]>`INSERT INTO listing_media(listing_id,media_asset_id,display_order,is_cover,attached_by_user_id) VALUES (${listing.id},${mediaAsset[0]!.id},0,true,${applicant}) RETURNING id`;
