@@ -354,6 +354,23 @@ provider may hold a DECLARED, PENDING, VERIFIED, REJECTED, EXPIRED or
 REVOKED relationship to a specific property. Only VERIFIED authority may
 display a property-authority badge. A valid DECLARED relationship is sufficient for ordinary MVP publication; a recorded risk hold may require VERIFIED authority before submission or publication. PENDING evidence does not erase an otherwise valid declaration. REJECTED, EXPIRED and REVOKED relationships cannot publish until resolved.
 
+### Authority risk evaluation and internal sources — owner approved 2026-09-29
+
+The owner approved the bounded internal source mapping and decisions recorded in
+the verification model. A current declaration can satisfy the authority risk check
+only after a completed, version-bound evaluation finds no unresolved canonical
+trigger. `CLEAR` means no unresolved risk under those rules; it does not verify
+ownership, create a PROPERTY_AUTHORITY claim or grant a badge. Missing,
+unavailable, inconsistent, failed or stale required sources cannot yield
+`CLEAR`. Documented triggers require a reasoned hold and remediation; resolving
+one hold requires an authorized, evidence-supported audited decision and a
+fresh evaluation. Independent verified-authority requirements and other holds
+remain effective. The bounded authoritative-source mapping in the verification
+model is approved; its physical schema follows that mapping.
+This is a check of Pachi's current internal sources, not an external ownership
+search or ownership verification. E01 continues to prohibit real
+authority-document intake.
+
 ## 6.2 Verification types and subjects
 
 | **Verification type**  | **Subject**                    | **What it proves**                                    | **What it does not prove**                                |
