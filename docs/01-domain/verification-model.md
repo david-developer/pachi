@@ -34,10 +34,10 @@ Every listing requires a matching, current ProviderPropertyRelationship. In ordi
 
 A pending authority application does not erase an otherwise valid declaration. A rejected/revoked/expired relationship is not publishable; creating a new declaration cannot bypass its unresolved adverse case. Expiry of the optional verification badge alone may return a still-valid, nonadverse relationship to an unverified declaration projection, with the old decision preserved. This differs from expiry of the relationship's authorization period, which blocks publication.
 
-### Authority risk evaluation direction — owner approved 2026-09-29; source mapping pending review
+### Authority risk evaluation and internal sources — owner approved 2026-09-29
 
-The owner approved the evaluation and decision **direction** below, not the
-unreviewed source/schema details in draft PR #15. It evaluates the risk
+The owner approved the evaluation, decision boundaries and bounded internal
+source mapping below. It evaluates the risk
 condition for a particular current declaration; it does not decide
 PROPERTY_AUTHORITY or prove ownership. The existing trigger set is: (1) a
 documented unresolved ownership/control dispute; (2) an unresolved REJECTED or
@@ -93,33 +93,47 @@ Submission and publication must read the current decision and sources in their
 guarded transaction. Holding a published listing suppresses visibility through
 the existing safety-hold path; resolution never republishes it automatically.
 
-#### Proposed authoritative-source mapping — requires separate review
+#### Authoritative internal source mapping
 
-Read-only schema inspection confirms the following. The named additions are
-**proposals, not approved migrations**. `audit_events`, staff access logs, UI
+Read-only schema inspection confirmed the following gaps before implementation.
+The durable additions are approved; exact tables, constraints and indexes are
+engineering choices. `audit_events`, staff access logs, UI
 state, free-form profile fields and missing tables cannot establish CLEAR.
 
-| Trigger | Existing entity and usable state | Smallest proposed durable addition |
+| Trigger | Existing entity and usable state | Approved bounded durable addition |
 |---|---|---|
-| Ownership/control dispute | `properties.id` and `provider_property_relationships.id` identify the property and declaration. No report or authority-case entity records an unresolved dispute. | Scoped `authority_risk_cases` plus append-only `authority_risk_case_actions` record intake, assignment, dispute finding, evidence reference, status and explicit resolution. Missing/unprocessed intake stays INCOMPLETE. |
+| Ownership/control dispute | `properties.id` and `provider_property_relationships.id` identify the property and declaration. No report or authority-case entity records an unresolved dispute. | Scoped `authority_risk_cases` plus append-only `authority_risk_case_actions` record assigned staff intake, allegation versus finding, provenance, permitted reference, status and explicit resolution. |
 | Rejected/revoked authority and later resolution | `provider_property_relationships.authorization_status` can show current REJECTED/REVOKED; the table has no version or decision history. `verification_cases`, `verification_decisions` and `verification_claims` are constrained to PROVIDER_IDENTITY. | Version the relationship and append immutable authority decision/resolution actions linked to its original relationship, property and principal. A future PROPERTY_AUTHORITY verification-case extension is separate and E01-gated. A later DECLARED row cannot erase unresolved adverse history. |
-| Representation inconsistency | `provider_property_relationships.relationship_type`, `provider_account_id`, `provider_accounts.kind` and `provider_profiles.provider_types` permit limited structured checks. The canonical `principal_reference` and organization principal linkage are not persisted. | Add a structured principal/representation reference to the declaration and scoped case findings for a material mismatch. Do not use profile prose or collect mandates while E01 is closed. Exact mismatch rules remain a policy choice. |
+| Representation inconsistency | `provider_property_relationships.relationship_type`, `provider_account_id`, `provider_accounts.kind` and `provider_profiles.provider_types` permit limited structured checks. The canonical `principal_reference` and organization principal linkage are not persisted. | Add a structured principal/representation reference to the declaration and scoped case findings for a supported material mismatch. Do not use profile prose or collect mandates while E01 is closed. No automatic mismatch without an approved objective compatibility rule. |
 | Concrete staff fraud finding | `staff_grants`/`staff_sessions` can authorize and identify an actor, but no risk-finding case exists. `audit_events` is an audit trail, not unresolved-risk state. | Use the same scoped case/action records for a concrete finding, private evidence reference, review owner/date and explicit resolution; an unresolved finding is PRESENT. |
 | Property merge and principal changes | `properties.record_state` includes MERGED, but there is no canonical-property pointer or `PropertyMerge` lineage table. Relationship rows retain property/provider IDs but cannot express case scope. | Immutable `property_merges` lineage plus case subject scope (property-wide, specific relationship or named principal). Traverse only the documented scope; a new principal is not automatically implicated by a principal-specific finding. |
 | Completed evaluation | `ListingSubmissionStore` currently hard-blocks; there is no evaluation record. | Append-only `authority_risk_evaluations` capture declaration/rule/source versions, per-trigger findings and source coverage separately from linked holds. Unavailable coverage or legacy history without a defensible source remains blocking. |
 
-**Material mapping choices still open:** define the structured representation
-facts and exact mismatches that count; identify the authoritative dispute intake
-path and how it certifies there are no unprocessed relevant reports; approve the
-case-subject scope and merge/principal lineage rules; and decide how legacy
-relationship states with no decision history can be reconciled without
-fabricating a CLEAR finding. Until these source details are reviewed, the
-implementation and readiness change remain paused. E01 remains closed: real
+For this version, assigned case-scoped staff record dispute allegations and
+supported findings in the case store with subject, provenance, received time,
+reason and permitted references. An allegation differs from an established
+finding; a precautionary hold is not a guilt finding. There is no public intake
+or external registry. A legitimate empty query from each initialized internal
+source is evidence of absence; a missing source, failed read or unresolved
+legacy state is incomplete, never CLEAR. Evaluations record relationship and
+principal versions, source versions and applicable case/decision references.
+
+Automatic representation findings require an objective contradiction under an
+approved structured compatibility rule; no rule is invented from names, profile
+wording or account type. Missing required structured information is incomplete,
+not fraud. Staff may record a supported scoped inconsistency. Property-scoped
+findings remain discoverable through immutable merge lineage. Relationship and
+principal findings retain their original scope and do not automatically accuse
+another principal. Uncertain applicability is incomplete. Relevant merge or
+principal change stales clearance. Existing REJECTED/REVOKED states with missing
+history receive explicit legacy provenance and unresolved review; no historic
+actor, reason, date or CLEAR is fabricated. Resolution needs the audited case
+workflow and appropriate evidence. E01 remains closed: real
 authority documents cannot be collected, reviewed or used for claim-based
 remediation until its notice, document, retention, deletion and backup
 decisions are approved.
 
-| Proposed example | Required result |
+| Example | Required result |
 |---|---|
 | Current OWNER declaration; complete source findings all absent | CLEAR for that declaration/rule version only; no authority badge. |
 | Open ownership dispute or unresolved prior REJECTED claim | HOLD with linked case, safe reason/remediation; declaration alone cannot submit. |

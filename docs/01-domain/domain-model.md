@@ -47,10 +47,11 @@ Keep responsible `provider_account_id` distinct from `actor_user_id`. An agent's
 
 `PropertyAuthority` in older documents means ProviderPropertyRelationship; do not create a competing authority aggregate. A risk hold records reason, reviewer and required remediation. An expired relationship cannot be made current by editing the client date. A pending evidence case does not invalidate a still-current declaration by itself.
 
-### Proposed authority risk source records — pending mapping review
+### Authority risk source records — approved bounded mapping
 
-The owner approved versioned evaluation and traceable hold decisions, **not**
-the exact schema below. This is a proposed projection on the existing
+The owner approved versioned evaluation, traceable hold decisions and the
+bounded durable source additions in the verification model. Physical table and
+index design remains an engineering choice. This is a projection on the existing
 provider-property relationship, not a new authority claim. Each immutable evaluation/hold
 decision would identify the relationship, property, provider principal and
 evaluated declaration version; rule/policy version; each canonical trigger's
