@@ -365,8 +365,8 @@ unavailable, inconsistent, failed or stale required sources cannot yield
 `CLEAR`. Documented triggers require a reasoned hold and remediation; resolving
 one hold requires an authorized, evidence-supported audited decision and a
 fresh evaluation. Independent verified-authority requirements and other holds
-remain effective. The proposed authoritative-source mapping and persistence
-details in the domain documents still require review before implementation.
+remain effective. The bounded authoritative-source mapping in the verification
+model is approved; its physical schema follows that mapping.
 This is a check of Pachi's current internal sources, not an external ownership
 search or ownership verification. E01 continues to prohibit real
 authority-document intake.
