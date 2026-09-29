@@ -1,6 +1,6 @@
 import {expect,test} from '@playwright/test';
 
-test('synthetic case-scoped moderator records an allegation and versioned decision',async({page})=>{
+test('synthetic case-scoped moderator records an allegation and cannot make an unsupported decision',async({page})=>{
   const caseId='00000000-0000-4000-8000-000000000101';
   const propertyId='00000000-0000-4000-8000-000000000102';
   const relationshipId='00000000-0000-4000-8000-000000000104';
@@ -27,7 +27,7 @@ test('synthetic case-scoped moderator records an allegation and versioned decisi
   await section.getByLabel('Subject scope').selectOption('RELATIONSHIP');
   await section.getByLabel('Trigger').selectOption('REPRESENTATION');
   await section.getByLabel('Reason code').fill('STRUCTURED_REFERENCE_CONFLICT');
-  await section.getByRole('button',{name:'Record allegation or finding'}).click();
+  await section.getByRole('button',{name:'Record reported allegation'}).click();
   await expect(section.getByText(/REPRESENTATION · REPORTED · OPEN/)).toBeVisible();
   await expect(section.getByText(/Source review and hold resolution are unavailable/)).toBeVisible();
   await expect(section.getByRole('button',{name:'Record case decision'})).toBeDisabled();
