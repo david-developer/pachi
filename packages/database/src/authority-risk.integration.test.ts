@@ -52,7 +52,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     const caseId=randomUUID();
     const scope={kind:'case' as const,id:caseId,property_id:home.id,permissions:['authority:risk_decide']};
     const grant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(scope)}::jsonb,now()+interval '1 day','test','isolated authority case') RETURNING id`;
-    const evidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:caseId,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated internal source review') RETURNING id`;
+    const evidenceGrant=await client<{id:string}[]>`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:caseId,property_id:home.id,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated internal source review') RETURNING id`;
     const staffSubject=randomUUID();
     await client`INSERT INTO auth_identities(user_id,issuer,subject,provider) VALUES (${moderator.id},'https://local.test/staff',${staffSubject},'LOCAL_TEST')`;
     const now=new Date();
@@ -91,7 +91,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     const secondCase=randomUUID();
     const secondScope={...scope,id:secondCase};
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(secondScope)}::jsonb,now()+interval '1 day','test','isolated principal case')`;
-    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:secondCase,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated principal source review')`;
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:secondCase,property_id:home.id,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated principal source review')`;
     await assert.rejects(store.openCase(principal(moderator.id,secondScope),{...input,id:secondCase,relationshipId:null,subjectScope:'PRINCIPAL',principalId:otherAccount[0]!.id,triggerKind:'REPRESENTATION',provenance:'STAFF_OBSERVATION',reasonCode:'STRUCTURED_REFERENCE_CONFLICT',requestId:randomUUID()}),{code:'RESOURCE_SCOPE_DENIED'});
     const principalCase=await store.openCase(principal(moderator.id,secondScope),{...input,id:secondCase,relationshipId:null,subjectScope:'PRINCIPAL',principalId:account[0]!.id,triggerKind:'REPRESENTATION',provenance:'STAFF_OBSERVATION',reasonCode:'STRUCTURED_REFERENCE_CONFLICT',requestId:randomUUID()});
     assert.equal(principalCase.allegation_kind,'REPORTED');
@@ -109,7 +109,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'CLEAR');
     const thirdCase=randomUUID(); const thirdScope={...scope,id:thirdCase};
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(thirdScope)}::jsonb,now()+interval '1 day','test','isolated merged property case')`;
-    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:thirdCase,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated merged source review')`;
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:thirdCase,property_id:home.id,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated merged source review')`;
     await store.openCase(principal(moderator.id,thirdScope),{...input,id:thirdCase,relationshipId:null,subjectScope:'PROPERTY',triggerKind:'DISPUTE',reasonCode:'DISPUTED_CONTROL',requestId:randomUUID()});
     assert.equal((await store.evaluate(canonical.relationshipId)).outcome,'HOLD');
     await assert.rejects(store.decide(principal(moderator.id,thirdScope),thirdCase,{expectedVersion:1,outcome:'REVIEW_SOURCE',reasonCode:'SOURCE_SUPPORTS_DISPROOF',evidenceRefType:'PROPERTY',evidenceRefId:home.id,requestId:randomUUID()}),{code:'EVIDENCE_INCOMPLETE'});
@@ -124,7 +124,7 @@ void integration('internal authority risk evaluation, scoped decisions and linea
     assert.equal(legacy[0]?.source_provenance,'LEGACY_STATUS'); assert.equal(legacy[0]?.assigned_staff_user_id,null);
     const legacyScope={kind:'case' as const,id:legacy[0]!.id,property_id:canonical.id,permissions:['authority:risk_decide']};
     await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify(legacyScope)}::jsonb,now()+interval '1 day','test','isolated legacy review')`;
-    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:legacy[0]!.id,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated legacy source review')`;
+    await client`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason) VALUES (${moderator.id},'TRUST_SAFETY_MODERATOR',${JSON.stringify({kind:'case',id:legacy[0]!.id,property_id:canonical.id,permissions:['evidence:read']})}::jsonb,now()+interval '1 day','test','isolated legacy source review')`;
     await assert.rejects(store.case(principal(moderator.id,legacyScope),legacy[0]!.id),{code:'RESOURCE_SCOPE_DENIED'});
     const claimed=await store.claimLegacyCase(principal(moderator.id,legacyScope),legacy[0]!.id,1,randomUUID());
     assert.equal(claimed.version,2);
