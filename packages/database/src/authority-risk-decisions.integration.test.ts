@@ -64,6 +64,9 @@ void integration('structured representation source supports scoped confirmation 
     await grant(firstCase,secondModerator.id,property.id,'evidence:read');
     await assert.rejects(store.internalSource(principal(secondModerator.id,firstGrant.scope,otherSessionId),firstCase,randomUUID()),{code:'RESOURCE_SCOPE_DENIED'});
     await assert.rejects(store.internalSource(principal(moderator.id,firstGrant.scope,sessionId,new Date(Date.now()-16*60_000)),firstCase,randomUUID()),{code:'STEP_UP_REQUIRED'});
+    const laggedStore=new AuthorityRiskStore(client,()=>new Date(Date.now()-1000));
+    const laggedStaff=principal(moderator.id,firstGrant.scope,sessionId,new Date(Date.now()-5000));
+    assert.equal((await laggedStore.internalSource(laggedStaff,firstCase,randomUUID())).finding,'ABSENT');
     const source=await store.internalSource(firstStaff,firstCase,randomUUID());
     assert.equal(source.finding,'ABSENT');
     assert.equal(source.listing_provider_account_id,source.relationship_provider_account_id);

@@ -157,10 +157,13 @@ export class AuthorityRiskStore {
       return existing[0]!;
   }
   private async currentGrant(tx: postgres.TransactionSql, staff: StaffPrincipal, caseId: string, propertyId: string, permission = 'authority:risk_decide'): Promise<void> {
-    const now=this.clock();
-    const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=${now.toISOString()} AND expires_at>${now.toISOString()} FOR SHARE`;
+    // PostgreSQL grant timestamps have microsecond precision; an application
+    // Date rounded to milliseconds can precede a grant committed just now.
+    const nowRows=await tx<{current_time:Date|string}[]>`SELECT now() AS current_time`;
+    const now=new Date(nowRows[0]!.current_time);
+    const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=now() AND expires_at>now() FOR SHARE`;
     if (!uuid(staff.row.id)) throw new StaffAccessError('AUTH_REQUIRED');
-    const sessions=await tx<{authenticated_at:Date}[]>`SELECT s.authenticated_at FROM staff_sessions s JOIN users u ON u.id=s.user_id JOIN auth_identities i ON i.id=s.identity_id WHERE s.id=${staff.row.id} AND s.user_id=${staff.row.user_id} AND s.revoked_at IS NULL AND s.absolute_expires_at>${now.toISOString()} AND s.idle_expires_at>${now.toISOString()} AND s.mfa_method='COGNITO_REQUIRED_TOTP' AND s.authenticated_at<=${now.toISOString()} AND u.account_state IN ('ACTIVE','PENDING_PHONE') AND u.security_version=s.security_version AND i.unlinked_at IS NULL AND i.user_id=s.user_id AND i.issuer=s.issuer FOR SHARE OF s,u,i`;
+    const sessions=await tx<{authenticated_at:Date}[]>`SELECT s.authenticated_at FROM staff_sessions s JOIN users u ON u.id=s.user_id JOIN auth_identities i ON i.id=s.identity_id WHERE s.id=${staff.row.id} AND s.user_id=${staff.row.user_id} AND s.revoked_at IS NULL AND s.absolute_expires_at>now() AND s.idle_expires_at>now() AND s.mfa_method='COGNITO_REQUIRED_TOTP' AND s.authenticated_at<=now() AND u.account_state IN ('ACTIVE','PENDING_PHONE') AND u.security_version=s.security_version AND i.unlinked_at IS NULL AND i.user_id=s.user_id AND i.issuer=s.issuer FOR SHARE OF s,u,i`;
     if (!sessions[0]) throw new StaffAccessError('AUTH_REQUIRED');
     requireStaffPermission(grants.map(g=>({role:g.role,scope:g.permission_scope})),permission,{kind:'case',id:caseId},new Date(sessions[0].authenticated_at),now,true);
     if (permission==='authority:risk_decide' && !grants.some(g=>g.role==='TRUST_SAFETY_MODERATOR' && g.permission_scope.id===caseId && g.permission_scope.property_id===propertyId && g.permission_scope.permissions.includes(permission))) throw new StaffAccessError('RESOURCE_SCOPE_DENIED');
