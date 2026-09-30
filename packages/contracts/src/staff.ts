@@ -9,6 +9,40 @@ export type StaffScope = {
   kind: 'platform' | 'region' | 'case';
   id: string;
   permissions: string[];
+  property_id?: string;
+};
+export type AuthorityRiskStatus = {
+  status: 'CLEAR' | 'HOLD' | 'INCOMPLETE' | 'STALE' | 'UNEVALUATED';
+  next_action: string;
+};
+export type AuthorityRiskCase = {
+  id: string;
+  property_id: string;
+  relationship_id: string | null;
+  principal_id: string | null;
+  subject_scope: string;
+  trigger_kind: string;
+  allegation_kind: string;
+  state: string;
+  version: number;
+  reason_code: string;
+  safe_remediation: string;
+  source_provenance: string;
+  received_at: string | null;
+  source_review_action_id: string | null;
+};
+export type AuthorityRiskInternalSource = {
+  kind: 'LISTING_RELATIONSHIP_PRINCIPAL';
+  case_id: string;
+  case_version: number;
+  listing_id: string;
+  listing_version: number;
+  listing_provider_account_id: string;
+  relationship_id: string;
+  relationship_version: number;
+  relationship_provider_account_id: string;
+  property_id: string;
+  finding: 'PRESENT' | 'ABSENT';
 };
 export type StaffSessionResponse = {
   display_name: string;

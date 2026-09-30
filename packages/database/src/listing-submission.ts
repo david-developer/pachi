@@ -1,6 +1,7 @@
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
 import type { ListingPurpose } from './property.js';
+import { readAuthorityRisk } from './authority-risk.js';
 
 export type ListingReadinessCheck = { code: string; field: string; label: string; status: 'READY' | 'BLOCKED'; message: string | null };
 export type ListingSubmissionRecord = { id: string; listingId: string; revisionId: string; offeringVersionId: string; submittedAt: string; mediaSnapshot: Array<{ listing_media_id: string; media_asset_id: string; display_order: number; is_cover: boolean }> };
@@ -86,7 +87,8 @@ export class ListingSubmissionStore {
     add('ACCOUNT_NOT_ELIGIBLE', 'provider.account', 'Account eligibility', provider.user_state === 'ACTIVE' && provider.phone_verified, 'An active, phone-confirmed account is required to submit.');
     add('PROVIDER_NOT_ACTIVE', 'provider.profile', 'Provider profile', provider.profile_state === 'ACTIVE' && provider.account_state === 'ACTIVE', 'An active provider profile and account are required to submit.');
     add('PROVIDER_IDENTITY_VERIFICATION_UNAVAILABLE', 'provider.verification', 'Provider identity verification', provider.verification_current, 'Submit provider identity evidence and wait for an authorized decision before listing submission.');
-    add('PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE', 'property.risk_hold', 'Authority risk-hold evaluation', false, 'Authority risk holds and adverse decisions are not represented in this workspace. Submission remains blocked until the policy reader exists.');
+    const authorityRisk = await readAuthorityRisk(tx, listing.relationship_id, listing.provider_account_id, lockMedia);
+    add('PROPERTY_RISK_HOLD_EVALUATION_UNAVAILABLE', 'property.risk_hold', 'Authority risk-hold evaluation', authorityRisk.status === 'CLEAR', authorityRisk.next_action);
 
     const submission = submissionRows[0] ? mapSubmission(submissionRows[0]) : null;
     const canSubmit = listing.publication_status === 'DRAFT' && checks.every((check) => check.status === 'READY');

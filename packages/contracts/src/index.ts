@@ -12,5 +12,5 @@ export type {
 } from './identity.js';
 export type { ListingDraftCreateRequest, ListingDraftResponse, ListingDraftUpdateRequest, ListingMediaFailureCode, ListingMediaLifecycle, ListingMediaOrderRequest, ListingMediaResponse, ListingMediaUploadResponse, ListingMediaVariant, ListingPurpose, ListingReadinessCheckResponse, ListingReadinessCode, ListingReadinessResponse, ListingSubmissionCommandResponse, ListingSubmissionMediaSnapshot, ListingSubmissionRequest, ListingSubmissionResponse, PropertyCreateRequest, PropertyDraftResponse, PropertySpecificationsUpdateRequest, PropertyType, ProviderRelationshipType } from './property.js';
 export type { ListingPhotoReviewItem } from './staff.js';
-export type { StaffRole, StaffScope, StaffSessionResponse } from './staff.js';
+export type { StaffRole, StaffScope, StaffSessionResponse, AuthorityRiskCase, AuthorityRiskStatus, AuthorityRiskInternalSource } from './staff.js';
 export type { ProviderVerificationCase, ProviderVerificationStatus } from './verification.js';
