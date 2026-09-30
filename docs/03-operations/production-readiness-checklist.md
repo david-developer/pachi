@@ -7,7 +7,7 @@
 
 ## How to use this checklist
 
-This checklist covers staged gates, not just infrastructure launch. **All engineering, vendor and operating evidence below is NOT RUN unless an actual record is added.** Documentation acceptance is not a test result. Current implementation and dated evidence are recorded in the single [engineering handoff](../engineering/current-state.md); gate completion requires every applicable item, not an authentication milestone.
+This checklist covers staged gates, not just infrastructure launch. An item without explicit recorded evidence remains NOT RUN; document acceptance alone is not a test result. Current implementation and dated evidence are recorded in the single [engineering handoff](../engineering/current-state.md); gate completion requires every applicable item, not an authentication milestone. G0 and G1 are recorded complete below; G2–G6 remain incomplete.
 
 For each completed item record commit/release, environment, date, operator responsibility, evidence link, result and any expiry/retest condition. `[ ]` means not demonstrated; `[x]` may be used only with evidence. Failed, not-run and not-applicable are distinct; not-applicable needs a reason tied to scope. The project owner may hold multiple responsibilities but must not invent independent staff sign-off.
 
@@ -17,9 +17,9 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 
 | Gate | Required result | Current evidence state |
 |---|---|---|
-| G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | Documentation package prepared; repository replacement/commit still to be performed. |
+| G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | COMPLETE — canonical package is present and committed; the factual implementation-status wording has been reconciled. |
 | G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | COMPLETE — foundation evidence and real mapped-ungranted staff denial verified. See [acceptance evidence and separate operational limitations](../engineering/current-state.md#real-mapped-ungranted-acceptance-passed-g1-evidence-complete--2026-09-28). |
-| G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN. |
+| G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN — component workflows exist, but the end-to-end acceptance is incomplete. See the G2 evidence matrix in the engineering handoff. |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |
 | G5 Public MVP | Pilot scorecard and reliability/safety requirements pass; release/rollback verified. | NOT RUN. |
@@ -27,10 +27,10 @@ No exception can waive unauthorized access, private-evidence exposure, unresolve
 
 ## G0 — Documentation and repository
 
-- [ ] Replace canonical docs with this package, including roles-and-permissions and all six ADRs; inspect diff and commit a documentation-only change.
-- [ ] Remove/mark superseded parallel authorities; preserve archives with explicit noncanonical status.
-- [ ] Validate links, decision defaults, entity/lifecycle names and requirement coverage; retain the reconciliation report.
-- [ ] Confirm working tree status accurately states no scaffold or passed engineering gate.
+- [x] Replace canonical docs with this package, including roles-and-permissions and all six ADRs; inspect diff and commit a documentation-only change. Evidence: canonical package on main and the [mainline integration record](../engineering/current-state.md#integration-completed-on-main--2026-09-28).
+- [x] Remove/mark superseded parallel authorities; preserve archives with explicit noncanonical status. Evidence: [authority and archive policy](../README.md#authority-and-conflict-rule).
+- [x] Validate links, decision defaults, entity/lifecycle names and requirement coverage; retain the reconciliation record. Evidence: [documentation migration record](../archive/documentation-migration-record.md) and this 2026-09-30 status reconciliation.
+- [x] Confirm repository and handoff describe the implemented foundation and G1 accurately without claiming production readiness. Evidence: [current engineering handoff](../engineering/current-state.md).
 
 ## G1 — Foundation
 
@@ -122,6 +122,6 @@ If sample sizes are insufficient, extend the pilot. A 14-day pilot availability 
 
 | Gate/item | Commit/release | Environment/date | Evidence link | Result | Responsibility | Retest trigger |
 |---|---|---|---|---|---|---|
-| NOT RUN | — | — | — | No implementation evidence yet | Project owner | Complete affected work |
+| NOT RUN | — | — | — | Evidence not recorded for this item | Project owner | Complete affected work |
 
 Add real records as work is completed. Do not replace NOT RUN with PASS because a document was edited.
