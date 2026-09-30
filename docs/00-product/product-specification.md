@@ -13,7 +13,7 @@ This is the canonical product specification for Pachi. Version 2.1 restores the 
 |---|---|
 | Scope | Android/iOS mobile marketplace, responsive public and authenticated marketplace web, separate staff portal, backend, moderation, analytics and release readiness. |
 | Authority | Product behavior is authoritative here; domain documents elaborate it; ADRs choose implementation mechanisms. A lower layer cannot override a product requirement. |
-| Current progress | Environment and documentation only. No application scaffold, implemented database, deployed infrastructure or passed engineering gate is asserted. |
+| Current progress | The repository contains an incrementally implemented local foundation. G1 evidence is recorded complete; G2–G6 remain incomplete, and no production-readiness claim is made. See the engineering handoff and readiness checklist for verified implementation evidence and remaining gates. |
 | Delivery | One project owner carries the engineering, product and operational responsibilities. Role names describe permission boundaries and responsibilities, not a claim of a staffed team. |
 | Requirement IDs | Preserve V2 IDs. Changes must update affected documents and acceptance evidence together. |
 | Accepted | Required implementation behavior. Includes the former Confirmed requirements and the explicit defaults in section 20.2. |
