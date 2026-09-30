@@ -37,7 +37,7 @@ If two current documents disagree, resolve the contradiction in the same change 
 | Identity and sessions | [ADR 0002](02-architecture/adr/0002-authentication-and-session-strategy.md) |
 | Deployment topology/recovery | [ADR 0003](02-architecture/adr/0003-aws-region-and-environment-topology.md) |
 | Geography/maps | [ADR 0004](02-architecture/adr/0004-maps-geocoding-and-location-services.md) |
-| Uploads/media/evidence | [ADR 0005](02-architecture/adr/0005-media-processing-and-storage-policy.md) |
+| Uploads/media/evidence | [ADR 0005](02-architecture/adr/0005-media-processing-and-starage-policy.md) |
 | Inbox/email/SMS/push | [ADR 0006](02-architecture/adr/0006-notification-email-sms-strategy.md) |
 | Deployment/incident/recovery procedures | [Operations runbook](03-operations/deployment-and-operation-runbook.md) |
 | G0–G6 and external evidence E01–E07 | [Readiness checklist](03-operations/production-readiness-checklist.md) |
@@ -67,9 +67,9 @@ Never label a scaffold “architecture ready” or a documentation checklist “
 
 ## Repository integration and next authorized task
 
-This delivery updates documentation only. Replace the matching canonical files under `docs/`, inspect the diff, preserve unrelated repository files and commit a separate documentation change. Existing historical SQL/DOCX remains noncanonical until reconciled; no schema has been executed. Do not keep parallel files named `domain-model(1).md` or “final-v2” as authorities inside the repository.
+The canonical V2.1 documentation package is committed in this repository; the G0 documentation baseline is complete. Verified implementation evidence is maintained in the single engineering handoff. G1 foundation evidence is complete, which does not certify production readiness. G2 is the next incomplete gate and its end-to-end acceptance remains NOT RUN. The canonical readiness checklist is the roadmap for that work. Existing historical SQL/DOCX remains noncanonical until reconciled; do not keep parallel files named `domain-model(1).md` or “final-v2” as authorities inside the repository.
 
-Next engineering deliverable after the documentation commit is the running local foundation: monorepo/apps, pinned dependencies, local PostGIS, reviewed migration framework, health/readiness, contracts, logging and CI. Then identity/permissions and the verified-provider-to-inquiry vertical slice. Full MVP requires the later core stages and evidence gates.
+The next engineering roadmap is the G2 vertical slice in the readiness checklist. Work may implement settled contracts while real-data capabilities remain disabled by their applicable evidence gates. Choose independently reviewable slices that preserve the full publication, authorization and evidence predicates; do not infer feature authorization from historical handoff entries. Full MVP requires the later core stages and evidence gates.
 
 ## Archive policy
 

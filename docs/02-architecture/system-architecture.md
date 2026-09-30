@@ -29,7 +29,7 @@ Pachi is a TypeScript modular monolith with separate client applications and a w
 | infrastructure/aws | AWS CDK TypeScript environment stacks and deployment configuration. |
 | docs | Canonical documents in this package. |
 
-No repository/application files above are claimed to exist yet. Scaffold only the packages needed for a running foundation; worker skeleton is included, feature jobs follow their domain slice. pnpm workspaces and Turborepo orchestrate the graph. Runtime/package versions are pinned with one lockfile after a compatibility check at scaffold time.
+The table defines the target architecture, not a claim that every listed deployable or package is implemented. The repository contains a partial local foundation; the engineering handoff records the implemented paths and their evidence. Keep the remaining target components in the approved delivery sequence. pnpm workspaces and Turborepo orchestrate the graph. Runtime and package versions are pinned in the repository lockfile.
 
 ## Modules and ownership
 
@@ -77,7 +77,7 @@ External outage does not roll back a committed core message or review. In-app no
 
 ## Media and geospatial boundaries
 
-[ADR 0005](adr/0005-media-processing-and-storage-policy.md) separates quarantined originals, public derivatives and private evidence. Signed upload authorization never proves content ownership or approval. Processing checks true file type, size/pixel limits, decoding, malware policy, metadata stripping and safe derivatives; public attachment requires READY plus domain approval.
+[ADR 0005](adr/0005-media-processing-and-starage-policy.md) separates quarantined originals, public derivatives and private evidence. Signed upload authorization never proves content ownership or approval. Processing checks true file type, size/pixel limits, decoding, malware policy, metadata stripping and safe derivatives; public attachment requires READY plus domain approval.
 
 [ADR 0004](adr/0004-maps-geocoding-and-location-services.md) keeps canonical region/city/neighborhood independent of external maps. List discovery is core; map results/autocomplete/distance are early-release features after coverage/privacy/licensing evidence. Do not make a third-party geocoder necessary to publish a manually confirmed structured address.
 

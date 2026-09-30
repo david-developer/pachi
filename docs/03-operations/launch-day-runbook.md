@@ -7,7 +7,7 @@
 
 ## Scope and prerequisites
 
-Execute only for an authorized pilot/public release after the relevant [readiness gate](production-readiness-checklist.md) passes. This is a procedure, not evidence that Pachi is built. The [operations runbook](deployment-and-operations-runbook.md) governs deployment, migrations, rollback, recovery and incidents.
+Execute only for an authorized pilot/public release after the relevant [readiness gate](production-readiness-checklist.md) passes. This is a procedure, not evidence that Pachi is built. The [operations runbook](deployment-and-operation-runbook.md) governs deployment, migrations, rollback, recovery and incidents.
 
 Project owner is launch coordinator, engineering operator and decision owner unless additional people are actually appointed. Application privilege roles remain separate. Do not list imagined stakeholders or send messages without an approved recipient/channel and launch authorization.
 
