@@ -1,5 +1,13 @@
 # Engineering handoff
 
+## Authoritative relationship validity correction — 2026-09-30
+
+- **Branch reconciliation:** PR #16 branch feat/authority-risk-evaluation-v1 merged current origin/main cfbc916258c45e0de9102cd71f44339553baf719 with ancestry-preserving merge commit 09ba8047c3654f3bf2e2108d7377f38ac1d9a4e1. The current-main continuity/G2 handoff and PR #16 authority history are both retained; no current-main content was discarded. PR #16 remains open/draft and unmerged.
+- **Correction:** internalRepresentationSource now evaluates valid_from and valid_until in one SQL statement using PostgreSQL statement_timestamp; the relationship/listing rows remain locked through the decision transaction. A missing row or relationship at/after valid_until returns EVIDENCE_INCOMPLETE. No other authority source/decision path uses application time to decide relationship validity. No policy scope or evidence route changed.
+- **Focused regression evidence:** before the WSL reconnect, the authority-risk decision integration test passed against isolated localhost:5433/pachi_test. It proves the source is readable and reviewed before expiry, waits until PostgreSQL reports expiry, mocks only the Node process Date to 2000, then verifies resolution is denied as EVIDENCE_INCOMPLETE and the case remains OPEN/HOLD. It does not alter the developer clock or development database.
+- **Validation after reconnect:** pnpm test passed (11 Turbo tasks), pnpm lint, pnpm typecheck, pnpm build, pnpm check:contracts (43 routes/31 schemas), pnpm check:secrets, pnpm check:dependencies (no known vulnerabilities), diff check and modified-file diagnostics passed. This WSL session has no Docker or PostgreSQL server binaries and port 5433 is unavailable, so isolated migrations, DB/API integration and the focused test could not be rerun here. Fresh exact-head CI must rerun the complete migration, DB/API, unit, browser and build suites.
+- **Next:** commit and push this correction, await new exact-head push and PR checks, review the complete diff/security boundary, then make the merge decision. Do not create authority cases/grants, collect real documents, deploy or begin listing-revision moderation.
+
 ## Continuity PR merged and authority-risk dependency review — 2026-09-30
 
 - **Integrated checkpoint:** PR #17 merged with normal two-parent merge commit a5f962cb33af2e6e4a1ebb1ef8e2703de9194a60. Parents are main fbfc1e84185cd2914957a5ee8fda7c90734fcbc9 and reviewed head 17e90b3539b7f5929d9215a7c647edfed94ca9d1; merge tree equals the reviewed branch tree. Local main and origin/main are synchronized at a5f962c.

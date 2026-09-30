@@ -11,7 +11,7 @@ import type {StaffScope} from './staff-policy.js';
 if (!process.env.DATABASE_TEST_URL && process.env.CI==='true') throw new Error('DATABASE_TEST_URL is required');
 const integration=process.env.DATABASE_TEST_URL?test:test.skip;
 
-void integration('structured representation source supports scoped confirmation and disproof',async()=>{
+void integration('structured representation source supports scoped confirmation and disproof',async(t)=>{
   const url=process.env.DATABASE_TEST_URL!;
   const target=new URL(url);
   assert.equal(`${target.hostname}:${target.port}${target.pathname}`,'localhost:5433/pachi_test');
@@ -117,6 +117,39 @@ void integration('structured representation source supports scoped confirmation 
     assert.equal(reviews.length,2);
     assert.ok(reviews.every(r=>r.source_snapshot && r.actor_user_id===moderator.id && r.prior_version>0));
     assert.equal((await client`SELECT count(*)::int AS count FROM audit_events WHERE target_id=${secondCase} AND action='AUTHORITY_RISK_CASE_DECIDED'`)[0]?.count,4);
+
+    const expiryCase=randomUUID();
+    const expiryGrant=await grant(expiryCase);
+    await grant(expiryCase,moderator.id,property.id,'evidence:read');
+    const expiryStaff=principal(moderator.id,expiryGrant.scope);
+    await client`UPDATE provider_property_relationships SET valid_until=statement_timestamp()+interval '5 seconds' WHERE id=${property.relationshipId}`;
+    await store.openCase(expiryStaff,caseInput(expiryCase));
+    assert.equal((await store.internalSource(expiryStaff,expiryCase,randomUUID())).finding,'ABSENT');
+    const expiryReview=await store.decide(expiryStaff,expiryCase,decision(1,'REVIEW_SOURCE','SOURCE_SUPPORTS_DISPROOF','LISTING',draft.id));
+    assert.ok(expiryReview.source_review_action_id);
+    assert.equal((await client`SELECT valid_until > statement_timestamp() AS current FROM provider_property_relationships WHERE id=${property.relationshipId}`)[0]?.current,true);
+
+    for (let attempt=0;attempt<300;attempt++) {
+      const rows=await client<{expired:boolean}[]>`SELECT valid_until <= statement_timestamp() AS expired FROM provider_property_relationships WHERE id=${property.relationshipId}`;
+      if (rows[0]?.expired) break;
+      if (attempt===299) assert.fail('relationship did not reach its database expiry boundary');
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    const expired=await client<{expired:boolean}[]>`SELECT valid_until <= statement_timestamp() AS expired FROM provider_property_relationships WHERE id=${property.relationshipId}`;
+    assert.equal(expired[0]?.expired,true);
+
+    const skewedTime=new Date('2000-01-01T00:00:00.000Z');
+    t.mock.timers.enable({apis:['Date'],now:skewedTime});
+    try {
+      const skewedStaff=principal(moderator.id,expiryGrant.scope,sessionId,skewedTime);
+      const skewedStore=new AuthorityRiskStore(client,()=>skewedTime);
+      await assert.rejects(skewedStore.decide(skewedStaff,expiryCase,decision(2,'RESOLVE','TRIGGER_DISPROVED','CASE_ACTION',expiryReview.source_review_action_id!)),{code:'EVIDENCE_INCOMPLETE'});
+    } finally {
+      t.mock.timers.reset();
+    }
+    assert.equal((await client`SELECT state FROM authority_risk_cases WHERE id=${expiryCase}`)[0]?.state,'OPEN');
+    assert.equal((await readAuthorityRisk(client,property.relationshipId,account[0]!.id)).status,'HOLD');
+
     await client`UPDATE staff_grants SET revoked_at=now() WHERE id=${firstEvidence.id}`;
     await assert.rejects(store.internalSource(firstStaff,firstCase,randomUUID()),{code:'RESOURCE_SCOPE_DENIED'});
     await client`UPDATE staff_sessions SET revoked_at=now() WHERE id=${sessionId}`;

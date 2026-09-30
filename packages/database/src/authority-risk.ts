@@ -87,10 +87,12 @@ async function internalRepresentationSource(tx: Sql, row: Case): Promise<Authori
   const r=await relationship(tx,row.relationship_id!,true);
   const listings=await tx<{id:string;property_id:string;provider_account_id:string;provider_property_relationship_id:string;authority_source_version:number}[]>`SELECT id,property_id,provider_account_id,provider_property_relationship_id,authority_source_version FROM listings WHERE id=${row.evidence_ref_id!} FOR SHARE`;
   const listing=listings[0];
-  const now=new Date();
+  const validity = r
+    ? await tx<{is_current:boolean}[]>`SELECT (valid_from IS NULL OR valid_from <= statement_timestamp()) AND (valid_until IS NULL OR valid_until > statement_timestamp()) AS is_current FROM provider_property_relationships WHERE id=${r.id}`
+    : [];
   if (!r || !listing || r.property_id!==row.property_id || listing.property_id!==row.property_id || listing.provider_property_relationship_id!==r.id
     || r.record_state!=='ACTIVE' || !['DECLARED','PENDING','VERIFIED'].includes(r.authorization_status)
-    || r.valid_from && new Date(r.valid_from)>now || r.valid_until && new Date(r.valid_until)<=now)
+    || validity[0]?.is_current !== true)
     throw new IdentityError('EVIDENCE_INCOMPLETE','Current internal representation source is unavailable');
   return {kind:'LISTING_RELATIONSHIP_PRINCIPAL',case_id:row.id,case_version:row.version,
     listing_id:listing.id,listing_version:listing.authority_source_version,
