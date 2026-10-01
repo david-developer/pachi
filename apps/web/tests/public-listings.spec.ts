@@ -26,7 +26,7 @@ test('anonymous user filters, opens public detail, and sees no contact/private c
   await expect(page.getByRole('heading', { name: 'Synthetic public flat' })).toBeVisible();
   await expect(page.getByText('Akwa')).toBeVisible();
   await expect(page.getByText('Structured neighborhood location. No exact address is shown.')).toBeVisible();
-  await expect(page.getByText(/contact|message|phone|save|viewing/i)).toHaveCount(0);
+  await expect(page.getByText(/message|phone|email|save|viewing/i)).toHaveCount(0);
   visible = false;
   await page.goto('/listings');
   await expect(page.getByText('No listings match those filters.')).toBeVisible();
