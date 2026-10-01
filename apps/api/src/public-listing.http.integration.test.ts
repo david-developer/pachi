@@ -45,6 +45,7 @@ void integration('anonymous public search, detail and guarded media use safe vis
     await client`UPDATE listings SET publication_status='PUBLISHED',moderation_status='APPROVED',approved_revision_id=${submission.submission.revisionId},approved_submission_id=${submission.submission.id},approved_by_user_id=${ownerId},approved_at=statement_timestamp(),last_confirmed_at=statement_timestamp(),expires_at=statement_timestamp()+interval '30 days' WHERE id=${draft.id}`;
     const address = app.getHttpServer().address();
     const base = `http://127.0.0.1:${address.port}/v1/public/listings`;
+    for (const query of ['property_type=VILLA', 'city=%20%20', `city=${'x'.repeat(121)}`, 'available_from=2026-02-30', 'limit=21', 'cursor=not-a-cursor']) assert.equal((await fetch(`${base}?${query}`)).status,400,query);
     const search = await fetch(`${base}?purpose=RENT&region=Littoral&min_price=100000`);
     assert.equal(search.status,200);
     const searchBody = await search.json() as { items: Array<{id:string;location:{city:string;neighborhood?:string};media:Array<{id:string}>}> };

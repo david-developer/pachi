@@ -1,4 +1,5 @@
 export type PublicListingPurpose = 'RENT' | 'SALE' | 'SHORT_LET';
+export type PublicPropertyType = 'HOUSE' | 'APARTMENT' | 'ROOM' | 'LAND' | 'COMMERCIAL';
 export type PublicListingSort = 'newest' | 'price_asc' | 'price_desc';
 export type PublicListingMedia = { id: string; is_cover: boolean; widths: (320 | 640 | 1280 | 1920)[] };
 export type PublicListing = {
@@ -17,4 +18,4 @@ export type PublicListing = {
   media: PublicListingMedia[];
 };
 export type PublicListingSearchResponse = { items: PublicListing[]; filters: Record<string, unknown>; next_cursor: string | null; has_more: boolean };
-export type PublicListingQuery = { purpose?: PublicListingPurpose; region?: 'Southwest' | 'Littoral'; city?: string; neighborhood?: string; property_type?: string; min_price?: string; max_price?: string; min_bedrooms?: string; min_bathrooms?: string; furnishing?: 'FURNISHED' | 'UNFURNISHED' | 'PARTLY_FURNISHED'; available_from?: string; sort?: PublicListingSort; limit?: string; cursor?: string };
+export type PublicListingQuery = { purpose?: PublicListingPurpose; region?: 'Southwest' | 'Littoral'; city?: string; neighborhood?: string; property_type?: PublicPropertyType; min_price?: string; max_price?: string; min_bedrooms?: string; min_bathrooms?: string; furnishing?: 'FURNISHED' | 'UNFURNISHED' | 'PARTLY_FURNISHED'; available_from?: string; sort?: PublicListingSort; limit?: string; cursor?: string };
