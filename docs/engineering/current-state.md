@@ -1,5 +1,12 @@
 # Engineering handoff
 
+## Inquiry interaction foundation — 2026-10-02
+
+- **Branch and scope:** `feat/inquiry-conversation` is based on integrated `origin/main` `d5b802c0e7eca70ebb45d03befb5ca7d94c4166b` and final head `c9441c2`. PR #22 remains draft. The slice contains only Interaction/Conversation foundation, authenticated inquiry create/reuse, participant-scoped shell reads, BFF/web entry points and focused evidence; message persistence/send/provider response/viewings/saves/notifications remain deferred.
+- **Implementation:** additive migration `0025_interactions_conversations` adds OPEN/CLOSED/RESTRICTED interactions, one-to-one conversations, historical seeker/provider participants, idempotency records and an aggregate-specific `interaction_created` outbox. A partial unique index prevents concurrent OPEN/RESTRICTED contexts for the same listing/seeker/provider tuple. The command derives provider context from the listing and enforces current public visibility, ACTIVE/current phone, self-contact denial and safe participant authorization.
+- **Evidence:** migration validation passed; full database integration passed 24/24; full API integration passed 8/8; dedicated interaction database tests pass 2/2; positive interaction HTTP acceptance passes 1/1; contracts pass 51 routes/39 schemas; full lint/typecheck/startup/unit/build/secrets/dependency gates pass. GitHub Actions passed web/admin Chromium on the corrected head. No real listing, grant, Cognito resource or verification/authority evidence changed.
+- **Limitations:** current main has no durable BlockRelationship/CapabilityRestriction source, so full block enforcement remains deferred without inventing a competing subsystem. Organization participant assignment authorization remains deferred. Messaging/provider response and analytics consumption are not implemented. G2 remains NOT RUN.
+
 ## Public listing discovery implementation — 2026-10-01
 
 - **Branch and scope:** `feat/public-listing-discovery` is based directly on `origin/main` `199efa3d99379f9d93fecd2ef59ec513ed2612ed` and currently ends at `36ec64f`. The slice is limited to anonymous listing search/detail/media, public location mode, public DTOs/contracts, web discovery/detail routes, and focused evidence. Inquiry, Conversation, messaging, viewing, saves, maps, geocoding and alerts remain out of scope.
