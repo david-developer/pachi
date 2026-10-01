@@ -103,6 +103,38 @@ paths:
         '200': { description: Scoped photo queue, content: { application/json: { schema: { type: object, required: [photos], properties: { photos: { type: array, items: { $ref: '#/components/schemas/ListingPhotoReviewItem' } } } } } } }
         '401': { description: Staff authentication required }
         '503': { description: Private photo storage adapter unavailable }
+  /v1/staff/listing-revisions:
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Pending exact listing submissions within the current LISTING_MODERATOR region scope. Organization publication remains fail-closed where required eligibility is unavailable.
+      responses:
+        '200': { description: Scoped listing revision queue, content: { application/json: { schema: { type: object, required: [submissions], properties: { submissions: { type: array, items: { $ref: '#/components/schemas/ListingModerationItem' } } } } } } }
+        '401': { description: Staff authentication required }
+        '403': { description: Scope or recent reauthentication required }
+  /v1/staff/listing-revisions/{submissionId}/media/{mediaId}/variants/{width}:
+    parameters: [{ name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }, { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }, { name: width, in: path, required: true, schema: { type: integer, enum: [320, 640] } }]
+    get:
+      security: [{ staffBearerAuth: [] }]
+      description: Audited private preview of an exact submitted, technically READY and content-approved media asset. Preview is optional for listing decisions; photo approval remains a separate decision.
+      responses:
+        '200': { description: Private no-store image preview, content: { image/webp: { schema: { type: string, format: binary } } } }
+        '403': { description: Scope or recent reauthentication required }
+        '409': { description: Submission snapshot or media is no longer current }
+  /v1/staff/listing-revisions/{listingId}/decision:
+    parameters: [{ name: listingId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ staffBearerAuth: [] }]
+      description: Versioned moderation of one exact submitted revision. Approval rechecks current provider, identity, relationship, authority-risk, property, offering, media, region, market and freshness predicates in one transaction, then records approval and publication outbox state atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingModerationDecisionRequest' }
+      responses:
+        '201': { description: Recorded or idempotently replayed moderation decision, content: { application/json: { schema: { $ref: '#/components/schemas/ListingModerationDecisionResponse' } } } }
+        '401': { description: Staff authentication required }
+        '403': { description: Scope, grant, session or self-review denied }
+        '409': { description: Invalid, stale or blocked publication decision }
   /v1/staff/listing-photos/{id}/variants/{width}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: width, in: path, required: true, schema: { type: integer, enum: [320, 640] } }]
     get:
@@ -644,14 +676,15 @@ components:
         available_from: { type: [string, 'null'], format: date }
     ListingDraftResponse:
       type: object
-      required: [id, property_id, provider_account_id, purpose, publication_status, moderation_status, revision_id, version, offering_id, offering_version_id, currency, title, description, amount_minor, pricing_period, negotiable, deposit_amount_minor, advance_months, minimum_lease_months, utilities_included, service_charge_amount_minor, weekly_amount_minor, minimum_nights, guest_limit, check_in_time, check_out_time, cleaning_fee_minor, available_from]
+      required: [id, property_id, provider_account_id, purpose, publication_status, moderation_status, moderation_feedback, revision_id, version, offering_id, offering_version_id, currency, title, description, amount_minor, pricing_period, negotiable, deposit_amount_minor, advance_months, minimum_lease_months, utilities_included, service_charge_amount_minor, weekly_amount_minor, minimum_nights, guest_limit, check_in_time, check_out_time, cleaning_fee_minor, available_from]
       properties:
         id: { type: string, format: uuid }
         property_id: { type: string, format: uuid }
         provider_account_id: { type: string, format: uuid }
         purpose: { type: string, enum: [RENT, SALE, SHORT_LET] }
-        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW] }
-        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW] }
+        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW, REJECTED, PUBLISHED] }
+        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW, CHANGES_REQUIRED, REJECTED, APPROVED] }
+        moderation_feedback: { type: [string, 'null'] }
         revision_id: { type: string, format: uuid }
         version: { type: integer, minimum: 1 }
         offering_id: { type: string, format: uuid }
@@ -715,6 +748,54 @@ components:
         reason_code: { type: [string, 'null'] }
         is_cover: { type: boolean }
         attached_at: { type: string, format: date-time }
+    ListingModerationItem:
+      type: object
+      required: [submission_id, listing_id, revision_id, revision_version, offering_id, offering_version_id, submitted_at, media_snapshot, region, city, neighborhood, purpose, title, description, currency, amount_minor, pricing_period, available_from, owner_user_id, market_status]
+      properties:
+        submission_id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        revision_id: { type: string, format: uuid }
+        revision_version: { type: integer, minimum: 1 }
+        offering_id: { type: string, format: uuid }
+        offering_version_id: { type: string, format: uuid }
+        submitted_at: { type: string, format: date-time }
+        media_snapshot: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/ListingSubmissionMediaSnapshot' } }
+        region: { type: string, enum: [Southwest, Littoral] }
+        city: { type: string }
+        neighborhood: { type: string }
+        purpose: { type: string, enum: [RENT, SALE, SHORT_LET] }
+        title: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        currency: { const: XAF }
+        amount_minor: { oneOf: [{ type: integer }, { type: string }, { type: 'null' }] }
+        pricing_period: { type: string, enum: [MONTHLY, TOTAL, NIGHTLY] }
+        available_from: { type: [string, 'null'], format: date }
+        owner_user_id: { type: string, format: uuid }
+        market_status: { type: string }
+    ListingModerationDecisionRequest:
+      type: object
+      required: [submission_id, revision_id, expected_version, command, reason_code, reason_text, idempotency_key]
+      properties:
+        submission_id: { type: string, format: uuid }
+        revision_id: { type: string, format: uuid }
+        expected_version: { type: integer, minimum: 1 }
+        command: { type: string, enum: [REQUEST_CHANGES, REJECT, APPROVE_AND_PUBLISH] }
+        reason_code: { type: string, pattern: '^[A-Z][A-Z0-9_]{2,63}$' }
+        reason_text: { type: string, minLength: 1, maxLength: 2000 }
+        provider_message: { type: string, minLength: 10, maxLength: 1000 }
+        idempotency_key: { type: string, format: uuid }
+    ListingModerationDecisionResponse:
+      type: object
+      required: [action_id, listing_id, submission_id, revision_id, command, publication_status, moderation_status, idempotent]
+      properties:
+        action_id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        revision_id: { type: string, format: uuid }
+        command: { type: string, enum: [REQUEST_CHANGES, REJECT, APPROVE_AND_PUBLISH] }
+        publication_status: { type: string }
+        moderation_status: { type: string }
+        idempotent: { type: boolean }
     ListingMediaUploadResponse:
       type: object
       required: [media_asset_id, status]
@@ -759,8 +840,8 @@ components:
       required: [listing_id, publication_status, moderation_status, revision_id, revision_version, offering_id, offering_version_id, can_submit, checks, submission]
       properties:
         listing_id: { type: string, format: uuid }
-        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW] }
-        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW] }
+        publication_status: { type: string, enum: [DRAFT, PENDING_REVIEW, REJECTED, PUBLISHED] }
+        moderation_status: { type: string, enum: [NOT_REVIEWED, IN_REVIEW, CHANGES_REQUIRED, REJECTED, APPROVED] }
         revision_id: { type: string, format: uuid }
         revision_version: { type: integer, minimum: 1 }
         offering_id: { type: string, format: uuid }

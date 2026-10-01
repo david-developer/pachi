@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import type { StaffSessionResponse, AuthorityRiskInternalSource } from '@pachi/contracts';
 type VerificationCase = { id: string; state: string; version: number; reason_code: string | null; policy_version: string; valid_until: string | null };
 type ListingPhoto = { id: string; listing_id: string; media_asset_id: string; region: string; listing_title: string | null; status: 'NOT_REVIEWED' | 'APPROVED' | 'CHANGES_REQUIRED' | 'REJECTED'; version: number; reason_code: string | null; is_cover: boolean; attached_at: string };
+type ListingSubmission = { submission_id: string; listing_id: string; revision_id: string; revision_version: number; offering_id: string; offering_version_id: string; submitted_at: string; media_snapshot: Array<{ listing_media_id: string; media_asset_id: string; display_order: number; is_cover: boolean }>; region: string; city: string; neighborhood: string; purpose: string; title: string | null; description: string | null; currency: string; amount_minor: number | string | null; pricing_period: string; available_from: string | null; owner_user_id: string; market_status: string };
 type AuthorityCase = { id:string; property_id:string; relationship_id:string|null; principal_id:string|null; subject_scope:string; trigger_kind:string; allegation_kind:string; state:string; version:number; reason_code:string; safe_remediation:string; source_provenance:string; received_at:string|null; source_review_action_id:string|null };
 export default function Page() {
   const [session, setSession] = useState<StaffSessionResponse | null>(null),
@@ -18,6 +19,14 @@ export default function Page() {
   const [assignee, setAssignee] = useState('');
   const [photoQueue, setPhotoQueue] = useState<ListingPhoto[]>([]);
   const [photoReviewStatus, setPhotoReviewStatus] = useState('');
+  const [listingQueue, setListingQueue] = useState<ListingSubmission[]>([]);
+  const [listingReviewStatus, setListingReviewStatus] = useState('');
+  const [openedListingMedia, setOpenedListingMedia] = useState<string[]>([]);
+  const [previewedListingMedia, setPreviewedListingMedia] = useState<string[]>([]);
+  const [listingCommand, setListingCommand] = useState<'REQUEST_CHANGES' | 'REJECT' | 'APPROVE_AND_PUBLISH'>('REQUEST_CHANGES');
+  const [listingReasonCode, setListingReasonCode] = useState('CONTENT_NEEDS_CORRECTION');
+  const [listingReasonText, setListingReasonText] = useState('');
+  const [providerMessage, setProviderMessage] = useState('');
   const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
   const [photoOutcome, setPhotoOutcome] = useState<'APPROVED' | 'CHANGES_REQUIRED' | 'REJECTED'>('CHANGES_REQUIRED');
   const [photoReason, setPhotoReason] = useState('');
@@ -138,6 +147,33 @@ export default function Page() {
       setPhotoReviewStatus('Photo decision recorded. Provider status and readiness can be refreshed.');
     } catch (error) { setPhotoReviewStatus(error instanceof Error ? error.message : 'Photo decision denied. Refresh the queue.'); }
   }
+  async function loadListingQueue() {
+    setListingReviewStatus('Loading submitted revisions…');
+    try {
+      const response = await fetch('/api/listing-revisions', { cache: 'no-store' });
+      const result = await response.json() as { submissions?: ListingSubmission[]; message?: string; error?: string };
+      if (!response.ok || !Array.isArray(result.submissions)) throw new Error(result.message ?? result.error ?? 'Listing review queue unavailable');
+      setListingQueue(result.submissions);
+      setListingReviewStatus(`${result.submissions.length} submitted revisions in your current scope.`);
+    } catch (issue) { setListingReviewStatus(issue instanceof Error ? issue.message : 'Listing review queue unavailable.'); }
+  }
+  function reviewMediaKey(submissionId: string, mediaId: string) { return `${submissionId}:${mediaId}`; }
+  async function decideListing(item: ListingSubmission) {
+    setListingReviewStatus('Recording listing decision…');
+    try {
+      const response = await fetch(`/api/listing-revisions/${encodeURIComponent(item.listing_id)}/decision`, {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ submission_id: item.submission_id, revision_id: item.revision_id, expected_version: item.revision_version,
+          command: listingCommand, reason_code: listingReasonCode.trim().toUpperCase(), reason_text: listingReasonText.trim(),
+          ...(listingCommand === 'REQUEST_CHANGES' || providerMessage.trim() ? { provider_message: providerMessage.trim() } : {}),
+          idempotency_key: crypto.randomUUID() }),
+      });
+      const result = await response.json() as { message?: string; error?: string };
+      if (!response.ok) throw new Error(result.message ?? result.error ?? 'Listing decision denied. Refresh the queue.');
+      await loadListingQueue();
+      setListingReviewStatus('Decision recorded for the exact submitted revision.');
+    } catch (issue) { setListingReviewStatus(issue instanceof Error ? issue.message : 'Listing decision denied. Refresh the queue.'); }
+  }
   async function riskRequest<T=AuthorityCase>(path:string, method:'GET'|'POST', payload?:object):Promise<T> {
     const response=await fetch(`/api/authority-risk-cases${path}`,{method,headers:method==='POST'?{'content-type':'application/json','x-csrf-token':csrf}:{},...(payload?{body:JSON.stringify(payload)}:{}),cache:'no-store'});
     const result=await response.json();
@@ -176,6 +212,7 @@ export default function Page() {
             actions require reauthentication within 15 minutes.
           </p>
           <section aria-labelledby="verification-heading"><h2 id="verification-heading">Provider identity cases</h2><p>Use the case ID from the provider submission. Case access and decisions require a current assigned grant. Real evidence intake remains disabled pending E01.</p><label>Case ID<input value={caseId} onChange={(event) => setCaseId(event.target.value)} /></label><button type="button" onClick={() => { void openCase(); }}>Open assigned case</button>{verificationStatus && <p role="status">{verificationStatus}</p>}{session.grants.some(g => g.scope.permissions.includes('admin:permissions_manage')) && <div><label>Officer user ID<input value={assignee} onChange={(event) => setAssignee(event.target.value)} /></label><button type="button" onClick={() => { void assign(); }}>Assign scoped officer</button></div>}{verificationCase && <div><p>State: {verificationCase.state}. Policy: {verificationCase.policy_version}. Version: {verificationCase.version}. {verificationCase.reason_code ? `Reason: ${verificationCase.reason_code}.` : ''}</p>{verificationCase.state === 'PENDING' && <><button type="button" onClick={() => { void readEvidence('GOVERNMENT_ID'); }}>Review government ID sample</button><button type="button" onClick={() => { void readEvidence('LIVE_SELFIE'); }}>Review live selfie sample</button><p>Reviewed: {reviewed.join(', ') || 'none'}</p><label>Decision<select value={outcome} onChange={(event) => { const next = event.target.value as typeof outcome; setOutcome(next); setReason(next === 'VERIFIED' ? 'EVIDENCE_ACCEPTED' : next === 'REJECTED' ? 'SUBJECT_MISMATCH' : 'DOCUMENT_UNREADABLE'); }}><option>NEEDS_RESUBMISSION</option><option>REJECTED</option><option>VERIFIED</option></select></label><label>Reason<select value={reason} onChange={(event) => setReason(event.target.value)}>{(outcome === 'VERIFIED' ? ['EVIDENCE_ACCEPTED'] : outcome === 'REJECTED' ? ['SUBJECT_MISMATCH','POLICY_NOT_MET'] : ['DOCUMENT_UNREADABLE','EVIDENCE_INCOMPLETE']).map(code => <option key={code}>{code}</option>)}</select></label><button type="button" disabled={reviewed.length !== 2} onClick={() => { void decide(); }}>Record decision</button></>}</div>}</section>
+          <section aria-labelledby="listing-review-heading"><h2 id="listing-review-heading">Listing revision moderation</h2><p>Review the exact submitted revision and inspect its approved media when needed. Publication runs current server checks.</p><button type="button" onClick={() => { void loadListingQueue(); }}>Refresh submitted revisions</button>{listingReviewStatus && <p role="status">{listingReviewStatus}</p>}{listingQueue.length > 0 && <><label>Decision<select value={listingCommand} onChange={(event) => setListingCommand(event.target.value as typeof listingCommand)}><option value="REQUEST_CHANGES">Request changes</option><option value="REJECT">Reject</option><option value="APPROVE_AND_PUBLISH">Approve and publish</option></select></label><label>Internal reason code<input value={listingReasonCode} onChange={(event) => setListingReasonCode(event.target.value)} maxLength={64} /></label><label>Internal reason<textarea value={listingReasonText} onChange={(event) => setListingReasonText(event.target.value)} maxLength={2000} rows={3} /></label>{listingCommand !== 'APPROVE_AND_PUBLISH' && <label>Message to provider<textarea value={providerMessage} onChange={(event) => setProviderMessage(event.target.value)} maxLength={1000} rows={3} /></label>}<ul>{listingQueue.map((item) => <li key={item.submission_id}><h3>{item.title || 'Untitled listing'} · {item.region}</h3><p>{item.purpose} · {item.amount_minor ?? 'No amount'} {item.currency} {item.pricing_period.toLowerCase()} · {item.city}, {item.neighborhood} · {item.market_status.replaceAll('_', ' ').toLowerCase()}</p><p>Revision v{item.revision_version} · submitted {new Date(item.submitted_at).toLocaleString()}</p><p>{item.description || 'No description provided.'}</p><p>Availability from {item.available_from || 'not set'}</p><ul>{item.media_snapshot.map((media) => { const key = reviewMediaKey(item.submission_id, media.listing_media_id); const opened = openedListingMedia.includes(key); return <li key={key}><p>{media.is_cover ? 'Cover photo' : `Photo ${media.display_order + 1}`} · {media.media_asset_id}</p>{opened ? <img src={`/api/listing-revisions/${encodeURIComponent(item.submission_id)}/media/${encodeURIComponent(media.listing_media_id)}/variants/640`} alt={`Private submitted photo ${media.display_order + 1}`} width={320} onLoad={() => setPreviewedListingMedia((current) => current.includes(key) ? current : [...current, key])} onError={() => setListingReviewStatus('Private photo preview failed. Reauthenticate and refresh the queue.')} /> : <button type="button" onClick={() => setOpenedListingMedia((current) => [...current, key])}>Open private photo preview</button>}{previewedListingMedia.includes(key) && <span> Previewed</span>}</li>; })}</ul><button type="button" disabled={!/^[A-Z][A-Z0-9_]{2,63}$/.test(listingReasonCode.trim().toUpperCase()) || !listingReasonText.trim() || (listingCommand === 'REQUEST_CHANGES' && providerMessage.trim().length < 10)} onClick={() => { void decideListing(item); }}>Record {listingCommand.replaceAll('_', ' ').toLowerCase()}</button></li>)}</ul></>}</section>
           <section aria-labelledby="photo-review-heading"><h2 id="photo-review-heading">Listing photo review</h2><p>Processed photos still need a separate content decision. Only photos in your current listing scope appear here. Open a photo to access its private preview.</p><button type="button" onClick={() => { void loadPhotoQueue(); }}>Refresh pending photos</button>{photoReviewStatus && <p role="status">{photoReviewStatus}</p>}{photoQueue.length > 0 && <><label>Decision<select value={photoOutcome} onChange={(event) => setPhotoOutcome(event.target.value as typeof photoOutcome)}><option>CHANGES_REQUIRED</option><option>REJECTED</option><option>APPROVED</option></select></label><label>Reason code<input value={photoReason} onChange={(event) => setPhotoReason(event.target.value)} maxLength={64} placeholder="UPPERCASE_REASON_CODE" /></label><ul>{photoQueue.map(photo => <li key={photo.id}><p>{photo.listing_title || 'Untitled listing'} · {photo.region} · {photo.is_cover ? 'Cover photo' : 'Photo'} · attached {new Date(photo.attached_at).toLocaleString()}</p><p>Association {photo.id} · version {photo.version}</p>{openPhotoId === photo.id ? <><img src={`/api/listing-photos/${encodeURIComponent(photo.id)}/variants/320`} alt={`Private review preview for ${photo.listing_title || 'listing'}`} width={160} onError={() => setPhotoReviewStatus('Private preview unavailable. Reauthenticate or refresh the queue.')} /><button type="button" disabled={!/^[A-Z][A-Z0-9_]{2,63}$/.test(photoReason.trim().toUpperCase())} onClick={() => { void reviewPhoto(photo); }}>Record {photoOutcome.replaceAll('_', ' ').toLowerCase()}</button></> : <button type="button" onClick={() => setOpenPhotoId(photo.id)}>Open private preview for {photo.id}</button>}</li>)}</ul></>}</section>
           {session.grants.some(g=>g.scope.permissions.includes('authority:risk_decide')) &&
             <section aria-labelledby="risk-heading">
