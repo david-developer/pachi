@@ -81,6 +81,10 @@ void integration('public keyset pagination is deterministic across newest and ti
     assert.equal((await client`SELECT count(*)::int AS count FROM listings WHERE publication_status='PUBLISHED' AND moderation_status='APPROVED'`)[0]?.count,4);
     assert.equal((await readPublicListingVisibilities(client,[first.listingId,second.listingId,third.listingId],{allowSyntheticVerification:true})).size,3);
     assert.equal((await store.detail(first.listingId)).id, first.listingId);
+    let visibilityBatches = 0;
+    const batchedStore = new PublicListingStore(client, true, async (sql, ids, options) => { visibilityBatches += 1; return readPublicListingVisibilities(sql, ids, options); });
+    await batchedStore.search({ limit: 20 });
+    assert.equal(visibilityBatches, 1);
     const newestOne = await store.search({ sort:'newest', limit:1 });
     assert.equal(newestOne.items.length,1); assert.equal(newestOne.has_more,true); assert.ok(newestOne.next_cursor);
     const newestTwo = await store.search({ sort:'newest', limit:1, cursor:newestOne.next_cursor! });

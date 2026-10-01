@@ -1,5 +1,5 @@
 import type postgres from 'postgres';
-import { readAuthorityRisk } from './authority-risk.js';
+import { readAuthorityRisks, type AuthorityRiskStatus } from './authority-risk.js';
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 type VisibilityRow = {
@@ -88,8 +88,9 @@ export async function readPublicListingVisibilities(sql: Sql, listingIds: string
     JOIN offerings o ON o.listing_id=l.id
     JOIN offering_versions ov ON ov.id=o.current_version_id
     WHERE l.id=ANY(${listingIds}::uuid[])`;
+  const authorities = await readAuthorityRisks(sql, rows.map((row) => ({relationshipId:row.relationship_id,principalId:row.provider_account_id})));
   const result = new Map<string, PublicListingVisibility>();
-  for (const row of rows) result.set(row.listing_id, await evaluateVisibility(sql, row));
+  for (const row of rows) result.set(row.listing_id, evaluateVisibility(row, authorities.get(row.relationship_id) ?? {status:'INCOMPLETE',next_action:'Authority review is unavailable.'}));
   for (const listingId of listingIds) if (!result.has(listingId)) result.set(listingId, blocked('LISTING_NOT_FOUND'));
   return result;
 }
@@ -98,7 +99,7 @@ export async function readPublicListingVisibility(sql: Sql, listingId: string, o
   return (await readPublicListingVisibilities(sql, [listingId], options)).get(listingId) ?? blocked('LISTING_NOT_FOUND');
 }
 
-async function evaluateVisibility(sql: Sql, row: VisibilityRow): Promise<PublicListingVisibility> {
+function evaluateVisibility(row: VisibilityRow, authority: AuthorityRiskStatus): PublicListingVisibility {
   if (row.publication_status !== 'PUBLISHED' || row.moderation_status !== 'APPROVED') return blocked('LISTING_NOT_PUBLISHED');
   if (!row.approved_submission_exact) return blocked('APPROVED_SNAPSHOT_STALE');
   if (!row.freshness_current) return blocked('LISTING_FRESHNESS_EXPIRED');
@@ -109,7 +110,6 @@ async function evaluateVisibility(sql: Sql, row: VisibilityRow): Promise<PublicL
   if (!row.relationship_current) return blocked('RELATIONSHIP_NOT_CURRENT');
   if (!row.offering_eligible) return blocked('OFFERING_NOT_ELIGIBLE');
   if (!row.media_eligible) return blocked('MEDIA_NOT_ELIGIBLE');
-  const authority = await readAuthorityRisk(sql, row.relationship_id, row.provider_account_id);
   if (authority.status !== 'CLEAR') return blocked(`AUTHORITY_${authority.status}`);
   if (!discoverable(row.purpose, row.market_status)) return blocked('MARKET_NOT_DISCOVERABLE');
   return { visible: true, reason: 'VISIBLE' };

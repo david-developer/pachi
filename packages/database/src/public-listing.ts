@@ -38,7 +38,7 @@ const maxLimit = 20;
 const propertyTypes = ['HOUSE', 'APARTMENT', 'ROOM', 'LAND', 'COMMERCIAL'] as const;
 
 export class PublicListingStore {
-  public constructor(private readonly client: postgres.Sql, private readonly allowSyntheticVerification = false) {}
+  public constructor(private readonly client: postgres.Sql, private readonly allowSyntheticVerification = false, private readonly visibilityReader: typeof readPublicListingVisibilities = readPublicListingVisibilities) {}
 
   public async search(input: PublicListingFilters): Promise<PublicListingSearch> {
     const filters = normalize(input);
@@ -50,7 +50,7 @@ export class PublicListingStore {
     while (items.length < filters.limit) {
       const candidates = await this.candidates(filters, cursor);
       if (!candidates.length) break;
-      const visibility = await readPublicListingVisibilities(this.client, candidates.map((candidate) => candidate.id), { allowSyntheticVerification: this.allowSyntheticVerification });
+      const visibility = await this.visibilityReader(this.client, candidates.map((candidate) => candidate.id), { allowSyntheticVerification: this.allowSyntheticVerification });
       const projections = await this.projections(this.client, candidates.filter((candidate) => visibility.get(candidate.id)?.visible).map((candidate) => candidate.id));
       for (const candidate of candidates) {
         lastScanned = candidate;

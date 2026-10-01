@@ -58,21 +58,29 @@ function safeNext(status: AuthorityRiskStatus['status']): string {
   if (status === 'INCOMPLETE') return 'Authority review needs more information or an authorized case decision.';
   return 'Request a fresh authority risk evaluation for this draft.';
 }
-export async function readAuthorityRisk(sql: Sql, relationshipId: string, principalId: string, lock = false): Promise<AuthorityRiskStatus> {
-  // The source-clock share lock is held through a guarded submission transaction.
-  const r = await relationship(sql, relationshipId, lock);
-  if (!r || r.provider_account_id !== principalId) return {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')};
+export type AuthorityRiskTarget = { relationshipId: string; principalId: string };
+export async function readAuthorityRisks(sql: Sql, targets: AuthorityRiskTarget[], lock = false): Promise<Map<string, AuthorityRiskStatus>> {
+  const result = new Map<string, AuthorityRiskStatus>();
+  if (!targets.length) return result;
+  const ids = [...new Set(targets.map((target) => target.relationshipId))];
   const version = await sourceVersion(sql, lock);
-  if (!version) return {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')};
-  // A prior CLEAR is unusable if a required source has since become unreadable.
   await sql`SELECT 1 FROM authority_risk_cases LIMIT 1`;
   await sql`SELECT 1 FROM authority_risk_case_actions LIMIT 1`;
   await sql`SELECT 1 FROM property_merges LIMIT 1`;
-  const rows = await sql<Evaluation[]>`SELECT * FROM authority_risk_evaluations WHERE relationship_id=${relationshipId} ORDER BY source_version DESC,evaluated_at DESC LIMIT 1`;
-  const latest = rows[0];
-  if (!latest) return {status:'UNEVALUATED',next_action:safeNext('UNEVALUATED')};
-  if (latest.rule_version !== AUTHORITY_RISK_RULE || latest.relationship_version !== r.authority_version || latest.principal_id !== principalId || latest.principal_version !== r.authority_principal_version || String(latest.source_version) !== version) return {status:'STALE',next_action:safeNext('STALE')};
-  return {status:latest.outcome,next_action:safeNext(latest.outcome)};
+  const relationships = await sql<{ id: string; provider_account_id: string; authority_version: number; authority_principal_version: number }[]>`SELECT r.id,r.provider_account_id,r.authority_version,a.authority_principal_version FROM provider_property_relationships r JOIN provider_accounts a ON a.id=r.provider_account_id WHERE r.id=ANY(${ids}::uuid[])${lock ? sql` FOR SHARE OF r,a` : sql``}`;
+  const latest = await sql<Evaluation[]>`SELECT DISTINCT ON (relationship_id) * FROM authority_risk_evaluations WHERE relationship_id=ANY(${ids}::uuid[]) ORDER BY relationship_id,source_version DESC,evaluated_at DESC`;
+  for (const target of targets) {
+    const relationshipRow = relationships.find((row) => row.id === target.relationshipId);
+    if (!version || !relationshipRow || relationshipRow.provider_account_id !== target.principalId) { result.set(target.relationshipId, {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')}); continue; }
+    const evaluation = latest.find((row) => row.relationship_id === target.relationshipId);
+    if (!evaluation) { result.set(target.relationshipId, {status:'UNEVALUATED',next_action:safeNext('UNEVALUATED')}); continue; }
+    if (evaluation.rule_version !== AUTHORITY_RISK_RULE || evaluation.relationship_version !== relationshipRow.authority_version || evaluation.principal_id !== target.principalId || evaluation.principal_version !== relationshipRow.authority_principal_version || String(evaluation.source_version) !== version) { result.set(target.relationshipId, {status:'STALE',next_action:safeNext('STALE')}); continue; }
+    result.set(target.relationshipId, {status:evaluation.outcome,next_action:safeNext(evaluation.outcome)});
+  }
+  return result;
+}
+export async function readAuthorityRisk(sql: Sql, relationshipId: string, principalId: string, lock = false): Promise<AuthorityRiskStatus> {
+  return (await readAuthorityRisks(sql, [{relationshipId,principalId}], lock)).get(relationshipId) ?? {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')};
 }
 function safeCase(row: Case, sourceReviewActionId: string | null = null): AuthorityRiskCase {
   return {id:row.id,property_id:row.property_id,relationship_id:row.relationship_id,principal_id:row.principal_id,subject_scope:row.subject_scope,trigger_kind:row.trigger_kind,allegation_kind:row.allegation_kind,state:row.state,version:row.version,reason_code:row.reason_code,safe_remediation:row.safe_remediation,source_provenance:row.source_provenance,received_at:row.received_at ? new Date(row.received_at).toISOString() : null,source_review_action_id:sourceReviewActionId};
