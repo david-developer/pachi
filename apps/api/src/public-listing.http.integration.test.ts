@@ -51,12 +51,16 @@ void integration('anonymous public search, detail and guarded media use safe vis
     const searchBody = await search.json() as { items: Array<{id:string;location:{city:string;neighborhood?:string};media:Array<{id:string}>}> };
     assert.equal(searchBody.items[0]?.id,draft.id);
     assert.equal(searchBody.items[0]?.location.neighborhood,'Akwa');
-    assert.ok(!JSON.stringify(searchBody).includes(storageReference));
+    const serializedSearch = JSON.stringify(searchBody);
+    assert.ok(!serializedSearch.includes(storageReference));
+    for (const forbidden of ['provider_account_id','provider_profile_id','provider_property_relationship_id','phone_number','email','verification_case_id','authority_risk_case_id','authority_risk_evaluation_id','staff_user_id','audit_events','storage_reference','landmark','coordinates','private_address']) assert.equal(serializedSearch.includes(forbidden),false,forbidden);
     const detail = await fetch(`${base}/${draft.id}`);
     assert.equal(detail.status,200);
     const detailBody = await detail.json() as {id:string;location:{neighborhood?:string};media:Array<{id:string}>};
     assert.equal(detailBody.id,draft.id);
     assert.equal(detailBody.location.neighborhood,'Akwa');
+    const serializedDetail = JSON.stringify(detailBody);
+    for (const forbidden of ['provider_account_id','provider_profile_id','provider_property_relationship_id','phone_number','email','verification_case_id','authority_risk_case_id','authority_risk_evaluation_id','staff_user_id','audit_events','storage_reference','landmark','coordinates','private_address']) assert.equal(serializedDetail.includes(forbidden),false,forbidden);
     const mediaResponse = await fetch(`${base}/${draft.id}/media/${media[0]!.id}/variants/640`);
     assert.equal(mediaResponse.status,200);
     assert.equal(await mediaResponse.text(),'public-derivative');

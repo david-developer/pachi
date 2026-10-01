@@ -60,7 +60,7 @@ export class PublicListingStore {
           items.push(projection);
           lastReturned = candidate;
           if (items.length === filters.limit) {
-            hasMore = candidates.indexOf(candidate) < candidates.length - 1 || candidates.length === 100;
+            hasMore = await this.hasEligibleAfter(filters, candidate);
             break;
           }
         }
@@ -72,9 +72,9 @@ export class PublicListingStore {
     return { items, filters, next_cursor: next ? encodeCursor(filters, next) : null, has_more: hasMore };
   }
 
-  public async detail(listingId: string, visibilityAlreadyChecked = false): Promise<PublicListing> {
+  public async detail(listingId: string): Promise<PublicListing> {
     return this.client.begin(async (tx) => {
-      const visibility = visibilityAlreadyChecked ? { visible: true } : await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
+      const visibility = await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
       if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
       const rows = await tx<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor, p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=${listingId}`;
       const row = rows[0];
@@ -121,6 +121,19 @@ export class PublicListingStore {
         media:listingMedia.map((item)=>({id:item.id,is_cover:item.is_cover,widths:Object.keys(item.derivative_manifest).map(Number).filter((width)=>[320,640,1280,1920].includes(width)).sort((a,b)=>a-b)})) });
     }
     return result;
+  }
+
+  private async hasEligibleAfter(filters: NormalizedFilters, candidate: Candidate): Promise<boolean> {
+    let cursor: Cursor | null = cursorFromCandidate(filters, candidate);
+    while (cursor) {
+      const candidates = await this.candidates(filters, cursor);
+      if (!candidates.length) return false;
+      const visibility = await readPublicListingVisibilities(this.client, candidates.map((item) => item.id), { allowSyntheticVerification: this.allowSyntheticVerification });
+      if (candidates.some((item) => visibility.get(item.id)?.visible)) return true;
+      if (candidates.length < 100) return false;
+      cursor = cursorFromCandidate(filters, candidates[candidates.length - 1]!);
+    }
+    return false;
   }
 
   private async candidates(filters: PublicListingFilters, cursor: Cursor | null): Promise<Candidate[]> {

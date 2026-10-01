@@ -74,11 +74,11 @@ void integration('public keyset pagination is deterministic across newest and ti
     const second = await createPublishedFixture(client);
     const third = await createPublishedFixture(client);
     const hidden = await createPublishedFixture(client);
-    await client`UPDATE listings SET publication_status='DRAFT' WHERE id=${hidden.listingId}`;
+    await client`UPDATE listings SET last_confirmed_at=statement_timestamp()-interval '2 seconds',expires_at=statement_timestamp()-interval '1 second' WHERE id=${hidden.listingId}`;
     const authority = new AuthorityRiskStore(client);
     await authority.evaluate(first.relationshipId); await authority.evaluate(second.relationshipId); await authority.evaluate(third.relationshipId);
     const store = new PublicListingStore(client, true);
-    assert.equal((await client`SELECT count(*)::int AS count FROM listings WHERE publication_status='PUBLISHED' AND moderation_status='APPROVED'`)[0]?.count,3);
+    assert.equal((await client`SELECT count(*)::int AS count FROM listings WHERE publication_status='PUBLISHED' AND moderation_status='APPROVED'`)[0]?.count,4);
     assert.equal((await readPublicListingVisibilities(client,[first.listingId,second.listingId,third.listingId],{allowSyntheticVerification:true})).size,3);
     assert.equal((await store.detail(first.listingId)).id, first.listingId);
     const newestOne = await store.search({ sort:'newest', limit:1 });
