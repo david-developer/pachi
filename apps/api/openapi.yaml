@@ -679,13 +679,12 @@ components:
         widths: { type: array, items: { type: integer, enum: [320, 640, 1280, 1920] } }
     PublicListing:
       type: object
-      required: [id, purpose, title, description, revision_version, price, terms, property, location, market_status, available_from, expires_at, media]
+      required: [id, purpose, title, description, price, terms, property, location, market_status, available_from, expires_at, media]
       properties:
         id: { type: string, format: uuid }
         purpose: { type: string }
         title: { type: string }
         description: { type: string }
-        revision_version: { type: integer, minimum: 1 }
         price:
           type: object
           required: [amount_minor, currency, pricing_period, negotiable]

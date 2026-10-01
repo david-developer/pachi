@@ -7,7 +7,6 @@ export type PublicListing = {
   purpose: string;
   title: string;
   description: string;
-  revision_version: number;
   price: { amount_minor: number; currency: 'XAF'; pricing_period: string; negotiable: boolean };
   terms: { deposit_amount_minor: number | null; advance_months: number | null; minimum_lease_months: number | null; utilities_included: boolean | null; service_charge_amount_minor: number | null; weekly_amount_minor: number | null; minimum_nights: number | null; guest_limit: number | null; check_in_time: string | null; check_out_time: string | null; cleaning_fee_minor: number | null };
   property: { property_type: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null };

@@ -6,7 +6,7 @@ type Sql = postgres.Sql | postgres.TransactionSql;
 type NormalizedFilters = PublicListingFilters & { limit: number; sort: 'newest' | 'price_asc' | 'price_desc' };
 type Candidate = { id: string; approved_at: Date; amount_minor: number | string | null };
 type PublicRow = {
-  id: string; purpose: string; title: string; description: string; revision_version: number;
+  id: string; purpose: string; title: string; description: string;
   currency: string; amount_minor: number | string; pricing_period: string; negotiable: boolean;
   deposit_amount_minor: number | string | null; advance_months: number | null; minimum_lease_months: number | null;
   utilities_included: boolean | null; service_charge_amount_minor: number | string | null;
@@ -25,7 +25,7 @@ export type PublicListingFilters = {
 };
 export type PublicListingMedia = { id: string; is_cover: boolean; widths: number[] };
 export type PublicListing = {
-  id: string; purpose: string; title: string; description: string; revision_version: number;
+  id: string; purpose: string; title: string; description: string;
   price: { amount_minor: number; currency: 'XAF'; pricing_period: string; negotiable: boolean };
   terms: { deposit_amount_minor: number | null; advance_months: number | null; minimum_lease_months: number | null; utilities_included: boolean | null; service_charge_amount_minor: number | null; weekly_amount_minor: number | null; minimum_nights: number | null; guest_limit: number | null; check_in_time: string | null; check_out_time: string | null; cleaning_fee_minor: number | null };
   property: { property_type: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null };
@@ -73,12 +73,12 @@ export class PublicListingStore {
     return this.client.begin(async (tx) => {
       const visibility = await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
       if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
-      const rows = await tx<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,r.version AS revision_version,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor, p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=${listingId}`;
+      const rows = await tx<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor, p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=${listingId}`;
       const row = rows[0];
       if (!row) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
       const media = await tx<MediaRow[]>`SELECT lm.id,lm.is_cover,ma.derivative_manifest FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id WHERE lm.listing_id=${listingId} AND lm.removed_at IS NULL AND ma.classification='PUBLIC_MARKETPLACE' AND ma.lifecycle='READY' AND lm.review_status='APPROVED' AND EXISTS (SELECT 1 FROM listing_submissions s,jsonb_array_elements(s.media_snapshot) snap WHERE s.id=(SELECT approved_submission_id FROM listings WHERE id=${listingId}) AND snap->>'listing_media_id'=lm.id::text AND snap->>'media_asset_id'=lm.media_asset_id::text) ORDER BY lm.display_order,lm.id`;
       return {
-      id: row.id, purpose: row.purpose, title: row.title, description: row.description, revision_version: row.revision_version,
+      id: row.id, purpose: row.purpose, title: row.title, description: row.description,
       price: { amount_minor: Number(row.amount_minor), currency: 'XAF', pricing_period: row.pricing_period, negotiable: row.negotiable },
       terms: { deposit_amount_minor: numberOrNull(row.deposit_amount_minor), advance_months: row.advance_months, minimum_lease_months: row.minimum_lease_months, utilities_included: row.utilities_included, service_charge_amount_minor: numberOrNull(row.service_charge_amount_minor), weekly_amount_minor: numberOrNull(row.weekly_amount_minor), minimum_nights: row.minimum_nights, guest_limit: row.guest_limit, check_in_time: row.check_in_time, check_out_time: row.check_out_time, cleaning_fee_minor: numberOrNull(row.cleaning_fee_minor) },
       property: { property_type: row.property_type, bedrooms: row.bedrooms, bathrooms: row.bathrooms, size_sqm: row.size_sqm, furnishing: row.furnishing },
