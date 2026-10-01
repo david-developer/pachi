@@ -67,9 +67,14 @@ export async function readPublicListingVisibility(sql: Sql, listingId: string, o
         AND s.offering_version_id=ov.id
     )) AS approved_submission_exact,
     (EXISTS (SELECT 1 FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id
-      WHERE lm.listing_id=l.id AND lm.removed_at IS NULL)
+      WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND ma.classification='PUBLIC_MARKETPLACE')
       AND NOT EXISTS (SELECT 1 FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id
-        WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND (ma.lifecycle <> 'READY' OR lm.review_status <> 'APPROVED'))
+        WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND (ma.classification <> 'PUBLIC_MARKETPLACE' OR ma.lifecycle <> 'READY' OR lm.review_status <> 'APPROVED'))
+      AND (SELECT count(*) FROM listing_media lm WHERE lm.listing_id=l.id AND lm.removed_at IS NULL)=
+        (SELECT jsonb_array_length(s.media_snapshot) FROM listing_submissions s WHERE s.id=l.approved_submission_id)
+      AND NOT EXISTS (SELECT 1 FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id
+        WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND NOT EXISTS (SELECT 1 FROM listing_submissions s, jsonb_array_elements(s.media_snapshot) snap WHERE s.id=l.approved_submission_id AND snap->>'listing_media_id'=lm.id::text AND snap->>'media_asset_id'=lm.media_asset_id::text))
+      AND NOT EXISTS (SELECT 1 FROM listing_submissions s, jsonb_array_elements(s.media_snapshot) snap WHERE s.id=l.approved_submission_id AND NOT EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND lm.id::text=snap->>'listing_media_id' AND lm.media_asset_id::text=snap->>'media_asset_id'))
       AND (SELECT count(*) FROM listing_media lm WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND lm.is_cover)=1) AS media_eligible
     FROM listings l
     JOIN properties p ON p.id=l.property_id

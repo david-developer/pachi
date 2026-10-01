@@ -89,6 +89,7 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .listingPrice span { color: var(--muted); font-size: 13px; font-weight: 400; }
 .listingLocation, .listingFacts { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .emptyResults { margin-top: 28px; padding: 48px 28px; text-align: center; background: var(--panel); border: 1px solid var(--line); }
+.loadMore { display: block; margin: 28px auto 0; }
 .emptyResults h1, .emptyResults h2 { max-width: none; font-size: 34px; }
 .backLink { display: inline-block; margin: 18px 0 22px; color: var(--accent-dark); font-weight: 700; }
 .detailPage { background: var(--panel); border: 1px solid var(--line); padding: clamp(20px, 4vw, 48px); }

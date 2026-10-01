@@ -30,6 +30,8 @@ void integration('public search and detail share the current visibility policy a
     await client`UPDATE listings SET public_location_mode='HIDDEN' WHERE id=${fixture.listingId}`;
     const hidden = await publicStore.detail(fixture.listingId);
     assert.deepEqual(hidden.location, { region: 'Littoral', city: 'Douala' });
+    assert.deepEqual((await publicStore.search({ neighborhood: 'Akwa' })).items, []);
+    await client`UPDATE listings SET public_location_mode='NEIGHBORHOOD_ONLY' WHERE id=${fixture.listingId}`;
     const media = await publicStore.media(fixture.listingId, fixture.mediaId, 640);
     assert.equal(media.mime, 'image/webp');
     assert.equal(media.storageReference, fixture.storageReference);
