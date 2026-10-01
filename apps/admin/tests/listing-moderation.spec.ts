@@ -28,7 +28,7 @@ test('synthetic scoped listing queue can approve without redundant photo preview
   await page.getByRole('button', { name: 'Refresh submitted revisions' }).click();
   await expect(page.getByText('Synthetic pending flat', { exact: false })).toBeVisible();
   await page.getByLabel('Decision').selectOption('APPROVE_AND_PUBLISH');
-  await page.getByLabel('Internal reason').fill('Synthetic exact revision approved.');
+  await page.getByLabel('Internal reason', { exact: true }).fill('Synthetic exact revision approved.');
   await page.getByRole('button', { name: 'Record approve and publish' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Decision recorded for the exact submitted revision.' })).toBeVisible();
   expect(previews).toHaveLength(0);

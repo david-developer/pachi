@@ -86,11 +86,17 @@ void integration('publication remains fail-closed for current eligibility and st
     { name: 'provider inactive', mutate: async (client, fixture) => { await client`UPDATE provider_profiles SET state='SUSPENDED' WHERE user_id=${fixture.ownerId}`; } },
     { name: 'identity unavailable', mutate: async (client, fixture) => { await client`UPDATE verification_claims SET valid_until=statement_timestamp()-interval '1 second' WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=(SELECT provider_account_id FROM listings WHERE id=${fixture.listingId}))`; } },
     { name: 'relationship expired', mutate: async (client, fixture) => { await client`UPDATE provider_property_relationships SET valid_until=statement_timestamp()-interval '1 second' WHERE id=(SELECT provider_property_relationship_id FROM listings WHERE id=${fixture.listingId})`; } },
+    { name: 'relationship revoked', mutate: async (client, fixture) => { await client`UPDATE provider_property_relationships SET authorization_status='REVOKED' WHERE id=(SELECT provider_property_relationship_id FROM listings WHERE id=${fixture.listingId})`; } },
+    { name: 'relationship principal mismatch', expected: 'SUBMISSION_SCOPE_DENIED', mutate: async (client, fixture) => { const other=await client<{id:string}[]>`INSERT INTO users(account_state) VALUES ('ACTIVE') RETURNING id`; const profile=await client<{id:string}[]>`INSERT INTO provider_profiles(user_id,provider_types,display_name,state) VALUES (${other[0]!.id},ARRAY['OWNER'],'Other synthetic owner','ACTIVE') RETURNING id`; const account=await client<{id:string}[]>`INSERT INTO provider_accounts(provider_profile_id,state) VALUES (${profile[0]!.id},'ACTIVE') RETURNING id`; await client`UPDATE listings SET provider_account_id=${account[0]!.id} WHERE id=${fixture.listingId}`; } },
     { name: 'authority stale', mutate: async (client) => { await client`UPDATE authority_risk_source_clock SET version=version+1 WHERE singleton`; } },
+    { name: 'authority hold', mutate: async (client, fixture) => { const relation=await client<{relationship_id:string;property_id:string;principal_id:string}[]>`SELECT provider_property_relationship_id AS relationship_id,property_id,provider_account_id AS principal_id FROM listings WHERE id=${fixture.listingId}`; const cases=await client<{id:string}[]>`INSERT INTO authority_risk_cases(property_id,relationship_id,principal_id,subject_scope,trigger_kind,allegation_kind,assigned_staff_user_id,source_provenance,received_at,reason_code,safe_remediation) VALUES (${relation[0]!.property_id},${relation[0]!.relationship_id},${relation[0]!.principal_id},'RELATIONSHIP','DISPUTE','REPORTED',${fixture.staff.row.user_id},'STAFF_OBSERVATION',statement_timestamp(),'DISPUTE_REPORTED','Contact support for authority review.') RETURNING id`; await client`INSERT INTO authority_risk_case_actions(case_id,action,actor_user_id,reason_code,request_id) VALUES (${cases[0]!.id},'OPENED',${fixture.staff.row.user_id},'DISPUTE_REPORTED',${randomUUID()})`; await new AuthorityRiskStore(client).evaluate(relation[0]!.relationship_id); } },
+    { name: 'authority incomplete', mutate: async (client, fixture) => { const relation=await client<{relationship_id:string;principal_id:string;authority_version:number;principal_version:number}[]>`SELECT r.id AS relationship_id,r.provider_account_id AS principal_id,r.authority_version,a.authority_principal_version AS principal_version FROM listings l JOIN provider_property_relationships r ON r.id=l.provider_property_relationship_id JOIN provider_accounts a ON a.id=r.provider_account_id WHERE l.id=${fixture.listingId}`; await client`UPDATE authority_risk_source_clock SET version=version+1 WHERE singleton`; const source=await client<{version:string}[]>`SELECT version::text FROM authority_risk_source_clock WHERE singleton`; await client`INSERT INTO authority_risk_evaluations(relationship_id,relationship_version,principal_id,principal_version,source_version,rule_version,outcome,source_coverage,trigger_findings,applicable_case_ids) VALUES (${relation[0]!.relationship_id},${relation[0]!.authority_version},${relation[0]!.principal_id},${relation[0]!.principal_version},${source[0]!.version},'authority-risk-internal-v1','INCOMPLETE','{"relationships":"INCOMPLETE"}'::jsonb,'{"dispute":"UNAVAILABLE"}'::jsonb,'{}'::uuid[])`; } },
     { name: 'property specification missing', mutate: async (client, fixture) => { await client`UPDATE properties SET bedrooms=NULL,bathrooms=NULL,size_sqm=NULL,furnishing=NULL WHERE id=(SELECT property_id FROM listings WHERE id=${fixture.listingId})`; } },
     { name: 'offering incomplete', mutate: async (client, fixture) => { await client`UPDATE offering_versions SET amount_minor=NULL WHERE id=${fixture.offeringVersionId}`; } },
+    { name: 'stale offering version', expected: 'STALE_VERSION', mutate: async (client, fixture) => { const next=await client<{id:string;offering_id:string}[]>`INSERT INTO offering_versions(offering_id,version,currency,amount_minor,pricing_period,available_from,created_by_user_id) SELECT offering_id,2,currency,amount_minor,pricing_period,available_from,created_by_user_id FROM offering_versions WHERE id=${fixture.offeringVersionId} RETURNING id,offering_id`; await client`UPDATE offerings SET current_version_id=${next[0]!.id} WHERE id=${next[0]!.offering_id}`; } },
     { name: 'media processing incomplete', mutate: async (client, fixture) => { await client`UPDATE media_assets SET lifecycle='PROCESSING' WHERE id=(SELECT media_asset_id FROM listing_media WHERE listing_id=${fixture.listingId} LIMIT 1)`; } },
     { name: 'media approval missing', mutate: async (client, fixture) => { await client`UPDATE listing_media SET review_status='NOT_REVIEWED' WHERE listing_id=${fixture.listingId}`; } },
+    { name: 'submitted media removed', expected: 'STALE_VERSION', mutate: async (client, fixture) => { await client`UPDATE listing_media SET removed_at=statement_timestamp() WHERE listing_id=${fixture.listingId}`; } },
     { name: 'cover missing', expected: 'STALE_VERSION', mutate: async (client, fixture) => { await client`UPDATE listing_media SET is_cover=false WHERE listing_id=${fixture.listingId}`; } },
     { name: 'market not discoverable', expected: 'LISTING_MARKET_STATUS_INVALID', mutate: async (client, fixture) => { await client`UPDATE listings SET market_status='RENTED' WHERE id=${fixture.listingId}`; } },
   ];
@@ -126,6 +132,34 @@ void integration('staff listing moderation requires current scoped session and g
   } finally {
     await client`TRUNCATE users RESTART IDENTITY CASCADE`;
     await client.end();
+  }
+});
+
+void integration('listing moderation enforces grant, session, step-up, role and self-review boundaries', async () => {
+  const cases: Array<{ name: string; mutate: (client: ReturnType<typeof createDatabase>['client'], fixture: Fixture, submissionId: string) => Promise<void>; expected: string }> = [
+    { name: 'no grant', expected: 'RESOURCE_SCOPE_DENIED', mutate: async (client, fixture) => { await client`UPDATE staff_grants SET revoked_at=statement_timestamp() WHERE user_id=${fixture.staff.row.user_id}`; } },
+    { name: 'wrong region', expected: 'RESOURCE_SCOPE_DENIED', mutate: async (client, fixture) => { await client`UPDATE staff_grants SET permission_scope=${JSON.stringify({kind:'region',id:'Southwest',permissions:['listing:moderate']})}::jsonb WHERE user_id=${fixture.staff.row.user_id}`; } },
+    { name: 'expired grant', expected: 'RESOURCE_SCOPE_DENIED', mutate: async (client, fixture) => { await client`UPDATE staff_grants SET active_from=statement_timestamp()-interval '2 hours',expires_at=statement_timestamp()-interval '1 minute' WHERE user_id=${fixture.staff.row.user_id}`; } },
+    { name: 'stale staff session', expected: 'AUTH_REQUIRED', mutate: async (client, fixture) => { await client`UPDATE staff_sessions SET revoked_at=statement_timestamp() WHERE id=${fixture.staff.row.id}`; } },
+    { name: 'stale reauthentication', expected: 'STEP_UP_REQUIRED', mutate: async (client, fixture) => { await client`UPDATE staff_sessions SET authenticated_at=statement_timestamp()-interval '16 minutes' WHERE id=${fixture.staff.row.id}`; } },
+    { name: 'super admin without listing grant', expected: 'RESOURCE_SCOPE_DENIED', mutate: async (client, fixture) => { await client`UPDATE staff_grants SET role='SUPER_ADMIN',permission_scope='{"kind":"platform","id":"pachi","permissions":["admin:permissions_manage"]}'::jsonb WHERE user_id=${fixture.staff.row.user_id}`; } },
+    { name: 'self review', expected: 'RESOURCE_SCOPE_DENIED', mutate: async (client, fixture, submissionId) => { await client`UPDATE provider_profiles SET user_id=${fixture.staff.row.user_id} WHERE user_id=${fixture.ownerId}`; await client`UPDATE listing_submissions SET submitted_by_user_id=${fixture.staff.row.user_id} WHERE id=${submissionId}`; } },
+  ];
+  for (const current of cases) {
+    const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+    try {
+      await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+      const fixture = await createFixture(client);
+      const submissions = new ListingSubmissionStore(client, true);
+      const moderation = new ListingModerationStore(client, submissions);
+      const submitted = await submit(fixture, submissions);
+      assert.ok(submitted.submission, current.name);
+      await current.mutate(client, fixture, submitted.submission.id);
+      await assert.rejects(moderation.decide(fixture.staff, fixture.listingId, decision(submitted.submission.id, submitted.submission.revisionId, submitted.readiness.revisionVersion, 'APPROVE_AND_PUBLISH')), { code: current.expected }, current.name);
+    } finally {
+      await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+      await client.end();
+    }
   }
 });
 
