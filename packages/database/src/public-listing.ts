@@ -1,6 +1,6 @@
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
-import { readPublicListingVisibility } from './listing-visibility.js';
+import { readPublicListingVisibilities, readPublicListingVisibility } from './listing-visibility.js';
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 type NormalizedFilters = PublicListingFilters & { limit: number; sort: 'newest' | 'price_asc' | 'price_desc' };
@@ -16,7 +16,7 @@ type PublicRow = {
   bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null;
   public_location_mode: string; market_status: string; expires_at: Date;
 };
-type MediaRow = { id: string; is_cover: boolean; derivative_manifest: Record<string, { width: number; height: number; bytes: number; mime: string }> };
+type MediaRow = { listing_id?: string; id: string; is_cover: boolean; derivative_manifest: Record<string, { width: number; height: number; bytes: number; mime: string }> };
 export type PublicListingFilters = {
   purpose?: 'RENT' | 'SALE' | 'SHORT_LET'; region?: 'Southwest' | 'Littoral'; city?: string; neighborhood?: string;
   propertyType?: string; minPrice?: number; maxPrice?: number; minBedrooms?: number; minBathrooms?: number;
@@ -50,11 +50,14 @@ export class PublicListingStore {
     while (items.length < filters.limit) {
       const candidates = await this.candidates(filters, cursor);
       if (!candidates.length) break;
+      const visibility = await readPublicListingVisibilities(this.client, candidates.map((candidate) => candidate.id), { allowSyntheticVerification: this.allowSyntheticVerification });
+      const projections = await this.projections(this.client, candidates.filter((candidate) => visibility.get(candidate.id)?.visible).map((candidate) => candidate.id));
       for (const candidate of candidates) {
         lastScanned = candidate;
-        const visibility = await readPublicListingVisibility(this.client, candidate.id, { allowSyntheticVerification: this.allowSyntheticVerification });
-        if (visibility.visible) {
-          items.push(await this.detail(candidate.id));
+        if (visibility.get(candidate.id)?.visible) {
+          const projection = projections.get(candidate.id);
+          if (!projection) continue;
+          items.push(projection);
           lastReturned = candidate;
           if (items.length === filters.limit) {
             hasMore = candidates.indexOf(candidate) < candidates.length - 1 || candidates.length === 100;
@@ -69,9 +72,9 @@ export class PublicListingStore {
     return { items, filters, next_cursor: next ? encodeCursor(filters, next) : null, has_more: hasMore };
   }
 
-  public async detail(listingId: string): Promise<PublicListing> {
+  public async detail(listingId: string, visibilityAlreadyChecked = false): Promise<PublicListing> {
     return this.client.begin(async (tx) => {
-      const visibility = await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
+      const visibility = visibilityAlreadyChecked ? { visible: true } : await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
       if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
       const rows = await tx<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor, p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=${listingId}`;
       const row = rows[0];
@@ -100,6 +103,24 @@ export class PublicListingStore {
       if (!row || !variant) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing media is not available');
       return { storageReference: row.storage_reference, mime: variant.mime };
     });
+  }
+
+  private async projections(sql: Sql, listingIds: string[]): Promise<Map<string, PublicListing>> {
+    if (!listingIds.length) return new Map();
+    const rows = await sql<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor,p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=ANY(${listingIds}::uuid[])`;
+    const media = await sql<MediaRow[]>`SELECT lm.listing_id,lm.id,lm.is_cover,ma.derivative_manifest FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id WHERE lm.listing_id=ANY(${listingIds}::uuid[]) AND lm.removed_at IS NULL AND ma.classification='PUBLIC_MARKETPLACE' AND ma.lifecycle='READY' AND lm.review_status='APPROVED' AND EXISTS (SELECT 1 FROM listing_submissions s,jsonb_array_elements(s.media_snapshot) snap WHERE s.id=(SELECT approved_submission_id FROM listings WHERE id=lm.listing_id) AND snap->>'listing_media_id'=lm.id::text AND snap->>'media_asset_id'=lm.media_asset_id::text) ORDER BY lm.listing_id,lm.display_order,lm.id`;
+    const result = new Map<string, PublicListing>();
+    for (const row of rows) {
+      const listingMedia = media.filter((item) => item.listing_id === row.id);
+      result.set(row.id, { id:row.id,purpose:row.purpose,title:row.title,description:row.description,
+        price:{amount_minor:Number(row.amount_minor),currency:'XAF',pricing_period:row.pricing_period,negotiable:row.negotiable},
+        terms:{deposit_amount_minor:numberOrNull(row.deposit_amount_minor),advance_months:row.advance_months,minimum_lease_months:row.minimum_lease_months,utilities_included:row.utilities_included,service_charge_amount_minor:numberOrNull(row.service_charge_amount_minor),weekly_amount_minor:numberOrNull(row.weekly_amount_minor),minimum_nights:row.minimum_nights,guest_limit:row.guest_limit,check_in_time:row.check_in_time,check_out_time:row.check_out_time,cleaning_fee_minor:numberOrNull(row.cleaning_fee_minor)},
+        property:{property_type:row.property_type,bedrooms:row.bedrooms,bathrooms:row.bathrooms,size_sqm:row.size_sqm,furnishing:row.furnishing},
+        location:row.public_location_mode==='HIDDEN'?{region:row.region,city:row.city}:{region:row.region,city:row.city,neighborhood:row.neighborhood},
+        market_status:row.market_status,available_from:row.available_from,expires_at:new Date(row.expires_at).toISOString(),
+        media:listingMedia.map((item)=>({id:item.id,is_cover:item.is_cover,widths:Object.keys(item.derivative_manifest).map(Number).filter((width)=>[320,640,1280,1920].includes(width)).sort((a,b)=>a-b)})) });
+    }
+    return result;
   }
 
   private async candidates(filters: PublicListingFilters, cursor: Cursor | null): Promise<Candidate[]> {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const listing = {
-  id: '00000000-0000-4000-8000-000000000051', purpose: 'RENT', title: 'Synthetic public flat', description: 'A safe public listing description.', revision_version: 2,
+  id: '00000000-0000-4000-8000-000000000051', purpose: 'RENT', title: 'Synthetic public flat', description: 'A safe public listing description.',
   price: { amount_minor: 200000, currency: 'XAF', pricing_period: 'MONTHLY', negotiable: false },
   terms: { deposit_amount_minor: 100000, advance_months: 1, minimum_lease_months: 12, utilities_included: null, service_charge_amount_minor: null, weekly_amount_minor: null, minimum_nights: null, guest_limit: null, check_in_time: null, check_out_time: null, cleaning_fee_minor: null },
   property: { property_type: 'APARTMENT', bedrooms: 2, bathrooms: 1, size_sqm: null, furnishing: 'FURNISHED' },

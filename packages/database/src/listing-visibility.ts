@@ -32,7 +32,8 @@ export type PublicListingVisibility = {
 
 const blocked = (reason: string): PublicListingVisibility => ({ visible: false, reason });
 
-export async function readPublicListingVisibility(sql: Sql, listingId: string, options: { allowSyntheticVerification?: boolean } = {}): Promise<PublicListingVisibility> {
+export async function readPublicListingVisibilities(sql: Sql, listingIds: string[], options: { allowSyntheticVerification?: boolean } = {}): Promise<Map<string, PublicListingVisibility>> {
+  if (!listingIds.length) return new Map();
   const rows = await sql<VisibilityRow[]>`SELECT
     l.id AS listing_id,
     r.id AS relationship_id,
@@ -86,9 +87,18 @@ export async function readPublicListingVisibility(sql: Sql, listingId: string, o
     JOIN listing_revisions lr ON lr.id=l.current_revision_id
     JOIN offerings o ON o.listing_id=l.id
     JOIN offering_versions ov ON ov.id=o.current_version_id
-    WHERE l.id=${listingId}`;
-  const row = rows[0];
-  if (!row) return blocked('LISTING_NOT_FOUND');
+    WHERE l.id=ANY(${listingIds}::uuid[])`;
+  const result = new Map<string, PublicListingVisibility>();
+  for (const row of rows) result.set(row.listing_id, await evaluateVisibility(sql, row));
+  for (const listingId of listingIds) if (!result.has(listingId)) result.set(listingId, blocked('LISTING_NOT_FOUND'));
+  return result;
+}
+
+export async function readPublicListingVisibility(sql: Sql, listingId: string, options: { allowSyntheticVerification?: boolean } = {}): Promise<PublicListingVisibility> {
+  return (await readPublicListingVisibilities(sql, [listingId], options)).get(listingId) ?? blocked('LISTING_NOT_FOUND');
+}
+
+async function evaluateVisibility(sql: Sql, row: VisibilityRow): Promise<PublicListingVisibility> {
   if (row.publication_status !== 'PUBLISHED' || row.moderation_status !== 'APPROVED') return blocked('LISTING_NOT_PUBLISHED');
   if (!row.approved_submission_exact) return blocked('APPROVED_SNAPSHOT_STALE');
   if (!row.freshness_current) return blocked('LISTING_FRESHNESS_EXPIRED');
