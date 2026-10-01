@@ -169,6 +169,13 @@
       "when": 1791244800000,
       "tag": "0023_listing_revision_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791331200000,
+      "tag": "0024_public_location_mode",
+      "breakpoints": true
     }
   ]
 }

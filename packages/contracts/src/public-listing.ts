@@ -1,0 +1,20 @@
+export type PublicListingPurpose = 'RENT' | 'SALE' | 'SHORT_LET';
+export type PublicPropertyType = 'HOUSE' | 'APARTMENT' | 'ROOM' | 'LAND' | 'COMMERCIAL';
+export type PublicListingSort = 'newest' | 'price_asc' | 'price_desc';
+export type PublicListingMedia = { id: string; is_cover: boolean; widths: (320 | 640 | 1280 | 1920)[] };
+export type PublicListing = {
+  id: string;
+  purpose: string;
+  title: string;
+  description: string;
+  price: { amount_minor: number; currency: 'XAF'; pricing_period: string; negotiable: boolean };
+  terms: { deposit_amount_minor: number | null; advance_months: number | null; minimum_lease_months: number | null; utilities_included: boolean | null; service_charge_amount_minor: number | null; weekly_amount_minor: number | null; minimum_nights: number | null; guest_limit: number | null; check_in_time: string | null; check_out_time: string | null; cleaning_fee_minor: number | null };
+  property: { property_type: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null };
+  location: { region: string; city: string; neighborhood?: string };
+  market_status: string;
+  available_from: string | null;
+  expires_at: string;
+  media: PublicListingMedia[];
+};
+export type PublicListingSearchResponse = { items: PublicListing[]; filters: Record<string, unknown>; next_cursor: string | null; has_more: boolean };
+export type PublicListingQuery = { purpose?: PublicListingPurpose; region?: 'Southwest' | 'Littoral'; city?: string; neighborhood?: string; property_type?: PublicPropertyType; min_price?: string; max_price?: string; min_bedrooms?: string; min_bathrooms?: string; furnishing?: 'FURNISHED' | 'UNFURNISHED' | 'PARTLY_FURNISHED'; available_from?: string; sort?: PublicListingSort; limit?: string; cursor?: string };
