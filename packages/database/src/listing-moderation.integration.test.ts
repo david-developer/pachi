@@ -129,6 +129,35 @@ void integration('staff listing moderation requires current scoped session and g
   }
 });
 
+void integration('reject is terminal for the submitted episode and concurrent decisions serialize', async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  try {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const fixture = await createFixture(client);
+    const submissions = new ListingSubmissionStore(client, true);
+    const moderation = new ListingModerationStore(client, submissions);
+    const submitted = await submit(fixture, submissions);
+    assert.ok(submitted.submission);
+    const rejected = await moderation.decide(fixture.staff, fixture.listingId, decision(submitted.submission.id, submitted.submission.revisionId, submitted.readiness.revisionVersion, 'REJECT'));
+    assert.equal(rejected.publication_status, 'REJECTED');
+    assert.equal(rejected.moderation_status, 'REJECTED');
+    await assert.rejects(moderation.decide(fixture.staff, fixture.listingId, decision(submitted.submission.id, submitted.submission.revisionId, submitted.readiness.revisionVersion, 'APPROVE_AND_PUBLISH')), { code: 'STALE_VERSION' });
+
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const concurrentFixture = await createFixture(client);
+    const concurrentSubmissions = new ListingSubmissionStore(client, true);
+    const concurrentModeration = new ListingModerationStore(client, concurrentSubmissions);
+    const concurrentSubmission = await submit(concurrentFixture, concurrentSubmissions);
+    assert.ok(concurrentSubmission.submission);
+    const outcomes = await Promise.allSettled([1, 2].map(() => concurrentModeration.decide(concurrentFixture.staff, concurrentFixture.listingId, decision(concurrentSubmission.submission!.id, concurrentSubmission.submission!.revisionId, concurrentSubmission.readiness.revisionVersion, 'APPROVE_AND_PUBLISH'))));
+    assert.deepEqual(outcomes.map((outcome) => outcome.status).sort(), ['fulfilled', 'rejected']);
+    assert.equal((await client`SELECT count(*)::int AS count FROM listing_revision_moderation_actions WHERE listing_id=${concurrentFixture.listingId}`)[0]?.count, 1);
+  } finally {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    await client.end();
+  }
+});
+
 type Fixture = { ownerId: string; listingId: string; staff: StaffPrincipal; revisionId: string; offeringVersionId: string };
 
 async function createFixture(client: ReturnType<typeof createDatabase>['client']): Promise<Fixture> {
