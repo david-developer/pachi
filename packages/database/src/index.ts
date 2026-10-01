@@ -15,6 +15,8 @@ export { ListingModerationStore } from './listing-moderation.js';
 export type { ListingModerationInput, ListingModerationItem, ListingModerationResult } from './listing-moderation.js';
 export { readPublicListingVisibility } from './listing-visibility.js';
 export type { PublicListingVisibility } from './listing-visibility.js';
+export { PublicListingStore } from './public-listing.js';
+export type { PublicListing, PublicListingFilters, PublicListingMedia, PublicListingSearch, PublicMediaSource } from './public-listing.js';
 export type { ListingMediaItem, MediaCleanupJob, MediaLifecycle, MediaProcessingJob, MediaUploadIntent } from './listing-media.js';
 export { ListingSubmissionStore } from './listing-submission.js';
 export { AuthorityRiskStore, readAuthorityRisk, AUTHORITY_RISK_RULE } from './authority-risk.js';

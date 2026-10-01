@@ -1,5 +1,13 @@
 # Engineering handoff
 
+## Public listing discovery implementation — 2026-10-01
+
+- **Branch and scope:** `feat/public-listing-discovery` is based directly on `origin/main` `199efa3d99379f9d93fecd2ef59ec513ed2612ed`. The slice is uncommitted and limited to anonymous listing search/detail/media, public location mode, public DTOs/contracts, web discovery/detail routes, and focused evidence. Inquiry, Conversation, messaging, viewing, saves, maps, geocoding and alerts remain out of scope.
+- **Implementation:** additive migration `0024_public_location_mode` defaults all listings to `NEIGHBORHOOD_ONLY`. `PublicListingStore` uses the existing `readPublicListingVisibility` policy, bounded structured filters, keyset cursor state and deterministic newest/price ordering. Public detail and media routes return safe projections only and use `no-store` responses. Production/default visibility rejects synthetic identity; isolated tests inject `allowSyntheticVerification` only through the test store.
+- **Privacy boundary:** public DTOs omit provider/account/relationship IDs, authority and verification case data, staff/audit data, phone/email, storage references, landmarks, coordinates and exact addresses. HIDDEN location returns only region/city; the default neighborhood projection returns region/city/neighborhood. No maps or geocoding are enabled.
+- **Evidence:** migration validation passed; focused public database tests pass 2/2; positive anonymous public HTTP test passes 1/1; contracts pass 49 routes/37 schemas; API/database/web scoped typechecks and builds pass. Web/admin Chromium cannot run on the local Ubuntu 26.04 WSL host because the Playwright runtime is unsupported; browser evidence awaits the feature branch CI.
+- **Remaining status:** G2 remains NOT RUN end-to-end. No real listing, grant, Cognito resource, identity/authority evidence or public production data was changed. Search/detail are authoritative PostgreSQL reads and disappear immediately when the shared visibility policy becomes false. Organization publication and post-publication suppression workers remain deferred/fail-closed limitations.
+
 ## Listing revision moderation validation — 2026-10-01
 
 - **Branch and scope:** `feat/listing-revision-moderation` is based on `origin/main` `f12a5d5415019d5e43b210fa96eb7753e3d558cd`; final acceptance head `6627170` is pushed and draft PR #20 is open against `main`. The worktree is clean. No development database, account, grant, environment file, service or browser state was changed.

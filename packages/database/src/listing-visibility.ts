@@ -32,7 +32,7 @@ export type PublicListingVisibility = {
 
 const blocked = (reason: string): PublicListingVisibility => ({ visible: false, reason });
 
-export async function readPublicListingVisibility(sql: Sql, listingId: string): Promise<PublicListingVisibility> {
+export async function readPublicListingVisibility(sql: Sql, listingId: string, options: { allowSyntheticVerification?: boolean } = {}): Promise<PublicListingVisibility> {
   const rows = await sql<VisibilityRow[]>`SELECT
     l.id AS listing_id,
     r.id AS relationship_id,
@@ -55,7 +55,7 @@ export async function readPublicListingVisibility(sql: Sql, listingId: string): 
     EXISTS (
       SELECT 1 FROM verification_claims vc JOIN verification_cases c ON c.id=vc.source_case_id
       WHERE vc.provider_profile_id=pp.id AND vc.status='VERIFIED' AND vc.valid_until>statement_timestamp()
-        AND vc.revoked_at IS NULL AND c.policy_version <> 'provider-identity-synthetic-v1'
+        AND vc.revoked_at IS NULL AND (c.policy_version <> 'provider-identity-synthetic-v1' OR ${options.allowSyntheticVerification === true})
     ) AS identity_current,
     (o.purpose=l.purpose AND ov.currency='XAF' AND ov.amount_minor>0
       AND ov.pricing_period=CASE l.purpose WHEN 'RENT' THEN 'MONTHLY' WHEN 'SALE' THEN 'TOTAL' ELSE 'NIGHTLY' END

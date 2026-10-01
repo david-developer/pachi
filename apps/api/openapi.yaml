@@ -15,6 +15,45 @@ paths:
       responses:
         '200': { description: Database readiness }
         '503': { description: Database unavailable }
+  /v1/public/listings:
+    get:
+      security: []
+      summary: Browse currently visible marketplace listings
+      description: Anonymous structured discovery backed by the same current publication, authority, verification, freshness, media and market visibility policy as listing detail. Maps, distance, relevance ranking and contact actions are not included.
+      parameters:
+        - { name: purpose, in: query, schema: { type: string, enum: [RENT, SALE, SHORT_LET] } }
+        - { name: region, in: query, schema: { type: string, enum: [Southwest, Littoral] } }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: neighborhood, in: query, schema: { type: string } }
+        - { name: property_type, in: query, schema: { type: string } }
+        - { name: min_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: max_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: min_bedrooms, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: min_bathrooms, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: furnishing, in: query, schema: { type: string, enum: [FURNISHED, UNFURNISHED, PARTLY_FURNISHED] } }
+        - { name: available_from, in: query, schema: { type: string, format: date } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc], default: newest } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 12 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Public listing results, content: { application/json: { schema: { $ref: '#/components/schemas/PublicListingSearchResponse' } } } }
+        '400': { description: Invalid public listing filters }
+  /v1/public/listings/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: []
+      summary: Read one currently visible public listing
+      responses:
+        '200': { description: Public listing detail, content: { application/json: { schema: { $ref: '#/components/schemas/PublicListing' } } } }
+        '404': { description: Listing is not publicly available; existence and internal visibility reasons are not disclosed }
+  /v1/public/listings/{listingId}/media/{mediaId}/variants/{width}:
+    parameters: [{ name: listingId, in: path, required: true, schema: { type: string, format: uuid } }, { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }, { name: width, in: path, required: true, schema: { type: integer, enum: [320, 640, 1280, 1920] } }]
+    get:
+      security: []
+      summary: Read one approved derivative of a currently visible listing
+      responses:
+        '200': { description: Public generated media derivative, content: { image/webp: { schema: { type: string, format: binary } } } }
+        '404': { description: Listing or media is not publicly available }
   /v1/dev/local-sms/{challengeId}:
     parameters:
       - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -631,6 +670,73 @@ components:
         bathrooms: { type: [integer, 'null'] }
         size_sqm: { type: [string, 'null'] }
         furnishing: { type: [string, 'null'] }
+    PublicListingMedia:
+      type: object
+      required: [id, is_cover, widths]
+      properties:
+        id: { type: string, format: uuid }
+        is_cover: { type: boolean }
+        widths: { type: array, items: { type: integer, enum: [320, 640, 1280, 1920] } }
+    PublicListing:
+      type: object
+      required: [id, purpose, title, description, revision_version, price, terms, property, location, market_status, available_from, expires_at, media]
+      properties:
+        id: { type: string, format: uuid }
+        purpose: { type: string }
+        title: { type: string }
+        description: { type: string }
+        revision_version: { type: integer, minimum: 1 }
+        price:
+          type: object
+          required: [amount_minor, currency, pricing_period, negotiable]
+          properties:
+            amount_minor: { type: integer, minimum: 0 }
+            currency: { const: XAF }
+            pricing_period: { type: string }
+            negotiable: { type: boolean }
+        terms:
+          type: object
+          required: [deposit_amount_minor, advance_months, minimum_lease_months, utilities_included, service_charge_amount_minor, weekly_amount_minor, minimum_nights, guest_limit, check_in_time, check_out_time, cleaning_fee_minor]
+          properties:
+            deposit_amount_minor: { type: [integer, 'null'] }
+            advance_months: { type: [integer, 'null'] }
+            minimum_lease_months: { type: [integer, 'null'] }
+            utilities_included: { type: [boolean, 'null'] }
+            service_charge_amount_minor: { type: [integer, 'null'] }
+            weekly_amount_minor: { type: [integer, 'null'] }
+            minimum_nights: { type: [integer, 'null'] }
+            guest_limit: { type: [integer, 'null'] }
+            check_in_time: { type: [string, 'null'] }
+            check_out_time: { type: [string, 'null'] }
+            cleaning_fee_minor: { type: [integer, 'null'] }
+        property:
+          type: object
+          required: [property_type, bedrooms, bathrooms, size_sqm, furnishing]
+          properties:
+            property_type: { type: string }
+            bedrooms: { type: [integer, 'null'] }
+            bathrooms: { type: [integer, 'null'] }
+            size_sqm: { type: [string, 'null'] }
+            furnishing: { type: [string, 'null'] }
+        location:
+          type: object
+          required: [region, city]
+          properties:
+            region: { type: string }
+            city: { type: string }
+            neighborhood: { type: string }
+        market_status: { type: string }
+        available_from: { type: [string, 'null'], format: date }
+        expires_at: { type: string, format: date-time }
+        media: { type: array, items: { $ref: '#/components/schemas/PublicListingMedia' } }
+    PublicListingSearchResponse:
+      type: object
+      required: [items, filters, next_cursor, has_more]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PublicListing' } }
+        filters: { type: object, additionalProperties: true }
+        next_cursor: { type: [string, 'null'] }
+        has_more: { type: boolean }
     ListingDraftCreateRequest:
       type: object
       required: [property_id, purpose]
