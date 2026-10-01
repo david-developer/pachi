@@ -5,12 +5,13 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { generateKeyPair, SignJWT } from 'jose';
-import { AuthorityRiskStore, createDatabase, StaffStore, ProviderVerificationStore, ListingPhotoReviewStore, PropertyDraftStore } from '@pachi/database';
+import { AuthorityRiskStore, createDatabase, StaffStore, ProviderVerificationStore, ListingPhotoReviewStore, ListingModerationStore, ListingSubmissionStore, PropertyDraftStore } from '@pachi/database';
 import { CognitoAccessTokenVerifier } from './token-verifier.js';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { StaffVerificationController } from './staff-verification.controller.js';
 import { StaffListingPhotoController } from './staff-listing-photo.controller.js';
 import { StaffAuthorityRiskController } from './staff-authority-risk.controller.js';
+import { StaffListingModerationController } from './staff-listing-moderation.controller.js';
 const integration = process.env.DATABASE_TEST_URL ? test : test.skip;
 void integration(
   'actual staff HTTP controller accepts only registered staff tokens and live grants',
@@ -33,11 +34,12 @@ void integration(
     const store = new StaffStore(client, 'synthetic-staff-secret-long-enough-for-encryption');
     const verificationStore = new ProviderVerificationStore(client,'synthetic-evidence-key-for-http-staff-test',true);
     @Module({
-      controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffAuthorityRiskController],
+      controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffAuthorityRiskController, StaffListingModerationController],
       providers: [
         { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(store, verifier) },
         { provide: 'PROVIDER_VERIFICATION_STORE', useValue: verificationStore },
         { provide: 'LISTING_PHOTO_REVIEW_STORE', useValue: new ListingPhotoReviewStore(client) },
+        { provide: 'LISTING_MODERATION_STORE', useValue: new ListingModerationStore(client, new ListingSubmissionStore(client, true)) },
         { provide: 'AUTHORITY_RISK_STORE', useValue: new AuthorityRiskStore(client) },
         { provide: 'LOCAL_PRIVATE_MEDIA_STORAGE', useValue: { readVariant: async () => Buffer.from('synthetic-private-preview') } },
       ],
@@ -93,6 +95,14 @@ void integration(
       const success = await get(good);
       assert.equal(success.status, 200);
       assert.ok(!JSON.stringify(await success.json()).includes(subject));
+      const listingQueue = `http://127.0.0.1:${address.port}/v1/staff/listing-revisions`;
+      assert.equal((await fetch(listingQueue, { headers: { authorization: `Bearer ${good}` } })).status, 200);
+      assert.equal((await fetch(listingQueue)).status, 401);
+      const invalidDecision = await fetch(`${listingQueue}/${randomUUID()}/decision`, {
+        method: 'POST', headers: { authorization: `Bearer ${good}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ command: 'APPROVE_AND_PUBLISH' }),
+      });
+      assert.equal(invalidDecision.status, 409);
       const applicantRows=await client<{id:string}[]>`INSERT INTO users(account_state) VALUES ('ACTIVE') RETURNING id`;
       const applicant=applicantRows[0]!.id;
       await client`INSERT INTO phone_contacts(user_id,normalized_e164,verified_at,verification_version) VALUES (${applicant},'+237690000991',now(),1)`;

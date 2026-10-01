@@ -1,5 +1,14 @@
 # Engineering handoff
 
+## Listing revision moderation validation — 2026-10-01
+
+- **Branch and scope:** `feat/listing-revision-moderation` at `f12a5d5`; the moderation implementation remains an uncommitted working tree change. No development database, account, grant, environment file, service or browser state was changed.
+- **Implementation:** added migration `0023_listing_revision_moderation.sql`, its Drizzle journal entry, exact-submission moderation store, shared public-visibility predicate, staff API/BFF routes and admin queue/decision UI. Publication remains fail-closed on current readiness, exact revision/offering/media snapshots, current technical/content-approved media, market status and the existing authority-risk evaluator. Listing decisions do not require redundant private-photo preview audits; photo approval remains separate, while private submitted-media access is still scoped and audited.
+- **Verified migration:** Docker is available again. `postgres` and `postgres-test` are running; `DATABASE_TEST_URL` is restricted to `localhost:5433/pachi_test`. Migration 0023 applied successfully, and the isolated database contains `moderation_feedback`, freshness/approval columns and `listing_revision_moderation_actions`.
+- **Validation:** migration re-run is idempotent on `localhost:5433/pachi_test`; full database integration passed 16/16 and full API integration passed 5/5. Dedicated database moderation tests pass 4/4, including exact publish/idempotency, request-changes episode preservation and corrected resubmission, current predicate denials, revoked staff grant denial, and synthetic public-visibility fail-closed behavior. The Nest staff HTTP test passes with new queue authentication/invalid-decision coverage. Contracts pass at 46 routes/34 schemas; full lint, typecheck, unit/startup tests, build and dependency audit pass.
+- **Browser evidence:** a synthetic admin listing-moderation test was added and the admin app builds with normalized dynamic routes. Web/admin Chromium execution is blocked on this Ubuntu 26.04 WSL host because Playwright does not support downloading the required Chromium headless shell; no browser pass is claimed. No real listing, grant, Cognito resource or evidence was changed.
+- **Remaining evidence:** no CI has run for this unpushed head. G2 remains NOT RUN; no listing was published in development. Review/CI and browser evidence on a supported runner are required before merge or any G2 claim.
+
 ## Authority-risk correction and merge — 2026-09-30
 
 - **Merged result:** PR #16 merged by ordinary two-parent commit 65603078245ea1a2b904659b3641cc52f8f8b3da. Parents are prior main cfbc916258c45e0de9102cd71f44339553baf719 and reviewed PR head f8b100f69750748e73fa1e7fdd475d1fe3fb1665. Merge tree matched the reviewed branch tree. Local main and origin/main are synchronized at 6560307.

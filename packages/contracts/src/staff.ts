@@ -63,3 +63,45 @@ export type ListingPhotoReviewItem = {
   is_cover: boolean;
   attached_at: string;
 };
+export type ListingModerationItem = {
+  submission_id: string;
+  listing_id: string;
+  revision_id: string;
+  revision_version: number;
+  offering_id: string;
+  offering_version_id: string;
+  submitted_at: string;
+  media_snapshot: { listing_media_id: string; media_asset_id: string; display_order: number; is_cover: boolean }[];
+  region: 'Southwest' | 'Littoral';
+  city: string;
+  neighborhood: string;
+  purpose: 'RENT' | 'SALE' | 'SHORT_LET';
+  title: string | null;
+  description: string | null;
+  currency: 'XAF';
+  amount_minor: number | string | null;
+  pricing_period: 'MONTHLY' | 'TOTAL' | 'NIGHTLY';
+  available_from: string | null;
+  owner_user_id: string;
+  market_status: string;
+};
+export type ListingModerationDecisionRequest = {
+  submission_id: string;
+  revision_id: string;
+  expected_version: number;
+  command: 'REQUEST_CHANGES' | 'REJECT' | 'APPROVE_AND_PUBLISH';
+  reason_code: string;
+  reason_text: string;
+  provider_message?: string;
+  idempotency_key: string;
+};
+export type ListingModerationDecisionResponse = {
+  action_id: string;
+  listing_id: string;
+  submission_id: string;
+  revision_id: string;
+  command: ListingModerationDecisionRequest['command'];
+  publication_status: string;
+  moderation_status: string;
+  idempotent: boolean;
+};

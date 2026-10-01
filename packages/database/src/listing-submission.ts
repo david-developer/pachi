@@ -21,6 +21,14 @@ export class ListingSubmissionStore {
     return this.client.begin(async (tx) => this.evaluate(tx, userId, listingId));
   }
 
+  public async readinessInTransaction(tx: postgres.TransactionSql, userId: string, listingId: string, lock = false): Promise<ListingReadiness> {
+    const provider = await this.provider(tx, userId, lock);
+    if (!provider) throw new IdentityError('SUBMISSION_SCOPE_DENIED', 'Listing submission is not available');
+    const listing = await this.listing(tx, listingId, provider.account_id, lock);
+    if (!listing) throw new IdentityError('SUBMISSION_SCOPE_DENIED', 'Listing submission is not available');
+    return this.evaluateLoaded(tx, provider, listing, lock);
+  }
+
   public async submit(userId: string, listingId: string, input: SubmitListingInput): Promise<ListingSubmissionResult | { readiness: ListingReadiness; submission: null; idempotent: false }> {
     return this.client.begin(async (tx) => {
       const provider = await this.provider(tx, userId, true);

@@ -60,7 +60,7 @@ function safeNext(status: AuthorityRiskStatus['status']): string {
 }
 export async function readAuthorityRisk(sql: Sql, relationshipId: string, principalId: string, lock = false): Promise<AuthorityRiskStatus> {
   // The source-clock share lock is held through a guarded submission transaction.
-  const r = await relationship(sql, relationshipId, false);
+  const r = await relationship(sql, relationshipId, lock);
   if (!r || r.provider_account_id !== principalId) return {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')};
   const version = await sourceVersion(sql, lock);
   if (!version) return {status:'INCOMPLETE',next_action:safeNext('INCOMPLETE')};
