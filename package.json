@@ -15,7 +15,7 @@
     "test": "pnpm test:startup && turbo run test",
     "db:migrate": "pnpm --filter @pachi/database db:migrate",
     "check:secrets": "bash scripts/check-secrets.sh",
-    "check:dependencies": "pnpm audit --audit-level low",
+    "check:dependencies": "node scripts/check-dependency-audit-policy.mjs && pnpm audit --audit-level low",
     "check:contracts": "node scripts/check-contracts.mjs"
   },
   "devDependencies": {
