@@ -10,9 +10,9 @@ export class InteractionController {
   public constructor(@Inject('INTERACTION_STORE') private readonly store: InteractionStore) {}
 
   @Post('listings/:listingId/inquiry')
-  public async createInquiry(@Req() request: AuthenticatedRequest, @Param('listingId') listingId: string, @Headers('idempotency-key') idempotencyKey: string | undefined, @Headers('x-request-id') requestId: string | undefined): Promise<InteractionResult> {
+  public async createInquiry(@Req() request: AuthenticatedRequest, @Param('listingId') listingId: string, @Headers('idempotency-key') idempotencyKey: string | undefined): Promise<InteractionResult> {
     if (!idempotencyKey || !isUuid(idempotencyKey)) throw new BadRequestException('A valid idempotency key is required');
-    try { return await this.store.createOrReuseInquiry(this.userId(request), listingId, idempotencyKey, requestId ?? null); }
+    try { return await this.store.createOrReuseInquiry(this.userId(request), listingId, idempotencyKey); }
     catch (error) { throw this.error(error); }
   }
 
@@ -29,6 +29,7 @@ export class InteractionController {
       if (['PUBLIC_LISTING_NOT_FOUND','RESOURCE_SCOPE_DENIED'].includes(error.code)) return new NotFoundException('Resource is not available');
       if (error.code === 'AUTH_REQUIRED') return new UnauthorizedException('Authentication required');
       if (error.code === 'PHONE_REQUIRED') return new ForbiddenException('Phone verification is required');
+      if (error.code === 'CAPABILITY_RESTRICTED') return new ForbiddenException('Contact is not available');
       return new ConflictException(error.code);
     }
     return error as Error;

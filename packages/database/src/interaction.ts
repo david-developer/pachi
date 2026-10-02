@@ -12,7 +12,7 @@ const uuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]
 export class InteractionStore {
   public constructor(private readonly client: postgres.Sql, private readonly allowSyntheticVerification = false) {}
 
-  public async createOrReuseInquiry(userId: string, listingId: string, idempotencyKey: string, requestId: string | null): Promise<InteractionResult> {
+  public async createOrReuseInquiry(userId: string, listingId: string, idempotencyKey: string): Promise<InteractionResult> {
     if (!uuid(userId) || !uuid(listingId) || !uuid(idempotencyKey)) throw new IdentityError('INVALID_INPUT', 'Inquiry request is invalid');
     const requestHash = createHash('sha256').update(JSON.stringify({listing_id:listingId,initial_channel:'MESSAGE'})).digest('hex');
     return this.client.begin(async (tx) => {
@@ -30,7 +30,8 @@ export class InteractionStore {
       if (listing.provider_user_id === userId) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Self contact is not available');
       const visibility = await readPublicListingVisibility(tx, listingId, {allowSyntheticVerification:this.allowSyntheticVerification});
       if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
-      const existing = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id WHERE i.listing_id=${listingId} AND i.seeker_user_id=${userId} AND i.provider_account_id=${listing.provider_account_id} AND i.state='OPEN' FOR UPDATE`;
+      const existing = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id WHERE i.listing_id=${listingId} AND i.seeker_user_id=${userId} AND i.provider_account_id=${listing.provider_account_id} AND i.state IN ('OPEN','RESTRICTED') FOR UPDATE`;
+      if (existing[0]?.state === 'RESTRICTED') throw new IdentityError('CAPABILITY_RESTRICTED', 'Contact is not available');
       if (existing[0]) {
         const keyRows = await tx<{id:string}[]>`INSERT INTO interaction_idempotency(seeker_user_id,operation,idempotency_key,request_hash,interaction_id,conversation_id) VALUES (${userId},'CREATE_INQUIRY',${idempotencyKey},${requestHash},${existing[0]!.id},${existing[0]!.conversation_id}) ON CONFLICT (seeker_user_id,operation,idempotency_key) DO NOTHING RETURNING id`;
         if (!keyRows[0]) {
@@ -39,13 +40,14 @@ export class InteractionStore {
         }
         return map(existing[0], false);
       }
-      const inserted = await tx<InteractionRow[]>`INSERT INTO interactions(listing_id,seeker_user_id,provider_account_id,state,initial_channel) VALUES (${listingId},${userId},${listing.provider_account_id},'OPEN','MESSAGE') ON CONFLICT (listing_id,seeker_user_id,provider_account_id) WHERE state='OPEN' DO NOTHING RETURNING id,listing_id,provider_account_id,seeker_user_id,state,opened_at,NULL::uuid AS conversation_id`;
+      const inserted = await tx<InteractionRow[]>`INSERT INTO interactions(listing_id,seeker_user_id,provider_account_id,state,initial_channel) VALUES (${listingId},${userId},${listing.provider_account_id},'OPEN','MESSAGE') ON CONFLICT (listing_id,seeker_user_id,provider_account_id) WHERE state IN ('OPEN','RESTRICTED') DO NOTHING RETURNING id,listing_id,provider_account_id,seeker_user_id,state,opened_at,NULL::uuid AS conversation_id`;
       let interaction = inserted[0];
       let created = true;
       if (!interaction) {
-        const concurrent = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id WHERE i.listing_id=${listingId} AND i.seeker_user_id=${userId} AND i.provider_account_id=${listing.provider_account_id} AND i.state='OPEN' FOR UPDATE`;
+        const concurrent = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id WHERE i.listing_id=${listingId} AND i.seeker_user_id=${userId} AND i.provider_account_id=${listing.provider_account_id} AND i.state IN ('OPEN','RESTRICTED') FOR UPDATE`;
         interaction = concurrent[0]; created = false;
       }
+      if (interaction?.state === 'RESTRICTED') throw new IdentityError('CAPABILITY_RESTRICTED', 'Contact is not available');
       if (!interaction) throw new IdentityError('INTERACTION_CREATE_FAILED', 'Inquiry could not be created');
       if (created) {
         const conversations = await tx<{id:string}[]>`INSERT INTO conversations(interaction_id) VALUES (${interaction.id}) RETURNING id`;
@@ -66,10 +68,18 @@ export class InteractionStore {
 
   public async read(userId: string, interactionId: string): Promise<InteractionRead> {
     if (!uuid(userId) || !uuid(interactionId)) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Interaction is unavailable');
-    const rows = await this.client<(InteractionRow & {provider_user_id:string;title:string|null})[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id,pp.user_id AS provider_user_id,CASE WHEN l.publication_status='PUBLISHED' AND l.moderation_status='APPROVED' THEN r.title ELSE NULL END AS title FROM interactions i JOIN conversations c ON c.interaction_id=i.id JOIN listings l ON l.id=i.listing_id JOIN listing_revisions r ON r.id=l.current_revision_id JOIN provider_accounts pa ON pa.id=i.provider_account_id JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE i.id=${interactionId} AND (i.seeker_user_id=${userId} OR pp.user_id=${userId})`;
-    const row = rows[0];
-    if (!row) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Interaction is unavailable');
-    return {...map(row,false),title:row.title,listing_visible:row.title !== null};
+    return this.client.begin(async (tx) => {
+      const rows = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id JOIN provider_accounts pa ON pa.id=i.provider_account_id JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE i.id=${interactionId} AND (i.seeker_user_id=${userId} OR pp.user_id=${userId})`;
+      const row = rows[0];
+      if (!row) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Interaction is unavailable');
+      const visibility = await readPublicListingVisibility(tx, row.listing_id, {allowSyntheticVerification:this.allowSyntheticVerification});
+      let title: string | null = null;
+      if (visibility.visible) {
+        const titles = await tx<{title:string}[]>`SELECT r.title FROM listings l JOIN listing_revisions r ON r.id=l.approved_revision_id WHERE l.id=${row.listing_id} AND l.publication_status='PUBLISHED' AND l.moderation_status='APPROVED' AND l.approved_revision_id=l.current_revision_id`;
+        title = titles[0]?.title ?? null;
+      }
+      return {...map(row,false),title,listing_visible:visibility.visible && title !== null};
+    });
   }
 }
 

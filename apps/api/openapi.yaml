@@ -58,9 +58,9 @@ paths:
     parameters: [{ name: listingId, in: path, required: true, schema: { type: string, format: uuid } }]
     post:
       security: [{ bearerAuth: [] }]
-      description: Creates or reuses one OPEN Interaction and its Conversation for the authenticated phone-verified seeker. Provider context is derived from the listing and the request body is empty.
-      parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }, { name: X-Request-Id, in: header, required: false, schema: { type: string, format: uuid } }]
-      responses: { '201': { description: New or reused interaction context, content: { application/json: { schema: { $ref: '#/components/schemas/InteractionResponse' } } } }, '401': { description: Authentication required }, '403': { description: Phone verification or capability restriction required }, '404': { description: Listing is not publicly available }, '409': { description: Invalid or conflicting inquiry } }
+      description: Creates or reuses one OPEN Interaction and its Conversation for the authenticated phone-verified seeker. An existing RESTRICTED context returns a safe 403; CLOSED history may be followed by a new context when all current listing eligibility rules pass. Provider context is derived from the listing and the request body is empty.
+      parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }]
+      responses: { '201': { description: New or reused interaction context, content: { application/json: { schema: { $ref: '#/components/schemas/InteractionResponse' } } } }, '401': { description: Authentication required }, '403': { description: Phone verification required or contact capability restricted; no internal restriction details are returned }, '404': { description: Listing is not publicly available }, '409': { description: Invalid inquiry or idempotency key conflict } }
   /v1/account/interactions/{id}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     get:

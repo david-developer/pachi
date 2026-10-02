@@ -12,7 +12,7 @@ CREATE TABLE interactions (
   updated_at timestamptz NOT NULL DEFAULT statement_timestamp(),
   CHECK ((state = 'CLOSED') = (closed_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX interactions_open_unique ON interactions(listing_id,seeker_user_id,provider_account_id) WHERE state='OPEN';
+CREATE UNIQUE INDEX interactions_active_unique ON interactions(listing_id,seeker_user_id,provider_account_id) WHERE state IN ('OPEN','RESTRICTED');
 CREATE INDEX interactions_seeker_idx ON interactions(seeker_user_id,created_at DESC);
 CREATE INDEX interactions_provider_idx ON interactions(provider_account_id,created_at DESC);
 
