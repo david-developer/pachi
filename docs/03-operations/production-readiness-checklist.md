@@ -13,6 +13,40 @@ For each completed item record commit/release, environment, date, operator respo
 
 No exception can waive unauthorized access, private-evidence exposure, unresolved critical security/data-loss defects, missing core marketplace functionality or an untested recovery path. A noncritical exception records affected requirement, mitigation, expiry, owner and release impact; it cannot silently redefine the product.
 
+### Temporary dependency-audit exceptions
+
+The dependency audit remains configured at the `low` threshold. A temporary exception is not a remediation and is permitted only when the exact GHSA is named, no released compatible fix exists, dependency provenance and runtime/build exposure are assessed, compensating controls are recorded, and an owner, review-by date, and removal trigger are explicit. Every other advisory remains blocking at the configured threshold. Wildcards, registry-error suppression, reduced severity, and ignore-unfixable behavior are not permitted.
+
+Current temporary exceptions (verified 2026-10-05):
+
+- **Advisory:** `GHSA-86w9-cpqp-85rv`.
+- **CVE:** `CVE-2026-85393`; HIGH severity (CVSS 8.7).
+- **Package:** `node-forge@1.4.0`; no patched release is currently published. Upstream fix PR [digitalbazaar/forge#1152](https://github.com/digitalbazaar/forge/pull/1152) is open and targets the unreleased 1.4.1 changelog entry.
+- **Provenance:** lock graph places the package in `apps/mobile` through `expo@55.0.0` → `@expo/cli@55.0.11` → `node-forge` and `@expo/code-signing-certificates@0.0.6` → `node-forge`; Expo Router adds equivalent paths. It is not a direct Pachi dependency.
+- **Runtime/build exposure:** the production dependency listing for `@pachi/mobile` includes this Expo tooling/signing path. The API, marketplace web, admin and worker production dependency graphs do not include `node-forge`. No direct Pachi source import was found. The mobile bundle's reachability of this code has not been established; the dependency is not claimed harmless.
+- **Reason:** the registry's patched-version status is unknown, npm's latest release remains 1.4.0, and the current compatible Expo SDK 55 CLI/signing dependency ranges do not remove the vulnerable release.
+- **Compensating controls:** audit severity stays `low`; the guard enforces exactly the two approved GHSAs and requires a separate complete record for each; every other advisory continues to fail the dependency check. No unaudited fork or unreleased node-forge commit is used.
+- **Owner:** Project owner / repository maintainer.
+- **Review by:** 2026-10-16.
+- **Removal trigger:** remove the exception when a patched node-forge release becomes available through compatible Expo tooling, or when a compatible Expo update removes the vulnerable dependency. Re-run the unfiltered audit and the full CI pipeline after removal.
+- **Vulnerability fixed:** NO.
+- **Temporarily accepted:** YES.
+
+Second temporary acceptance, necessitated by an advisory surfaced after PR #23's branch CI; exact-main Checks 37236836981 failed at dependency audit:
+
+- **Advisory:** `GHSA-vfj7-8cjw-p6xm` ([GitHub Advisory Database](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)).
+- **CVE:** `CVE-2026-93687`; HIGH severity, CVSS v4 8.7 (v3.1 7.5), verified from GitHub's advisory API on 2026-10-05. Deeply nested brace patterns can exhaust the stack and terminate a Node.js process.
+- **Package:** `braces@3.0.3`; affected versions `<=3.0.3`, no patched version, [npm latest](https://registry.npmjs.org/braces/latest) remains 3.0.3. Upstream fix PRs [micromatch/braces#72](https://github.com/micromatch/braces/pull/72) and [#75](https://github.com/micromatch/braces/pull/75) remain open/unmerged/unreleased.
+- **Provenance:** `pnpm why braces`, recursive production queries and the lockfile establish three families: mobile Babel/Jest (`react-native@0.83.0` → `babel-jest@29.7.0` → `@jest/transform@29.7.0` → `jest-haste-map@29.7.0` → `micromatch@4.0.8` → `braces@3.0.3`, also direct transform/message-util paths); mobile Metro/Expo (`react-native@0.83.0` → `@react-native/community-cli-plugin@0.83.0` → `metro@0.83.8` → `metro-file-map@0.83.8` → `micromatch@4.0.8` → `braces@3.0.3`, plus `expo@55.0.0` → `@expo/cli@55.0.11` → `@expo/metro@54.2.0` → `metro-file-map@0.83.3` → `micromatch@4.0.8` → `braces@3.0.3`); root/shared lint tooling (`@typescript-eslint/parser@8.44.0` → `@typescript-eslint/typescript-estree@8.44.0` → `fast-glob@3.3.3` → `micromatch@4.0.8` → `braces@3.0.3`). pnpm audit reports 100 representative/deduplicated paths, not an exhaustive count.
+- **Runtime/build exposure:** mobile's installed production dependency graph includes the React Native/Expo Babel/Jest and Metro tooling families. API, marketplace web, admin and worker production graphs have no braces path, but all use shared development lint tooling. No direct Pachi source import exists. Shipped runtime reachability and attacker-controlled pattern reachability are not established; lack of a direct import does not make the vulnerability harmless. Production bundle inspection is recorded separately in the engineering handoff.
+- **Reason:** no released compatible remediation eliminating all vulnerable paths was found. [Latest micromatch 4.0.8](https://registry.npmjs.org/micromatch/latest) still declares `braces ^3.0.3`; compatible React Native 0.83.10 retains Babel/Jest 29.7 and Metro file-map 0.83.8 retains micromatch. Expo SDK 55.0.31 / CLI 55.0.36 does not eliminate those paths. Newer Jest/ESLint releases remove some individual paths, but do not remove all current mobile tooling paths. No application dependency or lockfile is changed.
+- **Compensating controls:** strict audit threshold remains `low`; the guard enforces exactly two approved GHSAs, per-record metadata and short review windows. All other advisories and registry errors remain blocking. No wildcard, package-name suppression, ignore-unfixable option, unreviewed fork or unreleased commit is used. Maintain existing bounded inputs and review any future glob/pattern integration; no claim that current controls fix stack exhaustion.
+- **Owner:** Project owner / repository maintainer.
+- **Review by:** 2026-10-16.
+- **Removal trigger:** remove this exception on a patched braces release or compatible upstream dependency update eliminating all vulnerable paths. Re-run the unfiltered audit, mobile exports and full CI pipeline; node-forge's separate deadline remains unchanged.
+- **Vulnerability fixed:** NO.
+- **Temporarily accepted:** YES.
+
 ## Gate summary
 
 | Gate | Required result | Current evidence state |
