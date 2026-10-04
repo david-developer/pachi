@@ -54,6 +54,19 @@ paths:
       responses:
         '200': { description: Public generated media derivative, content: { image/webp: { schema: { type: string, format: binary } } } }
         '404': { description: Listing or media is not publicly available }
+  /v1/account/listings/{listingId}/inquiry:
+    parameters: [{ name: listingId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ bearerAuth: [] }]
+      description: Creates or reuses one OPEN Interaction and its Conversation for the authenticated phone-verified seeker. An existing RESTRICTED context returns a safe 403; CLOSED history may be followed by a new context when all current listing eligibility rules pass. Provider context is derived from the listing and the request body is empty.
+      parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }]
+      responses: { '201': { description: New or reused interaction context, content: { application/json: { schema: { $ref: '#/components/schemas/InteractionResponse' } } } }, '401': { description: Authentication required }, '403': { description: Phone verification required or contact capability restricted; no internal restriction details are returned }, '404': { description: Listing is not publicly available }, '409': { description: Invalid inquiry or idempotency key conflict } }
+  /v1/account/interactions/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: [{ bearerAuth: [] }]
+      description: Participant-scoped interaction shell read; messages are not included in this slice.
+      responses: { '200': { description: Safe interaction projection, content: { application/json: { schema: { $ref: '#/components/schemas/InteractionReadResponse' } } } }, '401': { description: Authentication required }, '404': { description: Interaction is unavailable } }
   /v1/dev/local-sms/{challengeId}:
     parameters:
       - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -670,6 +683,28 @@ components:
         bathrooms: { type: [integer, 'null'] }
         size_sqm: { type: [string, 'null'] }
         furnishing: { type: [string, 'null'] }
+    InteractionResponse:
+      type: object
+      required: [interaction_id, conversation_id, listing_id, state, opened_at, created]
+      properties:
+        interaction_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        state: { type: string, enum: [OPEN, CLOSED, RESTRICTED] }
+        opened_at: { type: string, format: date-time }
+        created: { type: boolean }
+    InteractionReadResponse:
+      type: object
+      required: [interaction_id, conversation_id, listing_id, state, opened_at, created, title, listing_visible]
+      properties:
+        interaction_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        state: { type: string, enum: [OPEN, CLOSED, RESTRICTED] }
+        opened_at: { type: string, format: date-time }
+        created: { type: boolean }
+        title: { type: [string, 'null'] }
+        listing_visible: { type: boolean }
     PublicListingMedia:
       type: object
       required: [id, is_cover, widths]

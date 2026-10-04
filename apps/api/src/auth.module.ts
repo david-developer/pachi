@@ -4,7 +4,7 @@ import { StaffStore } from '@pachi/database';
 import { StaffController, StaffAuthService } from './staff.controller.js';
 import { Module } from '@nestjs/common';
 import { createRemoteJWKSet } from 'jose';
-import { AuthorityRiskStore, createDatabase, IdentityStore, ListingMediaStore, ListingModerationStore, ListingPhotoReviewStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore, PublicListingStore } from '@pachi/database';
+import { AuthorityRiskStore, createDatabase, IdentityStore, InteractionStore, ListingMediaStore, ListingModerationStore, ListingPhotoReviewStore, ListingSubmissionStore, PhoneVerificationStore, PropertyDraftStore, PublicListingStore } from '@pachi/database';
 import { ClamAvScanner, LocalPrivateMediaStorage } from '@pachi/media';
 import { loadConfig } from './config.js';
 import { AccountController } from './account.controller.js';
@@ -21,6 +21,7 @@ import { StaffVerificationController } from './staff-verification.controller.js'
 import { StaffListingPhotoController } from './staff-listing-photo.controller.js';
 import { StaffListingModerationController } from './staff-listing-moderation.controller.js';
 import { PublicListingController } from './public-listing.controller.js';
+import { InteractionController } from './interaction.controller.js';
 import { StaffAuthorityRiskController } from './staff-authority-risk.controller.js';
 
 const config = loadConfig();
@@ -47,7 +48,7 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
@@ -59,6 +60,7 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
   { provide: 'LISTING_PHOTO_REVIEW_STORE', useValue: new ListingPhotoReviewStore(client) },
   { provide: 'LISTING_MODERATION_STORE', useValue: new ListingModerationStore(client, listingSubmissionStore) },
   { provide: 'PUBLIC_LISTING_STORE', useValue: new PublicListingStore(client) },
+  { provide: 'INTERACTION_STORE', useValue: new InteractionStore(client, false) },
   { provide: ListingMediaStore, useExisting: 'LISTING_MEDIA_STORE' },
   { provide: 'LISTING_SUBMISSION_STORE', useValue: listingSubmissionStore },
   { provide: 'AUTHORITY_RISK_STORE', useValue: authorityRiskStore },

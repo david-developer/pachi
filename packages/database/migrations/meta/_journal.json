@@ -176,6 +176,13 @@
       "when": 1791331200000,
       "tag": "0024_public_location_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791417600000,
+      "tag": "0025_interactions_conversations",
+      "breakpoints": true
     }
   ]
 }
