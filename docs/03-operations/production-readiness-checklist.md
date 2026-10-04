@@ -13,6 +13,22 @@ For each completed item record commit/release, environment, date, operator respo
 
 No exception can waive unauthorized access, private-evidence exposure, unresolved critical security/data-loss defects, missing core marketplace functionality or an untested recovery path. A noncritical exception records affected requirement, mitigation, expiry, owner and release impact; it cannot silently redefine the product.
 
+### Temporary dependency-audit exceptions
+
+The dependency audit remains configured at the `low` threshold. A temporary exception is not a remediation and is permitted only when the exact GHSA is named, no released compatible fix exists, dependency provenance and runtime/build exposure are assessed, compensating controls are recorded, and an owner, review-by date, and removal trigger are explicit. Every other advisory remains blocking at the configured threshold. Wildcards, registry-error suppression, reduced severity, and ignore-unfixable behavior are not permitted.
+
+Current temporary exception:
+
+- **Advisory:** `GHSA-86w9-cpqp-85rv`; CVE `CVE-2026-85393`; high severity (CVSS 8.7).
+- **Package:** `node-forge@1.4.0`; no patched release is currently published. Upstream fix PR [digitalbazaar/forge#1152](https://github.com/digitalbazaar/forge/pull/1152) is open and targets the unreleased 1.4.1 changelog entry.
+- **Provenance:** lock graph places the package in `apps/mobile` through `expo@55.0.0` → `@expo/cli@55.0.11` → `node-forge` and `@expo/code-signing-certificates@0.0.6` → `node-forge`; Expo Router adds equivalent paths. It is not a direct Pachi dependency.
+- **Runtime/build exposure:** the production dependency listing for `@pachi/mobile` includes this Expo tooling/signing path. The API, marketplace web, admin and worker production dependency graphs do not include `node-forge`. No direct Pachi source import was found. The mobile bundle's reachability of this code has not been established; the dependency is not claimed harmless.
+- **Reason:** the registry's patched-version status is unknown, npm's latest release remains 1.4.0, and the current compatible Expo SDK 55 CLI/signing dependency ranges do not remove the vulnerable release.
+- **Compensating controls:** audit severity stays `low`; the guard enforces this one exact GHSA and requires this record; every other advisory continues to fail the dependency check. No unaudited fork or unreleased node-forge commit is used.
+- **Owner:** Project owner / repository maintainer.
+- **Review by:** 2026-10-16.
+- **Removal trigger:** remove the exception when a patched node-forge release becomes available through compatible Expo tooling, or when a compatible Expo update removes the vulnerable dependency. Re-run the unfiltered audit and the full CI pipeline after removal.
+
 ## Gate summary
 
 | Gate | Required result | Current evidence state |

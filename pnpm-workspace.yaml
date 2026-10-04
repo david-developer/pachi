@@ -4,6 +4,10 @@ packages:
 allowBuilds:
   '@nestjs/core': true
   esbuild: true
+audit:
+  level: low
+  ignore:
+    - GHSA-86w9-cpqp-85rv
 # Security fixes for transitive packages pinned by upstream tooling.
 overrides:
   'path-to-regexp@>=8.0.0 <8.4.0': 8.4.0
