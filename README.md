@@ -36,8 +36,10 @@ The shared PostgreSQL fixed-window limiter defaults to 20 sends per Conversation
 and 60 globally per sender per 60 seconds. API configuration can override
 `MESSAGE_CONVERSATION_LIMIT`, `MESSAGE_GLOBAL_LIMIT`, `MESSAGE_WINDOW_SECONDS`;
 all API processes must use the same configuration. Persisted retries consume no
-additional unit, but current capability checks still apply. A table SHARE lock
-serializes sends against block mutations at this bounded stage; it permits
+additional unit. Current Conversation access is always required; an identical
+persisted retry confirms its existing Message even after state, block or sender
+eligibility changes. Current send capability applies only to a genuinely new
+Message. A table SHARE lock serializes new sends against block mutations; it permits
 concurrent sends and may need a finer locking protocol with later block management.
 
 Every new message commits one safe `message_sent` source event; the first provider

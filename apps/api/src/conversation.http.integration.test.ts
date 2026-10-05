@@ -273,6 +273,7 @@ void integration(
       await client`UPDATE provider_profiles SET user_id=${f.otherUserId} WHERE user_id=${f.providerUserId}`;
       assert.equal((await call('provider', path)).status, 404);
       assert.equal((await call('provider', path, input())).status, 404);
+      assert.equal((await call('provider', path, reply)).status, 404);
       assert.equal(
         (
           (await (
@@ -379,4 +380,72 @@ void integration(
       },
       { conversation: 2, global: 2, windowSeconds: 3600 }
     )
+);
+
+void integration(
+  'signed HTTP confirms committed provider replay after CLOSED, RESTRICTED, block and capability loss',
+  () =>
+    httpScenario(async (client, f, call) => {
+      const path = `/${f.conversationId}/messages`;
+      const request = input('Provider committed before later restriction');
+      const response = await call('provider', path, request);
+      assert.equal(response.status, 201);
+      const first = (await response.json()) as MessageSendResponse;
+      assert.equal(first.created, true);
+      const effects = async () => ({
+        messages: (await client`SELECT count(*)::int AS n FROM messages`)[0]!.n,
+        receipts:
+          await client`SELECT * FROM message_receipts ORDER BY message_id,recipient_user_id`,
+        events: await client`SELECT * FROM communication_outbox ORDER BY id`,
+        rates:
+          await client`SELECT * FROM message_rate_limits ORDER BY sender_user_id,scope`
+      });
+      const baseline = await effects();
+      assert.equal(baseline.messages, 1);
+      assert.equal(baseline.receipts.length, 1);
+      assert.equal(
+        baseline.events.filter((e) => e.event_type === 'message_sent').length,
+        1
+      );
+      assert.equal(
+        baseline.events.filter(
+          (e) => e.event_type === 'provider_first_response'
+        ).length,
+        1
+      );
+      assert.equal(baseline.rates.length, 2);
+      assert.ok(baseline.rates.every((r) => r.message_count === 1));
+      const confirm = async (freshStatus: number) => {
+        const replay = await call('provider', path, request);
+        assert.equal(replay.status, 201);
+        const replayed = (await replay.json()) as MessageSendResponse;
+        assert.equal(replayed.created, false);
+        assert.deepEqual(replayed.message, first.message);
+        assert.equal(
+          (await call('provider', path, input())).status,
+          freshStatus
+        );
+        assert.equal(
+          (await call('provider', path, { ...request, body: 'Changed' }))
+            .status,
+          409
+        );
+        assert.deepEqual(await effects(), baseline);
+        const history = (await (
+          await call('provider', path)
+        ).json()) as MessageListResponse;
+        assert.equal(history.can_send, false);
+        assert.equal(history.items[0]!.id, first.message.id);
+      };
+      for (const state of ['CLOSED', 'RESTRICTED']) {
+        await client`UPDATE interactions SET state=${state},closed_at=CASE WHEN ${state}='CLOSED' THEN statement_timestamp() ELSE NULL END WHERE id=${f.interactionId}`;
+        await confirm(state === 'CLOSED' ? 409 : 403);
+      }
+      await client`UPDATE interactions SET state='OPEN',closed_at=NULL WHERE id=${f.interactionId}`;
+      await client`INSERT INTO block_relationships(blocker_user_id,blocked_user_id) VALUES (${f.seekerId},${f.providerUserId})`;
+      await confirm(403);
+      await client`UPDATE block_relationships SET revoked_at=statement_timestamp()`;
+      await client`UPDATE provider_profiles SET state='RESTRICTED' WHERE user_id=${f.providerUserId}`;
+      await confirm(403);
+    })
 );

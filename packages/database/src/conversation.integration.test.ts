@@ -43,6 +43,31 @@ const input = (body = 'Synthetic message') => ({
   body
 });
 
+async function messageEffects(client: Client) {
+  return {
+    messages: (await client`SELECT count(*)::int AS n FROM messages`)[0]!.n,
+    receipts:
+      await client`SELECT * FROM message_receipts ORDER BY message_id,recipient_user_id`,
+    events: await client`SELECT * FROM communication_outbox ORDER BY id`,
+    rates:
+      await client`SELECT * FROM message_rate_limits ORDER BY sender_user_id,scope`
+  };
+}
+async function assertReplay(
+  client: Client,
+  store: ConversationStore,
+  userId: string,
+  conversationId: string,
+  request: ReturnType<typeof input>,
+  expected: Awaited<ReturnType<ConversationStore['send']>>['message']
+) {
+  const before = await messageEffects(client);
+  const replay = await store.send(userId, conversationId, request);
+  assert.equal(replay.created, false);
+  assert.deepEqual(replay.message, expected);
+  assert.deepEqual(await messageEffects(client), before);
+}
+
 void integration(
   'messages persist text, converge concurrent retries and conflict across body/Conversation',
   () =>
@@ -56,7 +81,15 @@ void integration(
       assert.equal(new Set(sends.map((r) => r.message.id)).size, 1);
       assert.equal(sends.filter((r) => r.created).length, 1);
       assert.equal(sends[0]!.message.body, request.body);
-      assert.equal((await store.send(f.seekerId, f.conversationId.toUpperCase(), {...request,client_message_id:request.client_message_id.toUpperCase()})).created,false);
+      assert.equal(
+        (
+          await store.send(f.seekerId, f.conversationId.toUpperCase(), {
+            ...request,
+            client_message_id: request.client_message_id.toUpperCase()
+          })
+        ).created,
+        false
+      );
       assert.equal(sends[0]!.message.receipts[0]!.read_at, null);
       await assert.rejects(
         store.send(f.seekerId, f.conversationId, {
@@ -203,7 +236,8 @@ void integration(
   'current authority denies unrelated/historical provider read/send without erasing seeker history',
   () =>
     scenario(async (client, f, store) => {
-      await store.send(f.seekerId, f.conversationId, input());
+      const providerRequest = input('Persisted current provider reply');
+      await store.send(f.providerUserId, f.conversationId, providerRequest);
       for (const id of [f.otherUserId, randomUUID()]) {
         await assert.rejects(store.messages(id, f.conversationId), {
           code: 'RESOURCE_SCOPE_DENIED'
@@ -225,6 +259,10 @@ void integration(
           await client`SELECT count(*)::int AS n FROM interaction_participants WHERE user_id=${f.providerUserId}`
         )[0]!.n,
         1
+      );
+      await assert.rejects(
+        store.send(f.providerUserId, f.conversationId, providerRequest),
+        { code: 'RESOURCE_SCOPE_DENIED' }
       );
       await assert.rejects(store.messages(f.providerUserId, f.conversationId), {
         code: 'RESOURCE_SCOPE_DENIED'
@@ -250,11 +288,18 @@ void integration(
 );
 
 void integration(
-  'sender eligibility is current across account, replaced phone, profile, account and verified claim',
+  'persisted replay survives lost account, phone and provider eligibility while fresh sends are denied',
   () =>
     scenario(async (client, f, store) => {
       const pending = input();
-      await store.send(f.seekerId, f.conversationId, pending);
+      const seekerMessage = (
+        await store.send(f.seekerId, f.conversationId, pending)
+      ).message;
+      const providerRequest = input('Provider eligibility replay');
+      const providerMessage = (
+        await store.send(f.providerUserId, f.conversationId, providerRequest)
+      ).message;
+      const baseline = await messageEffects(client);
       for (const state of [
         'PENDING_PHONE',
         'LIMITED',
@@ -264,22 +309,54 @@ void integration(
         'DELETED'
       ]) {
         await client`UPDATE users SET account_state=${state} WHERE id=${f.seekerId}`;
+        await assertReplay(
+          client,
+          store,
+          f.seekerId,
+          f.conversationId,
+          pending,
+          seekerMessage
+        );
         await assert.rejects(
-          store.send(f.seekerId, f.conversationId, pending),
+          store.send(f.seekerId, f.conversationId, input()),
           { code: 'CAPABILITY_RESTRICTED' }
         );
       }
       await client`UPDATE users SET account_state='ACTIVE' WHERE id=${f.seekerId}`;
       await client`UPDATE phone_contacts SET replaced_at=statement_timestamp() WHERE user_id=${f.seekerId}`;
+      await assertReplay(
+        client,
+        store,
+        f.seekerId,
+        f.conversationId,
+        pending,
+        seekerMessage
+      );
       await assert.rejects(store.send(f.seekerId, f.conversationId, input()), {
         code: 'CAPABILITY_RESTRICTED'
       });
       await client`UPDATE phone_contacts SET replaced_at=NULL,verified_at=NULL WHERE user_id=${f.seekerId}`;
+      await assertReplay(
+        client,
+        store,
+        f.seekerId,
+        f.conversationId,
+        pending,
+        seekerMessage
+      );
       await assert.rejects(store.send(f.seekerId, f.conversationId, input()), {
         code: 'CAPABILITY_RESTRICTED'
       });
       for (const table of ['provider_profiles', 'provider_accounts']) {
         await client.unsafe(`UPDATE ${table} SET state='RESTRICTED'`);
+        await assertReplay(
+          client,
+          store,
+          f.providerUserId,
+          f.conversationId,
+          providerRequest,
+          providerMessage
+        );
         assert.equal(
           (await store.messages(f.providerUserId, f.conversationId)).can_send,
           false
@@ -290,6 +367,14 @@ void integration(
         );
         await client.unsafe(`UPDATE ${table} SET state='ACTIVE'`);
       }
+      await assertReplay(
+        client,
+        new ConversationStore(client, false),
+        f.providerUserId,
+        f.conversationId,
+        providerRequest,
+        providerMessage
+      );
       await assert.rejects(
         new ConversationStore(client, false).send(
           f.providerUserId,
@@ -299,43 +384,87 @@ void integration(
         { code: 'CAPABILITY_RESTRICTED' }
       );
       await client`UPDATE verification_claims SET revoked_at=statement_timestamp()`;
+      await assertReplay(
+        client,
+        store,
+        f.providerUserId,
+        f.conversationId,
+        providerRequest,
+        providerMessage
+      );
       await assert.rejects(
         store.send(f.providerUserId, f.conversationId, input()),
         { code: 'CAPABILITY_RESTRICTED' }
       );
+      assert.deepEqual(await messageEffects(client), baseline);
     })
 );
 
 void integration(
-  'CLOSED and RESTRICTED retain history and receipts while denying fresh/retried sends',
+  'CLOSED and RESTRICTED replay one provider Message and first response while denying fresh sends',
   () =>
     scenario(async (client, f, store) => {
-      const request = input();
-      const first = await store.send(f.seekerId, f.conversationId, request);
+      const request = input('Provider first response before restriction');
+      const first = await store.send(
+        f.providerUserId,
+        f.conversationId,
+        request
+      );
+      const baseline = await messageEffects(client);
+      assert.equal(baseline.messages, 1);
+      assert.equal(baseline.receipts.length, 1);
+      assert.equal(
+        baseline.events.filter((e) => e.event_type === 'message_sent').length,
+        1
+      );
+      assert.equal(
+        baseline.events.filter(
+          (e) => e.event_type === 'provider_first_response'
+        ).length,
+        1
+      );
+      assert.equal(baseline.rates.length, 2);
+      assert.ok(baseline.rates.every((r) => r.message_count === 1));
       for (const state of ['CLOSED', 'RESTRICTED']) {
         await client`UPDATE interactions SET state=${state},closed_at=CASE WHEN ${state}='CLOSED' THEN statement_timestamp() ELSE NULL END WHERE id=${f.interactionId}`;
+        await assertReplay(
+          client,
+          store,
+          f.providerUserId,
+          f.conversationId,
+          request,
+          (await store.messages(f.providerUserId, f.conversationId)).items[0]!
+        );
+        await assert.rejects(
+          store.send(f.providerUserId, f.conversationId, {
+            ...request,
+            body: 'Changed request'
+          }),
+          {
+            code: 'IDEMPOTENCY_KEY_REUSED'
+          }
+        );
         for (const actor of [f.seekerId, f.providerUserId]) {
           const history = await store.messages(actor, f.conversationId);
           assert.equal(history.items[0]!.id, first.message.id);
           assert.equal(history.can_send, false);
-          await assert.rejects(store.send(actor, f.conversationId, request), {
+          await assert.rejects(store.send(actor, f.conversationId, input()), {
             code:
               state === 'CLOSED'
                 ? 'CONVERSATION_CLOSED'
                 : 'CAPABILITY_RESTRICTED'
           });
         }
-        const read = await store.acknowledge(
-          f.providerUserId,
-          f.conversationId,
-          { message_ids: [first.message.id], state: 'READ' }
-        );
+        const beforeReceipt = await messageEffects(client);
+        assert.equal(beforeReceipt.messages, baseline.messages);
+        assert.deepEqual(beforeReceipt.events, baseline.events);
+        assert.deepEqual(beforeReceipt.rates, baseline.rates);
+        const read = await store.acknowledge(f.seekerId, f.conversationId, {
+          message_ids: [first.message.id],
+          state: 'READ'
+        });
         assert.ok(read.receipts[0]!.read_at);
       }
-      assert.equal(
-        (await client`SELECT count(*)::int AS n FROM messages`)[0]!.n,
-        1
-      );
     })
 );
 
@@ -344,12 +473,13 @@ void integration(
   () =>
     scenario(async (client, f, store) => {
       const request = input();
-      await store.send(f.seekerId, f.conversationId, request);
+      const persisted = await store.send(f.seekerId, f.conversationId, request);
       for (const direction of [
         'provider-account',
         'provider-user',
         'seeker-user'
       ]) {
+        const beforeBlock = await messageEffects(client);
         const rows = await client<
           { id: string }[]
         >`INSERT INTO block_relationships(blocker_user_id,blocked_user_id,blocked_provider_account_id) VALUES (${direction === 'seeker-user' ? f.providerUserId : f.seekerId},${direction === 'provider-user' ? f.providerUserId : direction === 'seeker-user' ? f.seekerId : null},${direction === 'provider-account' ? (await client`SELECT provider_account_id FROM interactions WHERE id=${f.interactionId}`)[0]!.provider_account_id : null}) RETURNING id`;
@@ -362,10 +492,15 @@ void integration(
             false
           );
         }
-        await assert.rejects(
-          store.send(f.seekerId, f.conversationId, request),
-          { code: 'CAPABILITY_RESTRICTED' }
+        await assertReplay(
+          client,
+          store,
+          f.seekerId,
+          f.conversationId,
+          request,
+          persisted.message
         );
+        assert.deepEqual(await messageEffects(client), beforeBlock);
         assert.equal(
           (await store.messages(f.seekerId, f.conversationId)).items.length >=
             1,

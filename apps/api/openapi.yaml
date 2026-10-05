@@ -93,7 +93,7 @@ paths:
         '404': { description: Conversation is unavailable }
     post:
       security: [{ bearerAuth: [] }]
-      description: Persist plain text in an OPEN Conversation. Current ACTIVE/phone/provider eligibility and bilateral blocks are rechecked even on replay. Unique authenticated sender/client_message_id dedupes; changed body or Conversation conflicts. Atomic PostgreSQL fixed windows default to 20 per Conversation and 60 globally per sender per 60 seconds; replay consumes no unit. No external notification delivery is performed.
+      description: Current Conversation access is always required, including for replay; lost authority returns safe 404. An identical persisted authenticated sender/client_message_id request returns its existing safe Message with created=false even after state, block or send-eligibility changes; changed body or canonical Conversation conflicts. Only a genuinely new Message requires OPEN, current ACTIVE/phone/provider eligibility and no bilateral block. Atomic PostgreSQL fixed windows default to 20 per Conversation and 60 globally per sender per 60 seconds; persisted replay creates no message, receipt, event or rate unit. No external notification delivery is performed.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MessageSendRequest' } } } }
       responses:
         '201': { description: Persisted message (created distinguishes creation and replay), content: { application/json: { schema: { $ref: '#/components/schemas/MessageSendResponse' } } } }

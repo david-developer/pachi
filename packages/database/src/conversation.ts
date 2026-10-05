@@ -170,9 +170,7 @@ export class ConversationStore {
     return this.client.begin(async (tx) => {
       // Serialize sender retries and both rate scopes across connections/processes.
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`message-sender:${userId}`},0))`;
-      // Shared lock prevents a concurrent block insert/revoke racing this authorization.
-      // Future block commands can replace this with a finer shared locking protocol.
-      await tx`LOCK TABLE block_relationships IN SHARE MODE`;
+      // Current authority is required even to confirm a previously committed send.
       const context = await requireConversationAccess(
         tx,
         userId,
@@ -181,16 +179,6 @@ export class ConversationStore {
         true
       );
       const canonicalConversationId = context.conversation_id;
-      if (context.state === 'CLOSED')
-        throw new IdentityError(
-          'CONVERSATION_CLOSED',
-          'Conversation is not open'
-        );
-      if (!(await this.sendEligible(tx, userId, context)))
-        throw new IdentityError(
-          'CAPABILITY_RESTRICTED',
-          'Messaging is not available'
-        );
       const previous = await tx<
         MessageRow[]
       >`SELECT *,sequence::text FROM messages WHERE sender_user_id=${userId} AND client_message_id=${input.client_message_id}`;
@@ -208,6 +196,21 @@ export class ConversationStore {
           created: false
         };
       }
+      // Only a genuinely new mutation requires current send capability.
+      // The Interaction row stays locked; this shared table lock prevents a
+      // concurrent block insert/revoke racing the eligibility check and commit.
+      // Future block commands can replace it with a finer shared locking protocol.
+      await tx`LOCK TABLE block_relationships IN SHARE MODE`;
+      if (context.state === 'CLOSED')
+        throw new IdentityError(
+          'CONVERSATION_CLOSED',
+          'Conversation is not open'
+        );
+      if (!(await this.sendEligible(tx, userId, context)))
+        throw new IdentityError(
+          'CAPABILITY_RESTRICTED',
+          'Messaging is not available'
+        );
       const windows = await tx<
         { window_start: string }[]
       >`SELECT to_timestamp(floor(extract(epoch FROM statement_timestamp())/${this.limits.windowSeconds})*${this.limits.windowSeconds})::text AS window_start`;
