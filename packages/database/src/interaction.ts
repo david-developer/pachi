@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
 import { readPublicListingVisibility } from './listing-visibility.js';
+import { requireConversationAccess, conversationListingProjection } from './conversation-access.js';
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 type InteractionRow = { id: string; listing_id: string; provider_account_id: string; seeker_user_id: string; state: 'OPEN' | 'CLOSED' | 'RESTRICTED'; opened_at: Date; conversation_id: string };
@@ -69,16 +70,9 @@ export class InteractionStore {
   public async read(userId: string, interactionId: string): Promise<InteractionRead> {
     if (!uuid(userId) || !uuid(interactionId)) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Interaction is unavailable');
     return this.client.begin(async (tx) => {
-      const rows = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id JOIN provider_accounts pa ON pa.id=i.provider_account_id JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE i.id=${interactionId} AND (i.seeker_user_id=${userId} OR pp.user_id=${userId})`;
-      const row = rows[0];
-      if (!row) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Interaction is unavailable');
-      const visibility = await readPublicListingVisibility(tx, row.listing_id, {allowSyntheticVerification:this.allowSyntheticVerification});
-      let title: string | null = null;
-      if (visibility.visible) {
-        const titles = await tx<{title:string}[]>`SELECT r.title FROM listings l JOIN listing_revisions r ON r.id=l.approved_revision_id WHERE l.id=${row.listing_id} AND l.publication_status='PUBLISHED' AND l.moderation_status='APPROVED' AND l.approved_revision_id=l.current_revision_id`;
-        title = titles[0]?.title ?? null;
-      }
-      return {...map(row,false),title,listing_visible:visibility.visible && title !== null};
+      const row = await requireConversationAccess(tx,userId,interactionId,'interaction');
+      const projection = await conversationListingProjection(tx,row.listing_id,this.allowSyntheticVerification);
+      return {...map(row,false),...projection};
     });
   }
 }

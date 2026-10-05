@@ -1,9 +1,13 @@
 import { z } from 'zod';
+import { MESSAGE_LIMIT_DEFAULTS } from '@pachi/database';
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.string().url(),
+  MESSAGE_CONVERSATION_LIMIT: z.coerce.number().int().positive().default(MESSAGE_LIMIT_DEFAULTS.conversation),
+  MESSAGE_GLOBAL_LIMIT: z.coerce.number().int().positive().default(MESSAGE_LIMIT_DEFAULTS.global),
+  MESSAGE_WINDOW_SECONDS: z.coerce.number().int().positive().default(MESSAGE_LIMIT_DEFAULTS.windowSeconds),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   COGNITO_ISSUER: z.preprocess((value) => value === '' ? undefined : value, z.string().url().optional()),
   COGNITO_JWKS_URI: z.preprocess((value) => value === '' ? undefined : value, z.string().url().optional()),

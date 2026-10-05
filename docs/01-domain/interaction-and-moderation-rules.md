@@ -19,7 +19,7 @@ Text messages support send, durable server acknowledgement, pagination, delivery
 
 Initial text limit 4,000 Unicode characters; enforce server length, abuse/rate limits and safe rendering. URLs remain untrusted. Blocked/restricted/suspended actors cannot send; do not allow arbitrary HTML/script rendering. Message attachments and voice are early releases behind media/abuse gates, not replacements for core text.
 
-Offline clients may retain an unsent draft or clearly marked pending attempt; they must not show sent/delivered until the API confirms persistence. A retry rechecks current blocks/state, not the permissions at composition time. Do not cache private messages in the public saved-listing offline store.
+Offline clients may retain an unsent draft or clearly marked pending attempt; they must not show sent/delivered until the API confirms persistence. Current Conversation access is always required. An identical sender/client-message retry of an already persisted Message confirms that result without new send effects, even after state, block or send-eligibility changes. A retry that has not persisted rechecks current blocks/state and send eligibility, not the permissions at composition time. Changed body or Conversation conflicts; loss of current Conversation authority denies replay. Do not cache private messages in the public saved-listing offline store.
 
 ## Viewing request and scheduling
 

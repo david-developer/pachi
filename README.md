@@ -16,6 +16,41 @@ Start with [docs/README.md](docs/README.md). Replace the corresponding files in 
 
 See [reconciliation record](docs/archive/documentation-migration-record.md) for deliberate changes, resolved questions and remaining launch evidence. Historical source material is archived and is not a second implementation specification.
 
+## Conversation messaging (bounded G2 implementation)
+
+`/conversations` lists the authenticated seeker's or current individual provider's
+Conversations. Listing contact still opens/reuses its Interaction. The Conversation
+page supports plain text, manual refresh, older-message pagination and persisted
+recipient delivery/read acknowledgement. Private content is not cached offline;
+URLs remain text. This is a functional development interface, not approved final design.
+
+Sending requires current ACTIVE/phone eligibility and an OPEN Interaction; providers
+also need current profile/account/identity eligibility. Historical participant rows
+never grant access; organization messaging fails closed pending assignments.
+CLOSED/RESTRICTED and blocked contexts retain authorized history. Durable block
+enforcement substrate exists; block-management UI/API and reporting remain deferred.
+
+Messages have a server sequence and sender/client-message retry identity. Receipt
+acknowledgement is per recipient: READ implies DELIVERED, and both use server times.
+The shared PostgreSQL fixed-window limiter defaults to 20 sends per Conversation
+and 60 globally per sender per 60 seconds. API configuration can override
+`MESSAGE_CONVERSATION_LIMIT`, `MESSAGE_GLOBAL_LIMIT`, `MESSAGE_WINDOW_SECONDS`;
+all API processes must use the same configuration. Persisted retries consume no
+additional unit. Current Conversation access is always required; an identical
+persisted retry confirms its existing Message even after state, block or sender
+eligibility changes. Current send capability applies only to a genuinely new
+Message. A table SHARE lock serializes new sends against block mutations; it permits
+concurrent sends and may need a finer locking protocol with later block management.
+
+Every new message commits one safe `message_sent` source event; the first provider
+reply commits one `provider_first_response` per Interaction. Outbox schema version 1
+records only approved structured metadata and response buckets, never message text.
+The 24-hour bucket includes exactly 24 hours. Analytics consumption/deduplication,
+measurement validation and recorded end-to-end G2 acceptance remain pending. No
+external notifications, attachments, voice, viewing, native calls or reviews are added.
+Real verification evidence intake retains E01 gates; synthetic tests do not prove
+real Cognito/user acceptance or complete G2.
+
 ## Local foundation
 
 Prerequisites: Node.js 24.21.0, pnpm 12.0.0, and Docker Compose. In a
