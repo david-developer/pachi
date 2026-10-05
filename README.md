@@ -663,7 +663,9 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   beside them in `.gitleaksignore`. No file/directory blanket exclusions.
 - [pnpm audit](https://pnpm.io/cli/audit) checks production AND development
   dependencies at severity `low` and above; registry errors also fail. There are
-  no advisory exceptions. Scoped overrides in `pnpm-workspace.yaml` fix upstream
+  exactly two temporary advisory exceptions, enforced by the policy checker:
+  `GHSA-86w9-cpqp-85rv` and `GHSA-vfj7-8cjw-p6xm`, due for review on
+  2026-10-16. Scoped overrides in `pnpm-workspace.yaml` fix upstream
   transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
   Metro passes filenames to the removed v1 API. Mobile exports exercise this
   compatibility; xcode's UUID v4 and query-string decoding retain their used APIs.
@@ -675,12 +677,27 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   shared DTO. This is structural consistency, not proof that arbitrary runtime
   JSON conforms: HTTP integration tests exercise the implemented runtime guards.
 
-Migration 0015 adds organization authorization tables and a current-member unique
-index. `OrganizationSettingsGuard` is exported by the real auth module and checks
-current account, verified phone, organization and membership on every request.
-Its isolated HTTP harness uses the same signed token before and after revocation.
-No organization product endpoint, invitation, ownership transfer or mutation API
-is exposed. Those future operations must add their own assignment/step-up,
-transactional final-owner and audit checks; this settings guard grants none of
-those permissions. Apply migrations to development only when that slice needs
-these tables; G1 validation uses the guarded test database.
+Migration 0015 provides the organization authorization foundation. Additive
+migration 0028 supports atomic organization onboarding, a stable organization
+ProviderAccount, private ordinary-role invitations and audited membership
+commands. `/organizations` is the functional web workspace. The API rechecks
+registered session, ACTIVE account, current verified phone and current membership
+authority; mutations use idempotency keys and expected versions. OWNER/ADMIN
+targets and grants are denied by these ordinary commands. A deferred database
+constraint protects the final active owner of onboarded organizations. Legacy
+foundation rows remain unavailable to these lifecycle APIs until onboarded;
+this migration does not fabricate owners or rewrite existing data.
+
+Invitations last exactly seven days and bind to the recipient's current verified
+phone contact and verification version. Only token digests are persisted. The
+private in-memory delivery adapter is injected by isolated tests; the default
+runtime has no delivery adapter and returns `DELIVERY_UNAVAILABLE` before creating
+an invitation. No token retrieval endpoint exists. Recipient commands consume a
+privately delivered token in the request body. External delivery remains deferred.
+
+Organization ACTIVE and ProviderAccount existence do not establish BUSINESS
+verification, publication or messaging eligibility. Ownership/admin delegation,
+MFA step-up, transfer/recovery and resource assignments remain deferred. Mobile
+organization screens and real-account acceptance are also deferred; G3 remains
+NOT RUN. Validation uses only guarded `localhost:5433/pachi_test`; development
+data and Cognito are preserved.

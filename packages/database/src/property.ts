@@ -9,7 +9,7 @@ export type ListingPurpose = typeof purposes[number];
 export type RelationshipType = typeof relationshipTypes[number];
 type OfferingTermsInput = { amountMinor?: number | null | undefined; pricingPeriod?: string | undefined; negotiable?: boolean | undefined; depositAmountMinor?: number | null | undefined; advanceMonths?: number | null | undefined; minimumLeaseMonths?: number | null | undefined; utilitiesIncluded?: boolean | null | undefined; serviceChargeAmountMinor?: number | null | undefined; weeklyAmountMinor?: number | null | undefined; minimumNights?: number | null | undefined; guestLimit?: number | null | undefined; checkInTime?: string | null | undefined; checkOutTime?: string | null | undefined; cleaningFeeMinor?: number | null | undefined; availableFrom?: string | null | undefined };
 
-type ProviderContext = { account_id: string; user_state: string; profile_state: string; verification_status: string };
+type ProviderContext = { account_id: string; user_state: string; profile_state: string; account_state: string; phone_current: boolean; verification_status: string };
 export type PropertyDraft = { id: string; version: number; propertyType: PropertyType; region: 'Southwest' | 'Littoral'; city: string; neighborhood: string; landmark: string | null; bedrooms: number | null; bathrooms: number | null; sizeSqm: string | null; furnishing: string | null; relationshipId: string; relationshipType: RelationshipType; authorizationStatus: 'DECLARED' };
 export type PropertySpecificationsUpdate = { expectedVersion: number; bedrooms?: number | null | undefined; bathrooms?: number | null | undefined; sizeSqm?: number | null | undefined; furnishing?: string | null | undefined };
 export type ListingDraft = { id: string; propertyId: string; providerAccountId: string; purpose: ListingPurpose; publicationStatus: 'DRAFT' | 'PENDING_REVIEW' | 'REJECTED'; moderationStatus: 'NOT_REVIEWED' | 'IN_REVIEW' | 'CHANGES_REQUIRED' | 'REJECTED'; moderationFeedback: string | null; revisionId: string; version: number; title: string | null; description: string | null; offeringId: string; offeringVersionId: string; currency: 'XAF'; amountMinor: number | null; pricingPeriod: 'MONTHLY' | 'TOTAL' | 'NIGHTLY'; negotiable: boolean; depositAmountMinor: number | null; advanceMonths: number | null; minimumLeaseMonths: number | null; utilitiesIncluded: boolean | null; serviceChargeAmountMinor: number | null; weeklyAmountMinor: number | null; minimumNights: number | null; guestLimit: number | null; checkInTime: string | null; checkOutTime: string | null; cleaningFeeMinor: number | null; availableFrom: string | null };
@@ -110,12 +110,14 @@ export class PropertyDraftStore {
 
   private async requireDraftProvider(userId: string): Promise<ProviderContext> {
     const provider = await this.provider(userId);
-    if (!provider || provider.user_state !== 'ACTIVE' || !['DRAFT', 'ACTIVE'].includes(provider.profile_state)) throw new IdentityError('PROVIDER_ELIGIBILITY_REQUIRED', 'Active phone-confirmed provider profile required');
+    if (!provider || provider.user_state !== 'ACTIVE' || !provider.phone_current || !['DRAFT', 'ACTIVE'].includes(provider.profile_state) || !['DRAFT', 'ACTIVE'].includes(provider.account_state)) throw new IdentityError('PROVIDER_ELIGIBILITY_REQUIRED', 'Active phone-confirmed provider profile required');
     return provider;
   }
 
   private async provider(userId: string): Promise<ProviderContext | null> {
-    const rows = await this.client<ProviderContext[]>`SELECT a.id AS account_id, u.account_state AS user_state, p.state AS profile_state, p.verification_status AS verification_status FROM provider_accounts a JOIN provider_profiles p ON p.id = a.provider_profile_id JOIN users u ON u.id = p.user_id WHERE p.user_id = ${userId}`;
+    const rows = await this.client<ProviderContext[]>`SELECT a.id AS account_id, u.account_state AS user_state, p.state AS profile_state, a.state AS account_state, p.verification_status AS verification_status,
+      EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id=u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) AS phone_current
+      FROM provider_accounts a JOIN provider_profiles p ON p.id = a.provider_profile_id JOIN users u ON u.id = p.user_id WHERE p.user_id = ${userId} AND a.kind='INDIVIDUAL'`;
     return rows[0] ?? null;
   }
 

@@ -1,4 +1,5 @@
-import { OrganizationAccessStore } from '@pachi/database';
+import { OrganizationAccessStore, OrganizationStore } from '@pachi/database';
+import { OrganizationController, OrganizationNoStoreGuard } from './organization.controller.js';
 import { OrganizationSettingsGuard } from './organization.guard.js';
 import { StaffStore } from '@pachi/database';
 import { StaffController, StaffAuthService } from './staff.controller.js';
@@ -49,7 +50,7 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
@@ -79,8 +80,10 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
   { provide: 'AUTH_SERVICE', useFactory: () => new AuthService(store, verifier) },
   { provide: AuthService, useExisting: 'AUTH_SERVICE' },
   AuthGuard,
+  OrganizationNoStoreGuard,
   OrganizationSettingsGuard,
   { provide: 'ORGANIZATION_ACCESS_STORE', useValue: new OrganizationAccessStore(client) },
+  { provide: 'ORGANIZATION_STORE', useValue: new OrganizationStore(client) },
   { provide: 'PHONE_VERIFICATION_SERVICE', useFactory: () => new PhoneVerificationService(phoneStore, smsProvider) },
   { provide: PhoneVerificationService, useExisting: 'PHONE_VERIFICATION_SERVICE' }
 ], exports: [AuthService, 'AUTH_SERVICE', 'ORGANIZATION_ACCESS_STORE', AuthGuard, OrganizationSettingsGuard] })

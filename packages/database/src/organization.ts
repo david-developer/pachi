@@ -1,7 +1,7 @@
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
 
-/** Foundation permission boundary. No organization business operation is exposed. */
+/** Legacy settings-access boundary; lifecycle commands belong to OrganizationStore. */
 export class OrganizationAccessStore {
   public constructor(private readonly client: postgres.Sql) {}
 
@@ -18,7 +18,7 @@ export class OrganizationAccessStore {
       WHERE m.user_id=${userId} AND m.organization_id=${organizationId}
         AND m.state='ACTIVE' AND m.role IN ('OWNER','ADMIN')
         AND o.state='ACTIVE' AND u.account_state='ACTIVE'
-        AND EXISTS (SELECT 1 FROM phone_contacts p WHERE p.user_id=u.id AND p.verified_at IS NOT NULL)
+        AND EXISTS (SELECT 1 FROM phone_contacts p WHERE p.user_id=u.id AND p.verified_at IS NOT NULL AND p.replaced_at IS NULL)
     `;
     if (!rows.length) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Organization access denied');
   }

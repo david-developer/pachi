@@ -1,5 +1,5 @@
 import { runAnalyticsWorker } from './analytics-worker.js';
-import { AnalyticsStore, createDatabase, ListingMediaStore, ProviderVerificationStore } from '@pachi/database';
+import { AnalyticsStore, createDatabase, ListingMediaStore, OrganizationStore, ProviderVerificationStore } from '@pachi/database';
 import { createMediaWorkerFromEnvironment, runMediaWorker } from './media-worker.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -16,8 +16,10 @@ const analyticsTask = process.env.ANALYTICS_PSEUDONYM_SECRET
 if (!process.env.ANALYTICS_PSEUDONYM_SECRET) console.log(JSON.stringify({ event: 'analytics_worker_disabled', reason: 'PSEUDONYM_SECRET_NOT_CONFIGURED' }));
 const workerTask = runMediaWorker({ ...worker, signal: abort.signal });
 const verificationStore = new ProviderVerificationStore(client, process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
+const organizationStore = new OrganizationStore(client);
 const retentionTimer = setInterval(() => {
   void verificationStore.expireClaims().then(() => verificationStore.purgeExpiredEvidence()).catch(() => console.error(JSON.stringify({event:'verification_maintenance_failed'})));
+  void organizationStore.expireInvitations().catch(() => console.error(JSON.stringify({event:'organization_invitation_maintenance_failed'})));
 }, 60_000);
 
 const shutdown = async (signal: string) => {
