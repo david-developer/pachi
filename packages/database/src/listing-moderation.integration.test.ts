@@ -39,6 +39,8 @@ void integration('publishes the exact submitted revision once and is idempotent'
     assert.equal((await client`SELECT count(*)::int AS count FROM listing_revision_moderation_actions WHERE listing_id=${fixture.listingId}`)[0]?.count, 1);
     assert.equal((await client`SELECT count(*)::int AS count FROM listing_revision_moderation_outbox WHERE action_id=${published.action_id}`)[0]?.count, 1);
     assert.equal((await client`SELECT count(*)::int AS count FROM audit_events WHERE target_id=${fixture.listingId} AND action='LISTING_APPROVE_AND_PUBLISH'`)[0]?.count, 1);
+    const [source] = await client`SELECT safe_payload FROM listing_revision_moderation_outbox WHERE action_id=${published.action_id}`;
+    assert.deepEqual(source!.safe_payload.analytics, {version:1,environment:process.env.ANALYTICS_ENVIRONMENT ?? (process.env.NODE_ENV === 'test' ? 'test' : 'development'),classification:'TEST',region:'Littoral',purpose:'RENT',provider_types:['OWNER'],verification_claim:'PROVIDER_IDENTITY',verification_status:'VERIFIED'});
     const visibility = await readPublicListingVisibility(client, fixture.listingId);
     assert.deepEqual(visibility, { visible: false, reason: 'IDENTITY_NOT_CURRENT' });
   } finally {

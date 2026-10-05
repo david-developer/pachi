@@ -1,3 +1,4 @@
+import { snapshotAnalyticsContext } from './analytics-context.js';
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
 import { ListingSubmissionStore, type ListingReadiness } from './listing-submission.js';
@@ -227,7 +228,7 @@ export class ListingModerationStore {
         const eventType = input.command === 'REQUEST_CHANGES' ? 'LISTING_CHANGES_REQUESTED'
           : input.command === 'REJECT' ? 'LISTING_REJECTED' : 'LISTING_PUBLISHED';
         await tx`INSERT INTO listing_revision_moderation_outbox(action_id,event_type,safe_payload)
-          VALUES (${action.id},${eventType},${JSON.stringify({listing_id:listingId,submission_id:submitted.id,revision_id:submitted.listing_revision_id,command:input.command})}::jsonb)`;
+          VALUES (${action.id},${eventType},${JSON.stringify({listing_id:listingId,submission_id:submitted.id,revision_id:submitted.listing_revision_id,command:input.command,...(eventType === 'LISTING_PUBLISHED' ? {analytics:await snapshotAnalyticsContext(tx,listingId,false)} : {})})}::jsonb)`;
         await tx`INSERT INTO audit_events(actor_user_id,action,target_type,target_id,reason_code,request_id,safe_metadata)
           VALUES (${principal.row.user_id},${`LISTING_${input.command}`},'Listing',${listingId},${input.reasonCode},${input.requestId},
             ${JSON.stringify({submission_id:submitted.id,revision_id:submitted.listing_revision_id,offering_version_id:submitted.offering_version_id,

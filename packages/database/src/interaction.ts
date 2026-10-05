@@ -1,3 +1,4 @@
+import { snapshotAnalyticsContext } from './analytics-context.js';
 import { createHash } from 'node:crypto';
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
@@ -56,7 +57,7 @@ export class InteractionStore {
         if (!conversation) throw new IdentityError('CONVERSATION_CREATE_FAILED', 'Conversation could not be created');
         interaction = {...interaction, conversation_id:conversation.id};
         await tx`INSERT INTO interaction_participants(interaction_id,user_id,side) VALUES (${interaction.id},${userId},'SEEKER'),(${interaction.id},${listing.provider_user_id},'PROVIDER') ON CONFLICT DO NOTHING`;
-        await tx`INSERT INTO interaction_outbox(interaction_id,event_type,safe_payload) VALUES (${interaction.id},'interaction_created',${JSON.stringify({interaction_id:interaction.id,listing_id:listingId,seeker_user_id:userId,provider_account_id:listing.provider_account_id,channel:'MESSAGE'})}::jsonb)`;
+        await tx`INSERT INTO interaction_outbox(interaction_id,event_type,safe_payload) VALUES (${interaction.id},'interaction_created',${JSON.stringify({interaction_id:interaction.id,listing_id:listingId,seeker_user_id:userId,provider_account_id:listing.provider_account_id,channel:'MESSAGE',analytics:await snapshotAnalyticsContext(tx,listingId,this.allowSyntheticVerification)})}::jsonb)`;
       } else if (!interaction.conversation_id) throw new IdentityError('CONVERSATION_READ_FAILED', 'Conversation could not be read');
       const keyRows = await tx<{id:string}[]>`INSERT INTO interaction_idempotency(seeker_user_id,operation,idempotency_key,request_hash,interaction_id,conversation_id) VALUES (${userId},'CREATE_INQUIRY',${idempotencyKey},${requestHash},${interaction.id},${interaction.conversation_id}) ON CONFLICT (seeker_user_id,operation,idempotency_key) DO NOTHING RETURNING id`;
       if (!keyRows[0]) {
