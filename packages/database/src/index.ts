@@ -29,6 +29,8 @@ export * from './staff-policy.js';
 export * from './staff.js';
 export * from './provider-verification.js';
 export { OrganizationAccessStore } from './organization.js';
+export { OrganizationStore, LocalOrganizationInvitationSink, ORDINARY_ORGANIZATION_ROLES } from './organization-lifecycle.js';
+export type { OrganizationActor, OrganizationSummary, OrganizationMember, OrganizationInvitation, OrganizationInvitationDelivery, OrganizationRole, OrdinaryOrganizationRole } from './organization-lifecycle.js';
 export { ConversationStore, MESSAGE_LIMIT_DEFAULTS, responseTimeBucket, RESPONSE_BUCKET_VERSION } from './conversation.js';
 export type { SafeMessage, MessageLimits } from './conversation.js';
 

@@ -2,8 +2,193 @@ openapi: 3.1.0
 info:
   title: Pachi API
   version: 0.1.0
-  description: Identity foundation and private individual-provider property/listing draft operations. Listings remain private until an eligible revision is submitted for review; approval and publication are separate operations.
+  description: Identity foundation, private individual-provider marketplace operations, and bounded organization onboarding/ordinary membership governance. Organization activation remains separate from BUSINESS verification and publication eligibility.
 paths:
+  /v1/account/organizations:
+    get:
+      security: [{"bearerAuth":[]}]
+      description: "Organizations for the current active phone-confirmed member. Historical memberships confer no access."
+      parameters: [{"name":"cursor","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","minimum":1,"maximum":50,"default":20}}]
+      responses:
+        '200': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationListResponse"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Atomic organization, initial active OWNER and stable organization ProviderAccount. ACTIVE is separate from BUSINESS verification and does not permit publication. OTHER_APPROVED_PROVIDER and later OWNER/ADMIN grants remain unavailable."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationCreateRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationSummary"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    get:
+      security: [{"bearerAuth":[]}]
+      description: "Safe organization summary under current active membership. Legal name and business evidence are omitted; public phone appears only with explicit opt-in."
+      responses:
+        '200': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationSummary"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/members:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    get:
+      security: [{"bearerAuth":[]}]
+      description: "Ordinary governance member list under current OWNER/ADMIN scope."
+      parameters: [{"name":"cursor","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","minimum":1,"maximum":50,"default":20}}]
+      responses:
+        '200': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMemberListResponse"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/invitations:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    get:
+      security: [{"bearerAuth":[]}]
+      description: "OWNER/ADMIN invitation history; excludes invitation secret, digest and recipient contact."
+      parameters: [{"name":"cursor","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","minimum":1,"maximum":50,"default":20}}]
+      responses:
+        '200': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitationListResponse"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Invite LISTING_MANAGER, AGENT or ANALYST only. expected_version is the organization version. Token is digest-only and valid seven days, bound to the current authoritative verified recipient phone. Default runtime private delivery unavailable; isolated tests inject a private sink."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitationCreateRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitation"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+        '503': {"description":"Private delivery adapter unavailable; no invitation committed"}
+  /v1/account/organization-invitations:
+    get:
+      security: [{"bearerAuth":[]}]
+      description: "Current authenticated recipient invitation episodes under matching non-replaced verified contact. can_respond is false after expiry or a terminal decision. Tokens are never returned."
+      parameters: [{"name":"cursor","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","minimum":1,"maximum":50,"default":20}}]
+      responses:
+        '200': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitationListResponse"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organization-invitations/{invitationId}/accept:
+    parameters: [{"name":"invitationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "One-time recipient-bound accept. expected_version is invitation version. Exact committed retry requires unchanged request identity and current eligibility. Token belongs only in body, never URL."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitationRespondRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitation"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organization-invitations/{invitationId}/decline:
+    parameters: [{"name":"invitationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "One-time recipient-bound decline. expected_version is invitation version. Exact committed retry requires unchanged request identity and current eligibility. Token belongs only in body, never URL."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitationRespondRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitation"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/invitations/{invitationId}/revoke:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"invitationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "OWNER/ADMIN revokes a pending ordinary invitation at expected invitation version."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationVersionRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationInvitation"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/members/{membershipId}/change-role:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"membershipId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Named ordinary-member change-role command at expected membership version. Every call rereads session/account/phone/organization/member authority. OWNER/ADMIN targets and escalations are denied and audited; final active OWNER is preserved."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMemberRoleRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMember"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/members/{membershipId}/suspend:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"membershipId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Named ordinary-member suspend command at expected membership version. Every call rereads session/account/phone/organization/member authority. OWNER/ADMIN targets and escalations are denied and audited; final active OWNER is preserved."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationVersionRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMember"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/members/{membershipId}/reactivate:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"membershipId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Named ordinary-member reactivate command at expected membership version. Every call rereads session/account/phone/organization/member authority. OWNER/ADMIN targets and escalations are denied and audited; final active OWNER is preserved."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationVersionRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMember"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
+  /v1/account/organizations/{organizationId}/members/{membershipId}/revoke:
+    parameters: [{"name":"organizationId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"membershipId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}]
+    post:
+      security: [{"bearerAuth":[]}]
+      description: "Named ordinary-member revoke command at expected membership version. Every call rereads session/account/phone/organization/member authority. OWNER/ADMIN targets and escalations are denied and audited; final active OWNER is preserved."
+      parameters: [{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationVersionRequest"}}}}
+      responses:
+        '201': {"description":"Safe current-authority projection; never invitation tokens, digests or private contacts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrganizationMember"}}}}
+        '400': {"description":"Invalid input, unknown fields or pagination"}
+        '401': {"description":"Current registered authentication required"}
+        '403': {"description":"Participation unavailable or privileged governance deferred"}
+        '404': {"description":"Resource unavailable without existence or recipient disclosure"}
+        '409': {"description":"Stale version, changed retry payload or unavailable invitation"}
   /v1/health/live:
     get:
       security: []
@@ -540,6 +725,108 @@ components:
     staffBearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Separate staff issuer/client access token with pachi/staff scope }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
+    OrganizationSummary:
+      type: object
+      additionalProperties: false
+      required: ["id","public_name","organization_type","state","version","provider_account_id","business_verification","publication_eligible","public_contact","membership","created_at"]
+      properties:
+        id: {"type":"string","format":"uuid"}
+        public_name: {"type":"string"}
+        organization_type: {"type":"string","enum":["REAL_ESTATE_AGENCY","PROPERTY_MANAGEMENT_COMPANY","CORPORATE_PROPERTY_OWNER","OTHER_APPROVED_PROVIDER"]}
+        state: {"type":"string","enum":["DRAFT","ACTIVE","RESTRICTED","SUSPENDED","CLOSED"]}
+        version: {"type":"integer","minimum":1}
+        provider_account_id: {"type":"string","format":"uuid"}
+        business_verification: {"type":"string","const":"NOT_VERIFIED"}
+        publication_eligible: {"type":"boolean","const":false}
+        public_contact: {"type":"object","additionalProperties":false,"required":["phone"],"properties":{"phone":{"type":["string","null"]}}}
+        membership: {"type":"object","additionalProperties":false,"required":["id","role","state","version"],"properties":{"id":{"type":"string","format":"uuid"},"role":{"type":"string","enum":["OWNER","ADMIN","LISTING_MANAGER","AGENT","ANALYST"]},"state":{"type":"string","enum":["INVITED","ACTIVE","SUSPENDED","REVOKED","DECLINED","EXPIRED"]},"version":{"type":"integer","minimum":1}}}
+        created_at: {"type":"string","format":"date-time"}
+    OrganizationMember:
+      type: object
+      additionalProperties: false
+      required: ["id","organization_id","user_id","role","state","version","activated_at","revoked_at"]
+      properties:
+        id: {"type":"string","format":"uuid"}
+        organization_id: {"type":"string","format":"uuid"}
+        user_id: {"type":"string","format":"uuid"}
+        role: {"type":"string","enum":["OWNER","ADMIN","LISTING_MANAGER","AGENT","ANALYST"]}
+        state: {"type":"string","enum":["INVITED","ACTIVE","SUSPENDED","REVOKED","DECLINED","EXPIRED"]}
+        version: {"type":"integer","minimum":1}
+        activated_at: {"type":["string","null"],"format":"date-time"}
+        revoked_at: {"type":["string","null"],"format":"date-time"}
+    OrganizationInvitation:
+      type: object
+      additionalProperties: false
+      required: ["id","organization_id","organization_public_name","role","state","version","expires_at","created_at","membership_id","can_respond"]
+      properties:
+        id: {"type":"string","format":"uuid"}
+        organization_id: {"type":"string","format":"uuid"}
+        organization_public_name: {"type":"string"}
+        role: {"type":"string","enum":["LISTING_MANAGER","AGENT","ANALYST"]}
+        state: {"type":"string","enum":["INVITED","ACTIVE","DECLINED","REVOKED","EXPIRED"]}
+        version: {"type":"integer","minimum":1}
+        expires_at: {"type":"string","format":"date-time"}
+        created_at: {"type":"string","format":"date-time"}
+        membership_id: {"type":"string","format":"uuid"}
+        can_respond: {"type":"boolean"}
+    OrganizationListResponse:
+      type: object
+      additionalProperties: false
+      required: ["organizations","next_cursor"]
+      properties:
+        organizations: {"type":"array","items":{"$ref":"#/components/schemas/OrganizationSummary"}}
+        next_cursor: {"type":["string","null"]}
+    OrganizationMemberListResponse:
+      type: object
+      additionalProperties: false
+      required: ["members","next_cursor"]
+      properties:
+        members: {"type":"array","items":{"$ref":"#/components/schemas/OrganizationMember"}}
+        next_cursor: {"type":["string","null"]}
+    OrganizationInvitationListResponse:
+      type: object
+      additionalProperties: false
+      required: ["invitations","next_cursor"]
+      properties:
+        invitations: {"type":"array","items":{"$ref":"#/components/schemas/OrganizationInvitation"}}
+        next_cursor: {"type":["string","null"]}
+    OrganizationCreateRequest:
+      type: object
+      additionalProperties: false
+      required: ["legal_name","public_name","organization_type","public_phone_opt_in"]
+      properties:
+        legal_name: {"type":"string","description":"Trimmed legal name contains 2 to 160 characters; omitted from response projections"}
+        public_name: {"type":"string","description":"Trimmed public name contains 2 to 120 characters"}
+        organization_type: {"type":"string","enum":["REAL_ESTATE_AGENCY","PROPERTY_MANAGEMENT_COMPANY","CORPORATE_PROPERTY_OWNER"]}
+        public_phone_opt_in: {"type":"boolean"}
+    OrganizationInvitationCreateRequest:
+      type: object
+      additionalProperties: false
+      required: ["recipient_phone","role","expected_version"]
+      properties:
+        recipient_phone: {"type":"string","pattern":"^\\+[1-9][0-9]{7,14}$"}
+        role: {"type":"string","enum":["LISTING_MANAGER","AGENT","ANALYST"]}
+        expected_version: {"type":"integer","minimum":1}
+    OrganizationInvitationRespondRequest:
+      type: object
+      additionalProperties: false
+      required: ["token","expected_version"]
+      properties:
+        token: {"type":"string","maxLength":128,"writeOnly":true}
+        expected_version: {"type":"integer","minimum":1}
+    OrganizationVersionRequest:
+      type: object
+      additionalProperties: false
+      required: ["expected_version"]
+      properties:
+        expected_version: {"type":"integer","minimum":1}
+    OrganizationMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required: ["role","expected_version"]
+      properties:
+        role: {"type":"string","enum":["LISTING_MANAGER","AGENT","ANALYST"]}
+        expected_version: {"type":"integer","minimum":1}
     MessageReceipt:
       type: object
       required: [recipient_user_id, delivered_at, read_at]

@@ -3,15 +3,31 @@ import type { NextFunction, Request, Response } from 'express';
 
 const sensitiveKey = /(authorization|cookie|password|secret|token|api[_-]?key|database[_-]?url|evidence|message)/i;
 const requestIdPattern = /^[A-Za-z0-9._:-]{1,100}$/;
+const organizationRequestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isOrganizationRequestPath(path: string): boolean {
+  return /^\/(?:v1\/)?account\/(?:organizations|organization-invitations)(?:\/|$)/i.test(path);
+}
+
+/** Reuse the server-established correlation identity; never arbitrary header text. */
+export function organizationRequestId(request: Request): string {
+  const current = request.res?.locals.requestId as unknown;
+  const id = typeof current === 'string' && organizationRequestIdPattern.test(current) ? current : randomUUID();
+  if (request.res) { request.res.locals.requestId = id; request.res.setHeader('x-request-id', id); }
+  return id;
+}
 
 export function requestIdMiddleware(request: Request, response: Response, next: NextFunction): void {
   const incoming = request.header('x-request-id');
-  const requestId = incoming && requestIdPattern.test(incoming) ? incoming : randomUUID();
+  const organizationRequest = isOrganizationRequestPath(request.path);
+  const requestId = incoming && (organizationRequest ? organizationRequestIdPattern : requestIdPattern).test(incoming) ? incoming : randomUUID();
+  if (organizationRequest) response.setHeader('Cache-Control', 'no-store');
   response.setHeader('x-request-id', requestId);
   response.locals.requestId = requestId;
   const startedAt = Date.now();
   response.on('finish', () => {
-    console.log(JSON.stringify({ event: 'http_request', request_id: requestId, method: request.method, path: request.path, status: response.statusCode, duration_ms: Date.now() - startedAt }));
+    const path = organizationRequest ? (typeof request.route?.path === 'string' ? request.route.path : '/v1/account/organizations/*') : request.path;
+    console.log(JSON.stringify({ event: 'http_request', request_id: requestId, method: request.method, path, status: response.statusCode, duration_ms: Date.now() - startedAt }));
   });
   next();
 }

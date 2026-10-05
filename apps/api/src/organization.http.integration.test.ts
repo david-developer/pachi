@@ -23,8 +23,8 @@ void integration('real authentication/module guards recheck organization members
   const issuer = 'http://127.0.0.1/organization-test';
   Object.assign(process.env,{NODE_ENV:'test',DATABASE_URL:url,COGNITO_ISSUER:issuer,COGNITO_JWKS_URI:`http://127.0.0.1:${address.port}/jwks`,COGNITO_CLIENT_IDS:'organization-test',AUTH_REQUIRED_SCOPES:'pachi/account'});
   const {AuthModule,authDatabaseClient} = await import('./auth.module.js');
-  // Test-only protected operation: production exports the real guards but no
-  // organization product route. This imports its actual DI/auth wiring.
+  // Test-only probe preserves the original settings-guard boundary alongside
+  // the separately authorized organization lifecycle routes.
   @Controller('organizations/:organizationId/settings-probe')
   @UseGuards(AuthGuard,OrganizationSettingsGuard)
   class ProtectedProbe { @Get() read() { return {authorized:true}; } }
@@ -63,6 +63,12 @@ void integration('real authentication/module guards recheck organization members
     await client`UPDATE organization_memberships SET role='AGENT' WHERE organization_id=${org} AND user_id=${user}`;
     assert.equal((await get()).status,403);
     await client`UPDATE organization_memberships SET role='ADMIN' WHERE organization_id=${org} AND user_id=${user}`;
+    assert.equal((await get()).status,200);
+    await client`UPDATE phone_contacts SET replaced_at=now() WHERE user_id=${user}`;
+    assert.equal((await get()).status,403,'a replaced verified phone must not grant organization settings access');
+    await client`UPDATE phone_contacts SET replaced_at=NULL,verified_at=NULL WHERE user_id=${user}`;
+    assert.equal((await get()).status,403,'an unverified current phone must not grant organization settings access');
+    await client`UPDATE phone_contacts SET verified_at=now() WHERE user_id=${user}`;
     assert.equal((await get()).status,200);
     await client`UPDATE organizations SET state='SUSPENDED' WHERE id=${org}`;
     assert.equal((await get()).status,403);

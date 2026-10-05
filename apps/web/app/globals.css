@@ -35,6 +35,13 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .workspaceGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 20px 0; }
 .tool { padding: 24px; background: var(--panel); border: 1px solid var(--line); }
 .tool h2 { margin-top: 0; }
+.organizationWorkspace select { padding: 10px; max-width: 100%; }
+.organizationActions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.organizationCheckbox { display: flex; align-items: center; }
+.organizationCheckbox input { width: auto; }
+.organizationDetail { margin-top: 24px; }
+.organizationDetail h3 { margin-top: 28px; }
+.organizationDetail dd { margin: 4px 0 12px; }
 .tool ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .tool li { display: grid; gap: 4px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .tool li span { color: var(--muted); font-size: 14px; }
