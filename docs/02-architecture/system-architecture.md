@@ -111,3 +111,74 @@ OpenTelemetry request/trace IDs, structured redacted logs, Sentry client/server 
 8. G4 private Cameroon pilot readiness; G5 public MVP; G6 regional expansion.
 
 Starting a scaffold is not passing G1. Real vendor provisioning, evidence collection and public release require their specific checks. Deferred features remain in the full roadmap, with no scope reduction attributed to the size of the development team.
+
+### Local G2 analytics projection and response measurement
+
+The worker's `AnalyticsStore.processAnalyticsOnce` consumes committed
+`LISTING_PUBLISHED`, `interaction_created`, `message_sent` and
+`provider_first_response` from the three existing outboxes. Additive migration
+0027 persists normalized schema-v1 `analytics_events` and generic `job_receipts`.
+Unique source-stream/event identity and consumer/stream/event receipts, source row
+`FOR UPDATE SKIP LOCKED` and atomic projection/receipt transactions deduplicate
+retries and concurrent workers. Analytics never changes source `delivered_at`,
+`published_at` or `attempt_count`; those belong to the future publisher/SQS path.
+Unmaterialized contact dependencies defer communication without acknowledging it.
+Bucket mismatch or malformed context rolls back that stream's batch and emits
+only a reason-free worker failure event; correction/retry is needed, not silent
+acceptance. There is no new notification transport or client ingestion endpoint.
+
+Publication/contact producers snapshot allowlisted region, purpose, provider
+**types** (a profile can declare more than one), and named PROVIDER_IDENTITY claim
+status in the business transaction. Communication inherits the contact projection.
+Legacy snapshots remain unknown with `INCOMPLETE_SOURCE_CONTEXT`; ingestion never
+reconstructs past mutable dimensions from present profile/location/claim values.
+City, addresses and coordinates are absent. Local/staging/CI and synthetic-claim
+traffic is TEST, including synthetic claims in a production-shaped environment.
+Only production environment + production runtime + nonsynthetic context yields
+PRODUCTION. The reporting default selects production/PRODUCTION. Snapshots use
+`ANALYTICS_ENVIRONMENT` (default development, or NODE_ENV test/production).
+
+`ANALYTICS_PSEUDONYM_SECRET` is an explicit server-only keyed HMAC secret of at
+least 32 characters. The worker enables local consumption when it is configured;
+otherwise it logs the disabled reason and preserves existing media behavior.
+Never overwrite existing environment files to enable it. Actors, where useful,
+are HMAC-SHA256 over domain-prefixed application user IDs; raw subjects/contact
+identities are absent, and publication has no actor correlation. Secret rotation
+changes actor correlation and requires a separately reviewed migration strategy.
+No marketplace API exposes analytics or pseudonyms. SQL columns allow only IDs,
+timestamps, enums, public region and approved provider-type arrays; no arbitrary
+payload or private content is stored.
+
+The internal `providerResponseSummary` uses UTC timestamps (up to PostgreSQL's
+six fractional digits), a half-open contact window `[window_start, window_end)`
+and explicit `as_of`. Its default is the rolling seven days ending at `as_of`.
+Denominator D is eligible source contacts in that window and selected
+classification/environment/segments, with no incomplete-context exclusion and
+`contact_at + 24h <= as_of`. Numerator N is those mature contacts whose one first
+provider response is `<= contact_at + 24h` and observed by `as_of`. Rate is N/D,
+null when D=0; unanswered mature demand is D-N. Late replies are separately counted
+and never rewrite the at-24h outcome. Immature contacts are excluded, even if
+already answered. Exact deadline and exact maturity are inclusive.
+
+Median is `percentile_cont(0.5)` of exact persisted response timestamp minus contact
+timestamp in milliseconds **only among these N within-24h mature responders**;
+bucket labels are independently validated classification, never median inputs.
+The report exposes D and N, median sample N, overall sample D, version,
+classification/environment, applied filters and reason-coded exclusion counts.
+`provider-response-v1` excludes other classification/environment, incomplete
+legacy context and immature contacts. Exclusion counts may overlap (legacy context
+also has unknown environment/TEST classification). Self-contact is structurally
+rejected by inquiry creation. Spam exclusion awaits an approved durable signal;
+this version does not invent a classifier. Unknown dimensions do not match a
+specific segment. Provider-type filters use membership in the snapshotted array.
+
+The approved pilot minimum is 30 distinct contacts over at least 14 days. It is
+returned as pilot metadata; the rolling operational/individual-segment threshold
+is NOT_YET_FROZEN, with nullable insufficient-sample status (true for an empty
+cohort, unknown for nonempty cohorts). This is no pilot pass/fail judgment. Reports
+are projections of consumed events, not completeness watermarks: drain/validate
+sources before recording acceptance numbers; a failed or delayed batch can leave
+an incomplete projection. Event corrections, spam signals, city suppression,
+client discovery events, dashboards and external analytics adapters remain later
+scope. Synthetic integration metrics do not establish marketplace performance or
+complete G2 acceptance.

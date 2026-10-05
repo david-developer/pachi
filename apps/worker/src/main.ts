@@ -1,4 +1,5 @@
-import { createDatabase, ListingMediaStore, ProviderVerificationStore } from '@pachi/database';
+import { runAnalyticsWorker } from './analytics-worker.js';
+import { AnalyticsStore, createDatabase, ListingMediaStore, ProviderVerificationStore } from '@pachi/database';
 import { createMediaWorkerFromEnvironment, runMediaWorker } from './media-worker.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -9,6 +10,10 @@ const mediaStore = new ListingMediaStore(client);
 const mediaRoot = process.env.MEDIA_STORAGE_ROOT ?? '../../.local-media';
 const worker = createMediaWorkerFromEnvironment(mediaStore, mediaRoot);
 const abort = new AbortController();
+const analyticsTask = process.env.ANALYTICS_PSEUDONYM_SECRET
+  ? runAnalyticsWorker({ store: new AnalyticsStore(client, process.env.ANALYTICS_PSEUDONYM_SECRET), signal: abort.signal })
+  : Promise.resolve();
+if (!process.env.ANALYTICS_PSEUDONYM_SECRET) console.log(JSON.stringify({ event: 'analytics_worker_disabled', reason: 'PSEUDONYM_SECRET_NOT_CONFIGURED' }));
 const workerTask = runMediaWorker({ ...worker, signal: abort.signal });
 const verificationStore = new ProviderVerificationStore(client, process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
 const retentionTimer = setInterval(() => {
@@ -19,11 +24,11 @@ const shutdown = async (signal: string) => {
   console.log(JSON.stringify({ event: 'worker_shutdown', signal }));
   abort.abort();
   clearInterval(retentionTimer);
-  await workerTask;
+  await Promise.all([workerTask, analyticsTask]);
   await client.end();
   process.exit(0);
 };
 process.on('SIGINT', () => { void shutdown('SIGINT'); });
 process.on('SIGTERM', () => { void shutdown('SIGTERM'); });
 console.log(JSON.stringify({ event: 'worker_started', mode: 'local-media', storage: 'private-filesystem', scanner: 'clamav' }));
-await workerTask;
+await Promise.all([workerTask, analyticsTask]);

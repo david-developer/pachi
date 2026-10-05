@@ -31,3 +31,6 @@ export * from './provider-verification.js';
 export { OrganizationAccessStore } from './organization.js';
 export { ConversationStore, MESSAGE_LIMIT_DEFAULTS, responseTimeBucket, RESPONSE_BUCKET_VERSION } from './conversation.js';
 export type { SafeMessage, MessageLimits } from './conversation.js';
+
+export { AnalyticsStore, ANALYTICS_CONSUMER, ANALYTICS_STREAMS, RESPONSE_FILTER_VERSION } from './analytics.js';
+export type { AnalyticsStream, ResponseReportInput, ResponseSegments } from './analytics.js';
