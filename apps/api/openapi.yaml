@@ -65,8 +65,55 @@ paths:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     get:
       security: [{ bearerAuth: [] }]
-      description: Participant-scoped interaction shell read; messages are not included in this slice.
+      description: Participant-scoped interaction context read; message history uses the Conversation boundary.
       responses: { '200': { description: Safe interaction projection, content: { application/json: { schema: { $ref: '#/components/schemas/InteractionReadResponse' } } } }, '401': { description: Authentication required }, '404': { description: Interaction is unavailable } }
+  /v1/account/conversations:
+    get:
+      security: [{ bearerAuth: [] }]
+      description: Current seeker or individual-provider inbox, ordered by opened_at then interaction ID descending. Organization access fails closed. No body previews or private contacts.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200': { description: Participant inbox, content: { application/json: { schema: { $ref: '#/components/schemas/ConversationListResponse' } } } }
+        '400': { description: Invalid pagination }
+        '401': { description: Authentication required }
+  /v1/account/conversations/{conversationId}/messages:
+    parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      security: [{ bearerAuth: [] }]
+      description: Current participant history, including CLOSED/RESTRICTED history. Descending server sequence; next_cursor loads older messages. can_send is a current safe capability projection; send rechecks it.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 30 } }
+      responses:
+        '200': { description: Message page, content: { application/json: { schema: { $ref: '#/components/schemas/MessageListResponse' } } } }
+        '400': { description: Invalid pagination }
+        '401': { description: Authentication required }
+        '404': { description: Conversation is unavailable }
+    post:
+      security: [{ bearerAuth: [] }]
+      description: Persist plain text in an OPEN Conversation. Current ACTIVE/phone/provider eligibility and bilateral blocks are rechecked even on replay. Unique authenticated sender/client_message_id dedupes; changed body or Conversation conflicts. Atomic PostgreSQL fixed windows default to 20 per Conversation and 60 globally per sender per 60 seconds; replay consumes no unit. No external notification delivery is performed.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MessageSendRequest' } } } }
+      responses:
+        '201': { description: Persisted message (created distinguishes creation and replay), content: { application/json: { schema: { $ref: '#/components/schemas/MessageSendResponse' } } } }
+        '400': { description: Invalid body or client message ID }
+        '401': { description: Authentication required }
+        '403': { description: Messaging unavailable; account, phone, block and restriction reasons are not disclosed }
+        '404': { description: Conversation is unavailable }
+        '409': { description: Conversation not open or conflicting client-message reuse }
+        '429': { description: Message rate limit exceeded }
+  /v1/account/conversations/{conversationId}/receipts:
+    parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      security: [{ bearerAuth: [] }]
+      description: Explicit authenticated recipient acknowledgement. READ implies DELIVERED; timestamps are server-derived, monotonic and idempotent. Senders cannot acknowledge their own messages. No global Message read timestamp.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ReceiptRequest' } } } }
+      responses:
+        '201': { description: Persisted recipient receipts, content: { application/json: { schema: { $ref: '#/components/schemas/ReceiptResponse' } } } }
+        '400': { description: Invalid acknowledgement }
+        '401': { description: Authentication required }
+        '404': { description: Conversation or recipient receipt is unavailable }
   /v1/dev/local-sms/{challengeId}:
     parameters:
       - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -493,6 +540,83 @@ components:
     staffBearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Separate staff issuer/client access token with pachi/staff scope }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
+    MessageReceipt:
+      type: object
+      required: [recipient_user_id, delivered_at, read_at]
+      properties:
+        recipient_user_id: { type: string, format: uuid }
+        delivered_at: { type: [string, 'null'], format: date-time }
+        read_at: { type: [string, 'null'], format: date-time }
+    MessageResponse:
+      type: object
+      required: [id, conversation_id, sender_user_id, sender_side, client_message_id, body, sequence, sent_at, visibility_state, receipts]
+      properties:
+        id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        sender_user_id: { type: string, format: uuid }
+        sender_side: { type: string, enum: [SEEKER, PROVIDER] }
+        client_message_id: { type: string, format: uuid }
+        body: { type: [string, 'null'], description: Plain text; null for removed-from-view content }
+        sequence: { type: string, description: Decimal server bigint; never a client timestamp }
+        sent_at: { type: string, format: date-time }
+        visibility_state: { type: string, enum: [VISIBLE, REMOVED] }
+        receipts: { type: array, items: { $ref: '#/components/schemas/MessageReceipt' } }
+    MessageSendRequest:
+      type: object
+      additionalProperties: false
+      required: [client_message_id, body]
+      properties:
+        client_message_id: { type: string, format: uuid }
+        body: { type: string, minLength: 1, maxLength: 4000, description: Non-whitespace plain text; Unicode code-point limit enforced server-side }
+    MessageSendResponse:
+      type: object
+      required: [message, created]
+      properties:
+        message: { $ref: '#/components/schemas/MessageResponse' }
+        created: { type: boolean }
+    ReceiptRequest:
+      type: object
+      additionalProperties: false
+      required: [message_ids, state]
+      properties:
+        message_ids: { type: array, minItems: 1, maxItems: 50, items: { type: string, format: uuid } }
+        state: { type: string, enum: [DELIVERED, READ] }
+    ReceiptResponse:
+      type: object
+      required: [receipts]
+      properties:
+        receipts:
+          type: array
+          items:
+            allOf:
+              - { $ref: '#/components/schemas/MessageReceipt' }
+              - { type: object, required: [message_id], properties: { message_id: { type: string, format: uuid } } }
+    ConversationSummary:
+      type: object
+      required: [conversation_id, interaction_id, listing_id, state, opened_at, title, listing_visible, latest_message_at]
+      properties:
+        conversation_id: { type: string, format: uuid }
+        interaction_id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        state: { type: string, enum: [OPEN, CLOSED, RESTRICTED] }
+        opened_at: { type: string, format: date-time }
+        title: { type: [string, 'null'] }
+        listing_visible: { type: boolean }
+        latest_message_at: { type: [string, 'null'], format: date-time }
+    ConversationListResponse:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ConversationSummary' } }
+        next_cursor: { type: [string, 'null'] }
+    MessageListResponse:
+      type: object
+      required: [items, next_cursor, can_send, actor_side]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/MessageResponse' } }
+        next_cursor: { type: [string, 'null'] }
+        can_send: { type: boolean }
+        actor_side: { type: string, enum: [SEEKER, PROVIDER] }
     ProviderVerificationCase:
       type: object
       required: [id, provider_profile_id, state, version, policy_version, submitted_at, decision_at, reason_code, valid_until, previous_case_id, next_action]

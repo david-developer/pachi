@@ -16,3 +16,4 @@ export type { PublicListing, PublicListingMedia, PublicListingQuery, PublicListi
 export type { InteractionState, InteractionResponse, InteractionReadResponse, InquiryCreateResponse } from './interaction.js';
 export type { StaffRole, StaffScope, StaffSessionResponse, AuthorityRiskCase, AuthorityRiskStatus, AuthorityRiskInternalSource } from './staff.js';
 export type { ProviderVerificationCase, ProviderVerificationStatus } from './verification.js';
+export type { MessageReceipt, MessageResponse, MessageSendRequest, MessageSendResponse, ReceiptRequest, ReceiptResponse, ConversationSummary, ConversationListResponse, MessageListResponse } from './conversation.js';
