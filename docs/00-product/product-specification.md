@@ -13,7 +13,7 @@ This is the canonical product specification for Pachi. Version 2.1 restores the 
 |---|---|
 | Scope | Android/iOS mobile marketplace, responsive public and authenticated marketplace web, separate staff portal, backend, moderation, analytics and release readiness. |
 | Authority | Product behavior is authoritative here; domain documents elaborate it; ADRs choose implementation mechanisms. A lower layer cannot override a product requirement. |
-| Current progress | The repository contains an incrementally implemented local foundation. G1 evidence is recorded complete; G2–G6 remain incomplete, and no production-readiness claim is made. See the engineering handoff and readiness checklist for verified implementation evidence and remaining gates. |
+| Current progress | G0 specification, G1 foundation and G2 vertical slice are recorded complete. G2 is the defined individual-provider synthetic/local TEST journey; G3–G6 and external evidence gates remain incomplete, and no production-readiness claim is made. See the [engineering handoff](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05) and readiness checklist for verified implementation evidence and remaining gates. |
 | Delivery | One project owner carries the engineering, product and operational responsibilities. Role names describe permission boundaries and responsibilities, not a claim of a staffed team. |
 | Requirement IDs | Preserve V2 IDs. Changes must update affected documents and acceptance evidence together. |
 | Accepted | Required implementation behavior. Includes the former Confirmed requirements and the explicit defaults in section 20.2. |
@@ -996,7 +996,7 @@ marketplace-operability gate.
 
 ## 19.2 Release gates
 
-Current state is documentation/environment only. No engineering gate has passed. Exact evidence and initial pilot thresholds are in the [readiness checklist](../03-operations/production-readiness-checklist.md). Defaults are confirmed or explicitly amended before pilot recruitment; no retroactive threshold reduction is permitted.
+G0, G1 and the defined individual-provider synthetic/local G2 gate are recorded complete; G3–G6 remain incomplete. G2 does not establish real-account, external-evidence, pilot or production readiness. Exact evidence and initial pilot thresholds are in the [readiness checklist](../03-operations/production-readiness-checklist.md). Defaults are confirmed or explicitly amended before pilot recruitment; no retroactive threshold reduction is permitted.
 
 | **Gate**                        | **Pass condition**                                                                                                                                                                                       | **Evidence**                                             |
 |---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|

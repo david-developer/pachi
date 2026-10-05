@@ -5,7 +5,7 @@
 > **Updated:** 2026-09-24  
 > Acceptance establishes the design to implement; it does not certify implementation, testing, vendor readiness, or launch readiness.
 
-This repository contains the canonical product documentation and an incrementally implemented local foundation. Current local slices include Cognito-backed web authentication, phone-confirmation test delivery, individual provider onboarding, and private property/listing-draft preparation. None of these slices imply production readiness, public listing publication, cloud provisioning, or executed production migrations.
+This repository contains the canonical product documentation and an incrementally implemented local marketplace. G0/G1/G2 are complete, including the recorded individual-provider synthetic/local TEST journey through verification, property/listing/media, scoped moderation/publication, public discovery, inquiry/messages/provider response and analytics. See the [G2 closure evidence](docs/engineering/current-state.md#g2-vertical-slice-complete--2026-10-05). G3 alpha functionality, E01–E07, real-account acceptance, deployment and pilot evidence remain outstanding; this is not production readiness.
 
 Design direction note (2026-09-26): `/preview` was a review experiment and is
 not approved as Pachi's visual direction. Keep it isolated from functional
@@ -46,10 +46,11 @@ Every new message commits one safe `message_sent` source event; the first provid
 reply commits one `provider_first_response` per Interaction. Outbox schema version 1
 records only approved structured metadata and response buckets, never message text.
 The 24-hour bucket includes exactly 24 hours. Analytics consumption/deduplication,
-measurement validation and recorded end-to-end G2 acceptance remain pending. No
-external notifications, attachments, voice, viewing, native calls or reviews are added.
-Real verification evidence intake retains E01 gates; synthetic tests do not prove
-real Cognito/user acceptance or complete G2.
+measurement validation and the coherent G2 vertical-slice acceptance are recorded
+with synthetic/local TEST evidence. Broader G3 alpha functionality remains incomplete,
+including external notifications, viewing, native calls and reviews; attachments and
+voice remain outside this slice. Real verification evidence intake retains E01 gates;
+real Cognito/account, deployment and pilot acceptance remain outstanding.
 
 ## Local foundation
 
@@ -198,8 +199,9 @@ In the authenticated provider workspace, reopen a private listing draft and
 use **Draft photos** to upload, wait for scan/processing, move photos up/down,
 set a processed cover, retry transient failures, or remove a photo. Reloading
 the draft reloads photo order, cover, derivative previews and processing state.
-Photos and derivatives stay behind provider-scoped API checks; `READY` does not
-mean moderation-approved or published. No public media route is enabled.
+Originals and private draft derivatives stay behind provider-scoped API checks;
+`READY` does not mean moderation-approved or published. Guarded public derivatives
+are served only for eligible approved published listings, as evidenced in synthetic G2.
 
 This is a local filesystem/worker/ClamAV adapter only. Production S3 bucket and
 IAM separation, KMS, scoped presigned upload URLs, SQS/DLQ delivery, malware
@@ -237,8 +239,9 @@ evidence-backed provider claim. Synthetic claims count only in isolated tests;
 outside tests, real intake is disabled pending E01, so this check remains
 blocked. An expired claim also blocks immediately.
 Do not change verification records manually to make a submission succeed.
-A complete eligible submission walkthrough remains blocked by the authority
-risk-hold reader, and synthetic provider claims never count outside isolated tests. Blocked readiness,
+A complete eligible submission walkthrough with current CLEAR authority is recorded
+in isolated synthetic G2 acceptance. Synthetic provider claims never count outside
+isolated tests; real verification remains E01-gated. Blocked readiness,
 cross-provider scope, stale versions, and duplicate-safe command behavior are
 covered against the disposable test database. If the web session expires or an
 API data request is unauthorized, the account and provider screens show a
@@ -619,9 +622,9 @@ is an operator boundary, not a public privilege-management API or dashboard.
 Open the admin app and sign in. Confirm eligible identity/role/scope summaries,
 logout and reauthentication; test denied login with an ungranted staff user.
 Sensitive endpoints use `requireStaffPermission`, current grant and resource
-eligibility, purpose/reason and audit. Provider identity case decisions are now
-implemented for synthetic evidence; media approval, listing moderation and
-publication are still unavailable.
+eligibility, purpose/reason and audit. Provider identity case decisions for synthetic
+evidence, scoped media approval, exact listing moderation and guarded publication
+are implemented and evidenced in the recorded synthetic/local G2 acceptance.
 
 Automated policy, session, signed-token HTTP and Playwright checks use synthetic
 identities/isolated data. They do not prove real Cognito login, TOTP enrolment,

@@ -7,7 +7,7 @@
 
 ## How to use this checklist
 
-This checklist covers staged gates, not just infrastructure launch. An item without explicit recorded evidence remains NOT RUN; document acceptance alone is not a test result. Current implementation and dated evidence are recorded in the single [engineering handoff](../engineering/current-state.md); gate completion requires every applicable item, not an authentication milestone. G0 and G1 are recorded complete below; G2–G6 remain incomplete.
+This checklist covers staged gates, not just infrastructure launch. An item without explicit recorded evidence remains NOT RUN; document acceptance alone is not a test result. Current implementation and dated evidence are recorded in the single [engineering handoff](../engineering/current-state.md); gate completion requires every applicable item, not an authentication milestone. G0, G1 and G2 are recorded complete below; G3–G6 remain incomplete. G2 is the recorded individual-provider synthetic/local TEST slice, not real-account, pilot or production acceptance.
 
 For each completed item record commit/release, environment, date, operator responsibility, evidence link, result and any expiry/retest condition. `[ ]` means not demonstrated; `[x]` may be used only with evidence. Failed, not-run and not-applicable are distinct; not-applicable needs a reason tied to scope. The project owner may hold multiple responsibilities but must not invent independent staff sign-off.
 
@@ -53,7 +53,7 @@ Second temporary acceptance, necessitated by an advisory surfaced after PR #23's
 |---|---|---|
 | G0 Specification | Reconciled V2.1 baseline, explicit authority and decisions, stable requirements, no competing canonical versions. | COMPLETE — canonical package is present and committed; the factual implementation-status wording has been reconciled. |
 | G1 Architecture foundation | Running scaffold plus implemented environment/migration/CI/auth/security/logging/backup foundations. | COMPLETE — foundation evidence and real mapped-ungranted staff denial verified. See [acceptance evidence and separate operational limitations](../engineering/current-state.md#real-mapped-ungranted-acceptance-passed-g1-evidence-complete--2026-09-28). |
-| G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | NOT RUN — component workflows exist, but the end-to-end acceptance is incomplete. See the G2 evidence matrix in the engineering handoff. |
+| G2 Vertical slice | Verified provider → property/listing/offering/media → moderation/publication → discovery → inquiry/response, with server authorization and analytics. | COMPLETE — recorded synthetic/local individual-provider acceptance, merged PR #27 and exact merge-main Checks 37305379014. See [closure evidence and limitations](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05). |
 | G3 Marketplace alpha | Full core mobile/web/staff, organization, viewing/review, offline, reporting/appeal, notification and analytics behavior. | NOT RUN. |
 | G4 Private pilot | Real-data/vendor/operations gates, seed inventory, scorecard and rehearsal in Cameroon launch regions. | NOT RUN. |
 | G5 Public MVP | Pilot scorecard and reliability/safety requirements pass; release/rollback verified. | NOT RUN. |
@@ -79,13 +79,13 @@ Second temporary acceptance, necessitated by an advisory surfaced after PR #23's
 
 ## G2 — Working marketplace slice
 
-- [ ] Individual provider required verification workflow and explicit current property declaration operate with protected synthetic evidence.
-- [ ] Property, Listing, Offering/OfferingVersion and revision constraints are implemented; wrong-purpose terms and mismatched authority denied.
-- [ ] Image upload/quarantine/processing/approval works; failed/private assets cannot be public.
-- [ ] Staff reviews exact listing revision; publication predicate enforced for API/search/detail.
-- [ ] Seeker discovers, creates/reuses inquiry/Conversation, messages, receives provider response; cross-user/organization access denied.
-- [ ] Domain events and analytics distinguish publication/contact/first response; retries do not duplicate business effects.
-- [ ] Recorded end-to-end demonstration and meaningful policy/integration test evidence pass.
+- [x] Individual provider required verification workflow and explicit current property declaration operate with protected synthetic evidence. Evidence: PR #27 fixed-sample intake, encrypted persistence, scoped staff review/current VERIFIED claim and DECLARED property in the [recorded TEST acceptance](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05); real intake remains E01-gated.
+- [x] Property, Listing, Offering/OfferingVersion and revision constraints are implemented; wrong-purpose terms and mismatched authority denied. Evidence: PR #27 real commands/current CLEAR authority and wrong-purpose denial, plus preserved mismatch/stale-version [component evidence](../engineering/current-state.md#canonical-status-reconciliation-and-g2-evidence-matrix--2026-09-30).
+- [x] Image upload/quarantine/processing/approval works; failed/private assets cannot be public. Evidence: PR #27 local pipeline, READY then separate APPROVED decision, anonymous denial before publication, plus preserved failure/privacy [component evidence](../engineering/current-state.md#canonical-status-reconciliation-and-g2-evidence-matrix--2026-09-30).
+- [x] Staff reviews exact listing revision; publication predicate enforced for API/search/detail. Evidence: PR #27 exact submitted snapshot, scoped signed staff publication/replay and anonymous search/detail/media in the [recorded acceptance](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05).
+- [x] Seeker discovers, creates/reuses inquiry/Conversation, messages, receives provider response; cross-user/organization access denied. Evidence: PR #27 coherent inquiry/message/reply/replay and unrelated/historical-participant denials; organization fail-closed denial remains preserved [component evidence](../engineering/current-state.md#canonical-status-reconciliation-and-g2-evidence-matrix--2026-09-30), not positive organization messaging acceptance.
+- [x] Domain events and analytics distinguish publication/contact/first response; retries do not duplicate business effects. Evidence: PR #27 exact five events/five JobReceipts, second drain 0/0, unchanged source flags, TEST privacy and mature response metric in the [recorded acceptance](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05).
+- [x] Recorded end-to-end demonstration and meaningful policy/integration test evidence pass. Evidence: [PR #27](https://github.com/david-developer/pachi/pull/27) merged unchanged; [exact merge-main Checks 37305379014](https://github.com/david-developer/pachi/actions/runs/37305379014) PASS, all 27 stages, DB44/API13/web21/admin7 including the coherent G2 journey. See [closure and external limits](../engineering/current-state.md#g2-vertical-slice-complete--2026-10-05).
 
 ## G3 — Core marketplace alpha
 
