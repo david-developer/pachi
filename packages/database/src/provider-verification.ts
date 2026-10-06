@@ -75,7 +75,7 @@ export class ProviderVerificationStore {
     requireStaffPermission(staff.grants as Grant[], permission, {kind:'case',id:row.id}, staff.row.authenticated_at, this.clock(), sensitive);
   }
   private async currentGrant(tx: postgres.TransactionSql, staff: StaffPrincipal, permission: string, scope: {kind:'platform'|'case';id:string}, sensitive: boolean): Promise<void> {
-    const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=${this.clock().toISOString()} AND expires_at>${this.clock().toISOString()} FOR SHARE`;
+    const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=now() AND expires_at>now() FOR SHARE`;
     requireStaffPermission(grants.map(g => ({role:g.role,scope:g.permission_scope})),permission,scope,staff.row.authenticated_at,this.clock(),sensitive);
   }
   private async auditDenied(actor: string, caseId: string, action: string, error: unknown, requestId: string): Promise<void> {
@@ -152,7 +152,7 @@ export class ProviderVerificationStore {
       const row = rows[0];
       if (!row || row.state !== 'PENDING' || row.applicant_user_id === staffUserId) throw new IdentityError('RESOURCE_SCOPE_DENIED','Case assignment denied');
       if (row.version !== expectedVersion) throw new IdentityError('STALE_VERSION','Case changed');
-      const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staffUserId} AND revoked_at IS NULL AND active_from<=${this.clock().toISOString()} AND expires_at>${this.clock().toISOString()}`;
+      const grants = await tx<{role:string;permission_scope:StaffScope}[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staffUserId} AND revoked_at IS NULL AND active_from<=now() AND expires_at>now()`;
       requireStaffPermission(grants.map(g => ({role:g.role,scope:g.permission_scope})), 'provider:verify', {kind:'case',id:caseId}, this.clock(), this.clock(), false);
       const updated = await tx<CaseRow[]>`UPDATE verification_cases SET assigned_staff_user_id=${staffUserId},version=version+1 WHERE id=${caseId} RETURNING *`;
       await tx`INSERT INTO audit_events(actor_user_id,action,target_type,target_id,reason_code,request_id,safe_metadata) VALUES (${operator.row.user_id},'PROVIDER_VERIFICATION_ASSIGNED','VerificationCase',${caseId},'SCOPED_REVIEW_ASSIGNMENT',${requestId},${JSON.stringify({assigned_staff_user_id:staffUserId})}::jsonb)`;
