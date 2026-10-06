@@ -696,6 +696,13 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   `pnpm-workspace.yaml` fix upstream transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
   Metro passes filenames to the removed v1 API. Mobile exports exercise this
   compatibility; xcode's UUID v4 and query-string decoding retain their used APIs.
+- The October 6 Sharp and shell-quote findings are remediated, without new
+  exceptions: direct media Sharp is pinned to 0.35.5 (including its matching
+  platform packages), and React DevTools resolves compatible shell-quote 1.11.0
+  through the lockfile. The bounded dependency-security regression checks all
+  resolutions, comment-following line terminators, JPEG/PNG/WebP processing,
+  metadata removal and checksum denial; source-map-js remains 1.2.2. See the
+  [advisory assessment and complete mobile provenance](docs/03-operations/production-readiness-checklist.md#october-6-sharp-and-shell-quote-remediation-candidate).
 - Contract checking generates types from OpenAPI in a temporary directory,
   compares every shared schema bidirectionally with `@pachi/contracts`, and
   checks the exact Nest controller method/path inventory plus SQL/journal

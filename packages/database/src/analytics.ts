@@ -218,8 +218,21 @@ export class AnalyticsStore {
                 { event_id: string }[]
               >`SELECT event_id FROM analytics_events WHERE source_stream=${stream} AND source_event_id=${source.id}`
             )[0]!.event_id;
-          await tx`INSERT INTO job_receipts(consumer_name,source_stream,source_event_id,result_reference) VALUES (${ANALYTICS_CONSUMER},${stream},${source.id},${eventId})`;
-          n++;
+          // Source selection can outlive its READ COMMITTED snapshot. Receipt
+          // uniqueness must converge even if another consumer already committed.
+          const receipts = await tx<{ result_reference: string }[]>`
+            INSERT INTO job_receipts(consumer_name,source_stream,source_event_id,result_reference)
+            VALUES (${ANALYTICS_CONSUMER},${stream},${source.id},${eventId})
+            ON CONFLICT (consumer_name,source_stream,source_event_id) DO NOTHING
+            RETURNING result_reference`;
+          if (receipts[0]) n++;
+          else {
+            const existing = await tx<{ result_reference: string }[]>`
+              SELECT result_reference FROM job_receipts WHERE consumer_name=${ANALYTICS_CONSUMER}
+                AND source_stream=${stream} AND source_event_id=${source.id} FOR SHARE`;
+            if (existing[0]?.result_reference !== eventId)
+              throw new Error('ANALYTICS_RECEIPT_MISMATCH');
+          }
         }
         return n;
       });
