@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, createHmac } from 'node:crypto';
+import postgres from 'postgres';
 import { createDatabase } from './client.js';
 import { snapshotAnalyticsContext } from './analytics-context.js';
 import {
@@ -101,6 +102,183 @@ async function counts(client: Client) {
   };
 }
 
+async function settleConcurrent<T>(tasks: Promise<T>[]): Promise<T[]> {
+  // Observe every launched task before destructive scenario cleanup. Any
+  // rejection still fails the test; successful siblings never conceal it.
+  const outcomes = await Promise.allSettled(tasks);
+  return outcomes.map((outcome) => {
+    if (outcome.status === 'rejected') throw outcome.reason;
+    return outcome.value;
+  });
+}
+
+for (const mismatch of [false, true])
+  void integration(
+    mismatch
+      ? 'stale analytics consumer rejects a conflicting receipt reference without overwriting it'
+      : 'stale analytics consumer converges a matching receipt without counting it again',
+    () =>
+      scenario(async (client, f, store) => {
+        const c = await contact(client, f, '2026-10-03T12:00:00Z');
+        await reply(client, f, c, 240_000, 'LT_5M', false);
+        assert.deepEqual(await store.processAnalyticsOnce(), {
+          consumed: 2,
+          deferred: 0,
+        });
+        const [event] = await client<
+          { event_id: string; source_event_id: string }[]
+        >`SELECT event_id,source_event_id FROM analytics_events WHERE event_name='message_sent'`;
+        const [parent] = await client<{ event_id: string }[]>`
+          SELECT event_id FROM analytics_events WHERE event_name='interaction_created'`;
+        const reference = mismatch ? parent!.event_id : event!.event_id;
+        assert.notEqual(parent!.event_id, event!.event_id);
+        await client`DELETE FROM job_receipts WHERE source_stream='communication_outbox'`;
+
+        const stale = postgres(process.env.DATABASE_TEST_URL!, {
+          max: 1,
+          prepare: false,
+        });
+        const gate = postgres(process.env.DATABASE_TEST_URL!, {
+          max: 1,
+          prepare: false,
+        });
+        const winner = postgres(process.env.DATABASE_TEST_URL!, {
+          max: 1,
+          prepare: false,
+        });
+        let release: (() => void) | undefined;
+        let held: Promise<unknown> | undefined;
+        let settled:
+          | Promise<
+              PromiseSettledResult<{ consumed: number; deferred: number }>[]
+            >
+          | undefined;
+        try {
+          await stale`SET application_name = 'g2-receipt-stale-consumer'`;
+          await stale`SET statement_timeout = '10s'`;
+          await gate`SET statement_timeout = '10s'`;
+          await winner`SET statement_timeout = '10s'`;
+          const stalePid = (
+            await stale<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
+          )[0]!.pid;
+          const gatePid = (
+            await gate<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
+          )[0]!.pid;
+          const winnerPid = (
+            await winner<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
+          )[0]!.pid;
+          assert.equal(new Set([stalePid, gatePid, winnerPid]).size, 3);
+
+          let ready!: () => void;
+          const arrived = new Promise<void>((resolve) => {
+            ready = resolve;
+          });
+          const freed = new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          held = gate.begin(async (tx) => {
+            await tx`SELECT pg_advisory_xact_lock(920027)`;
+            ready();
+            await freed;
+          });
+          await Promise.race([arrived, held]);
+          // TEST-only trigger pauses after source selection, before event insert.
+          // The winner below models an acknowledgement committed after that read.
+          await client`CREATE FUNCTION analytics_test_stale_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF current_setting('application_name')='g2-receipt-stale-consumer' THEN PERFORM pg_advisory_xact_lock(920027); END IF; RETURN NEW; END $$`;
+          await client`CREATE TRIGGER analytics_test_stale_receipt BEFORE INSERT ON analytics_events FOR EACH ROW EXECUTE FUNCTION analytics_test_stale_receipt()`;
+          settled = Promise.allSettled([
+            new AnalyticsStore(stale, secret).processAnalyticsOnce({
+              streams: ['communication_outbox'],
+            }),
+          ]);
+          const deadline = Date.now() + 5000;
+          let waiting = false;
+          while (Date.now() < deadline) {
+            const rows = await client<{ waiting: boolean }[]>`
+              SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid=${stalePid} AND locktype='advisory' AND NOT granted)
+                AND ${gatePid}=ANY(pg_blocking_pids(${stalePid})) AS waiting`;
+            if (rows[0]!.waiting) {
+              waiting = true;
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          assert.equal(
+            waiting,
+            true,
+            'stale consumer must reach the real connection barrier',
+          );
+          await winner`INSERT INTO job_receipts(consumer_name,source_stream,source_event_id,result_reference)
+            VALUES (${ANALYTICS_CONSUMER},'communication_outbox',${event!.source_event_id},${reference})`;
+          release!();
+          await held;
+          const [outcome] = await settled;
+          assert.ok(outcome);
+          if (mismatch) {
+            assert.equal(outcome!.status, 'rejected');
+            assert.match(
+              (outcome as PromiseRejectedResult).reason.message,
+              /^ANALYTICS_RECEIPT_MISMATCH$/,
+            );
+          } else {
+            if (outcome!.status === 'rejected') throw outcome.reason;
+            assert.deepEqual(outcome!.value, { consumed: 0, deferred: 0 });
+          }
+          const receipts = await client<{ result_reference: string }[]>`
+            SELECT result_reference FROM job_receipts WHERE consumer_name=${ANALYTICS_CONSUMER}
+              AND source_stream='communication_outbox' AND source_event_id=${event!.source_event_id}`;
+          assert.equal(receipts.length, 1);
+          assert.equal(receipts[0]!.result_reference, reference);
+          assert.deepEqual(await counts(client), { events: 2, receipts: 2 });
+          assert.equal(
+            (
+              await client`SELECT count(*)::int AS n FROM analytics_events WHERE source_stream='communication_outbox' AND source_event_id=${event!.source_event_id}`
+            )[0]!.n,
+            1,
+          );
+          assert.equal(
+            (
+              await client`SELECT count(*)::int AS n FROM communication_outbox WHERE published_at IS NOT NULL OR attempt_count<>0`
+            )[0]!.n,
+            0,
+          );
+          assert.equal(
+            (
+              await client`SELECT count(*)::int AS n FROM interaction_outbox WHERE delivered_at IS NOT NULL`
+            )[0]!.n,
+            0,
+          );
+          if (!mismatch) {
+            await client`DELETE FROM job_receipts WHERE source_stream='communication_outbox'`;
+            assert.deepEqual(
+              await store.processAnalyticsOnce({
+                streams: ['communication_outbox'],
+              }),
+              { consumed: 1, deferred: 0 },
+            );
+            assert.deepEqual(await counts(client), { events: 2, receipts: 2 });
+            assert.equal(
+              (
+                await client`SELECT result_reference FROM job_receipts WHERE source_stream='communication_outbox'`
+              )[0]!.result_reference,
+              event!.event_id,
+            );
+            assert.deepEqual(await store.processAnalyticsOnce(), {
+              consumed: 0,
+              deferred: 0,
+            });
+          }
+        } finally {
+          release?.();
+          if (held) await held;
+          if (settled) await settled;
+          await client`DROP TRIGGER IF EXISTS analytics_test_stale_receipt ON analytics_events`;
+          await client`DROP FUNCTION IF EXISTS analytics_test_stale_receipt()`;
+          await Promise.all([stale.end(), gate.end(), winner.end()]);
+        }
+      }),
+  );
+
 void integration(
   'G2 consumer converges concurrent business/source retries and restart without claiming delivery',
   () =>
@@ -114,12 +292,12 @@ void integration(
         client_message_id: randomUUID(),
         body: 'PRIVATE_MESSAGE_SENTINEL',
       };
-      await Promise.all(
+      await settleConcurrent(
         Array.from({ length: 5 }, () =>
           conversations.send(f.seekerId, inquiry.conversation_id, request),
         ),
       );
-      await Promise.all(
+      await settleConcurrent(
         Array.from({ length: 5 }, () =>
           conversations.send(f.providerUserId, inquiry.conversation_id, {
             client_message_id: randomUUID(),
@@ -127,12 +305,17 @@ void integration(
           }),
         ),
       );
-      await Promise.all(
+      const batches = await settleConcurrent(
         Array.from({ length: 6 }, () =>
           new AnalyticsStore(client, secret).processAnalyticsOnce({ limit: 1 }),
         ),
       );
-      await store.processAnalyticsOnce();
+      const remaining = await store.processAnalyticsOnce();
+      assert.equal(
+        batches.reduce((total, batch) => total + batch.consumed, 0) +
+          remaining.consumed,
+        8,
+      );
       assert.deepEqual(await counts(client), { events: 8, receipts: 8 });
       assert.deepEqual(
         await new AnalyticsStore(client, secret).processAnalyticsOnce(),
@@ -174,7 +357,10 @@ void integration(
       );
       // Reconstructing a lost receipt still cannot rematerialize the globally unique source.
       await client`DELETE FROM job_receipts WHERE consumer_name=${ANALYTICS_CONSUMER}`;
-      await store.processAnalyticsOnce();
+      assert.deepEqual(await store.processAnalyticsOnce(), {
+        consumed: 8,
+        deferred: 0,
+      });
       assert.deepEqual(await counts(client), { events: 8, receipts: 8 });
       assert.equal(
         (
