@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { BlockControls } from '../../components/block-controls';
 import { useEffect, useRef, useState } from 'react';
 import type {
   InteractionReadResponse,
@@ -43,6 +44,7 @@ export default function ConversationPage({
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [side, setSide] = useState<'SEEKER' | 'PROVIDER'>('SEEKER');
+  const [ownBlocked, setOwnBlocked] = useState(false);
   const [canSend, setCanSend] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
@@ -291,6 +293,9 @@ export default function ConversationPage({
       <section className="conversationShell">
         <h1>{interaction.title ?? 'Your listing interaction'}</h1>
         <p className="muted">Interaction state: {interaction.state}</p>
+        <BlockControls source="interactions" id={interaction.interaction_id}
+          onStart={()=>{generation.current++;setLoading(false);setCanSend(false);}}
+          onChange={(blocked)=>{setOwnBlocked(blocked);if(!blocked)void loadHistory(interaction);else setFeedback('Messaging is not available. You can still view the history.');}} />
         <button
           disabled={loading || sending}
           onClick={() => void loadHistory(interaction)}
@@ -334,7 +339,7 @@ export default function ConversationPage({
             </li>
           ))}
         </ol>
-        {canSend && interaction.state === 'OPEN' && session?.authenticated && (
+        {!ownBlocked && canSend && interaction.state === 'OPEN' && session?.authenticated && (
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -362,6 +367,7 @@ export default function ConversationPage({
             </button>
           </form>
         )}
+        {!canSend && pending.current && <button disabled={sending} onClick={()=>void send()}>Confirm pending message</button>}
         {feedback && <p role="status">{feedback}</p>}
         {receiptFeedback && <p role="status">{receiptFeedback}</p>}
       </section>

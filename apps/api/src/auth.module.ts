@@ -1,3 +1,5 @@
+import { BlockController } from './block.controller.js';
+import { BlockStore } from '@pachi/database';
 import { OrganizationAccessStore, OrganizationStore } from '@pachi/database';
 import { OrganizationController, OrganizationNoStoreGuard } from './organization.controller.js';
 import { OrganizationSettingsGuard } from './organization.guard.js';
@@ -50,7 +52,7 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
@@ -63,6 +65,7 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
   { provide: 'LISTING_MODERATION_STORE', useValue: new ListingModerationStore(client, listingSubmissionStore) },
   { provide: 'PUBLIC_LISTING_STORE', useValue: new PublicListingStore(client) },
   { provide: 'CONVERSATION_STORE', useValue: new ConversationStore(client, false, {conversation:config.MESSAGE_CONVERSATION_LIMIT,global:config.MESSAGE_GLOBAL_LIMIT,windowSeconds:config.MESSAGE_WINDOW_SECONDS}) },
+  { provide: 'BLOCK_STORE', useValue: new BlockStore(client, false) },
   { provide: 'INTERACTION_STORE', useValue: new InteractionStore(client, false) },
   { provide: ListingMediaStore, useExisting: 'LISTING_MEDIA_STORE' },
   { provide: 'LISTING_SUBMISSION_STORE', useValue: listingSubmissionStore },

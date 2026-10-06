@@ -11,6 +11,7 @@ const listing = {
 
 test('anonymous user filters, opens public detail, and sees no contact/private controls', async ({ page }) => {
   let visible = true;
+  await page.route('**/api/session', route => route.fulfill({json:{authenticated:false,participationAllowed:false}}));
   await page.route('**/api/public/listings**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith(`/listings/${listing.id}`)) return route.fulfill({ json: visible ? listing : { message: 'Listing is not available' }, status: visible ? 200 : 404 });
@@ -27,6 +28,7 @@ test('anonymous user filters, opens public detail, and sees no contact/private c
   await expect(page.getByText('Akwa')).toBeVisible();
   await expect(page.getByText('Structured neighborhood location. No exact address is shown.')).toBeVisible();
   await expect(page.getByText(/message|phone|email|save|viewing/i)).toHaveCount(0);
+  await expect(page.getByRole('link', {name:'Manage your blocks',exact:true})).toHaveCount(0);
   visible = false;
   await page.goto('/listings');
   await expect(page.getByText('No listings match those filters.')).toBeVisible();
