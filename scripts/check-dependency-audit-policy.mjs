@@ -16,6 +16,13 @@ const expectedExceptions = [
     createdOn: '2026-10-05',
     reviewBy: '2026-10-16',
   },
+  {
+    ghsa: 'GHSA-hp3w-g68c-fv3c',
+    cve: 'CVE-2026-97058',
+    package: 'sprintf-js@1.0.3',
+    createdOn: '2026-10-06',
+    reviewBy: '2026-10-13',
+  },
 ];
 const requiredFields = [
   'CVE', 'Package', 'Provenance', 'Runtime/build exposure', 'Reason',
@@ -69,5 +76,5 @@ if (process.argv[1]?.endsWith('check-dependency-audit-policy.mjs')) {
   const workspace = parse(readFileSync('pnpm-workspace.yaml', 'utf8'));
   const readiness = readFileSync('docs/03-operations/production-readiness-checklist.md', 'utf8');
   validateDependencyAuditPolicy(workspace, readiness);
-  console.log('Dependency audit policy valid: low threshold; two documented, time-bounded GHSA exceptions');
+  console.log('Dependency audit policy valid: low threshold; three documented, time-bounded GHSA exceptions');
 }

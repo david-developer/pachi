@@ -663,10 +663,12 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   beside them in `.gitleaksignore`. No file/directory blanket exclusions.
 - [pnpm audit](https://pnpm.io/cli/audit) checks production AND development
   dependencies at severity `low` and above; registry errors also fail. There are
-  exactly two temporary advisory exceptions, enforced by the policy checker:
-  `GHSA-86w9-cpqp-85rv` and `GHSA-vfj7-8cjw-p6xm`, due for review on
-  2026-10-16. Scoped overrides in `pnpm-workspace.yaml` fix upstream
-  transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
+  exactly three temporary advisory exceptions, enforced by the policy checker:
+  `GHSA-86w9-cpqp-85rv` (node-forge) and `GHSA-vfj7-8cjw-p6xm` (braces),
+  due for review on 2026-10-16, and `GHSA-hp3w-g68c-fv3c` (sprintf-js),
+  due for review on 2026-10-13. Source-map-js is remediated by its compatible
+  1.2.2 lockfile resolution and is not excepted. Scoped overrides in
+  `pnpm-workspace.yaml` fix upstream transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
   Metro passes filenames to the removed v1 API. Mobile exports exercise this
   compatibility; xcode's UUID v4 and query-string decoding retain their used APIs.
 - Contract checking generates types from OpenAPI in a temporary directory,
