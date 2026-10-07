@@ -211,6 +211,13 @@
       "when": 1791763200000,
       "tag": "0029_block_contact_safety",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791849600000,
+      "tag": "0030_organization_resource_assignments",
+      "breakpoints": true
     }
   ]
 }

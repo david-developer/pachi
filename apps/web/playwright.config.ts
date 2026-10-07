@@ -8,6 +8,10 @@ export default defineConfig({
   use: { baseURL: externalServer ?? 'http://localhost:3100', browserName: 'chromium' },
   webServer: externalServer ? [] : [{
     command: 'pnpm exec next start --port 3100',
+    env: {
+      ...process.env,
+      WEB_SESSION_SECRET: 'pachi-browser-test-only-synthetic-session-secret'
+    },
     url: 'http://localhost:3100/provider',
     reuseExistingServer: false
   }]
