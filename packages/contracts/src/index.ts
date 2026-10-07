@@ -18,3 +18,5 @@ export type { StaffRole, StaffScope, StaffSessionResponse, AuthorityRiskCase, Au
 export type { ProviderVerificationCase, ProviderVerificationStatus } from './verification.js';
 export type { MessageReceipt, MessageResponse, MessageSendRequest, MessageSendResponse, ReceiptRequest, ReceiptResponse, ConversationSummary, ConversationListResponse, MessageListResponse } from './conversation.js';
 export type { OrganizationType, SupportedOrganizationType, OrganizationState, OrganizationRole, OrdinaryOrganizationRole, OrganizationMembershipState, OrganizationSummary, OrganizationMember, OrganizationInvitation, OrganizationListResponse, OrganizationMemberListResponse, OrganizationInvitationListResponse, OrganizationCreateRequest, OrganizationInvitationCreateRequest, OrganizationInvitationRespondRequest, OrganizationVersionRequest, OrganizationMemberRoleRequest } from './organization.js';
+
+export type { OwnBlockResponse, OwnBlockListResponse, ContactSafetyResponse, UnblockRequest } from './block.js';

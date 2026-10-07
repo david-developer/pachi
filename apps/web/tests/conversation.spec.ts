@@ -72,6 +72,12 @@ async function fixture(
   await page.route('**/api/account/interactions/*', (route) =>
     route.fulfill({ json: { ...context, state: state.interactionState } })
   );
+  await page.route('**/api/account/interactions/*/contact-safety', (route) =>
+    route.fulfill({ json: { can_contact: state.canSend && state.interactionState === 'OPEN', can_block: true, own_block: null } })
+  );
+  await page.route('**/api/account/listings/*/contact-safety', (route) =>
+    route.fulfill({ json: { can_contact: true, can_block: true, own_block: null } })
+  );
   await page.route('**/api/account/conversations', (route) =>
     route.fulfill({
       json: {

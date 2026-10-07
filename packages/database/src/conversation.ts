@@ -1,5 +1,6 @@
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
+import { contactProhibited } from './contact-safety.js';
 import {
   conversationActorPredicate,
   conversationListingProjection,
@@ -78,24 +79,11 @@ function validateText(body: string) {
       'Text must contain 1 to 4000 Unicode characters'
     );
 }
-export class ConversationStore {
-  private readonly limits: MessageLimits;
-  constructor(
-    private readonly client: postgres.Sql,
-    private readonly allowSyntheticVerification = false,
-    limits: Partial<MessageLimits> = {}
-  ) {
-    this.limits = { ...MESSAGE_LIMIT_DEFAULTS, ...limits };
-    if (
-      Object.values(this.limits).some((n) => !Number.isSafeInteger(n) || n < 1)
-    )
-      throw new Error('Invalid message limits');
-  }
-
-  private async sendEligible(
+export async function conversationSendEligible(
     tx: Sql,
     userId: string,
-    context: ConversationContext
+    context: ConversationContext,
+    allowSyntheticVerification: boolean
   ): Promise<boolean> {
     if (context.state !== 'OPEN') return false;
     const actors = await tx<
@@ -116,16 +104,27 @@ export class ConversationStore {
       >`SELECT vc.source_case_id AS id FROM verification_claims vc JOIN verification_cases c ON c.id=vc.source_case_id
         WHERE vc.provider_profile_id=${context.provider_profile_id} AND vc.claim_type='PROVIDER_IDENTITY' AND vc.status='VERIFIED' AND vc.revoked_at IS NULL
         AND vc.valid_from<=statement_timestamp() AND vc.valid_until>statement_timestamp() AND c.state='VERIFIED'
-        AND (c.policy_version<>'provider-identity-synthetic-v1' OR ${this.allowSyntheticVerification}) FOR SHARE OF vc,c`;
+        AND (c.policy_version<>'provider-identity-synthetic-v1' OR ${allowSyntheticVerification}) FOR SHARE OF vc,c`;
       if (!claims[0]) return false;
     }
-    const blocks = await tx<
-      { id: string }[]
-    >`SELECT b.id FROM block_relationships b WHERE b.revoked_at IS NULL AND (
-      (b.blocker_user_id=${context.seeker_user_id} AND (b.blocked_provider_account_id=${context.provider_account_id} OR b.blocked_user_id=${context.provider_user_id})) OR
-      (b.blocker_user_id=${context.provider_user_id} AND b.blocked_user_id=${context.seeker_user_id})) LIMIT 1`;
-    return !blocks[0];
+    return !(await contactProhibited(tx, context.seeker_user_id, context.provider_account_id, context.provider_user_id));
   }
+
+
+export class ConversationStore {
+  private readonly limits: MessageLimits;
+  constructor(
+    private readonly client: postgres.Sql,
+    private readonly allowSyntheticVerification = false,
+    limits: Partial<MessageLimits> = {}
+  ) {
+    this.limits = { ...MESSAGE_LIMIT_DEFAULTS, ...limits };
+    if (
+      Object.values(this.limits).some((n) => !Number.isSafeInteger(n) || n < 1)
+    )
+      throw new Error('Invalid message limits');
+  }
+
 
   private async project(tx: Sql, rows: MessageRow[]): Promise<SafeMessage[]> {
     if (!rows.length) return [];
@@ -167,7 +166,10 @@ export class ConversationStore {
     if (!input || !isUuid(input.client_message_id ?? ''))
       throw new IdentityError('INVALID_INPUT', 'Invalid client message ID');
     validateText(input.body);
+    userId = userId.toLowerCase();
     return this.client.begin(async (tx) => {
+      // The shared block gate precedes sender and resource locks, including retries.
+      await tx`LOCK TABLE block_relationships IN SHARE MODE`;
       // Serialize sender retries and both rate scopes across connections/processes.
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`message-sender:${userId}`},0))`;
       // Current authority is required even to confirm a previously committed send.
@@ -196,17 +198,12 @@ export class ConversationStore {
           created: false
         };
       }
-      // Only a genuinely new mutation requires current send capability.
-      // The Interaction row stays locked; this shared table lock prevents a
-      // concurrent block insert/revoke racing the eligibility check and commit.
-      // Future block commands can replace it with a finer shared locking protocol.
-      await tx`LOCK TABLE block_relationships IN SHARE MODE`;
       if (context.state === 'CLOSED')
         throw new IdentityError(
           'CONVERSATION_CLOSED',
           'Conversation is not open'
         );
-      if (!(await this.sendEligible(tx, userId, context)))
+      if (!(await conversationSendEligible(tx, userId, context, this.allowSyntheticVerification)))
         throw new IdentityError(
           'CAPABILITY_RESTRICTED',
           'Messaging is not available'
@@ -266,7 +263,7 @@ export class ConversationStore {
       return {
         items: await this.project(tx, page),
         next_cursor: rows.length > limit ? String(page.at(-1)!.sequence) : null,
-        can_send: await this.sendEligible(tx, userId, context),
+        can_send: await conversationSendEligible(tx, userId, context, this.allowSyntheticVerification),
         actor_side:
           userId === context.seeker_user_id
             ? ('SEEKER' as const)

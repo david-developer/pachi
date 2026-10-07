@@ -27,8 +27,8 @@ URLs remain text. This is a functional development interface, not approved final
 Sending requires current ACTIVE/phone eligibility and an OPEN Interaction; providers
 also need current profile/account/identity eligibility. Historical participant rows
 never grant access; organization messaging fails closed pending assignments.
-CLOSED/RESTRICTED and blocked contexts retain authorized history. Durable block
-enforcement substrate exists; block-management UI/API and reporting remain deferred.
+CLOSED/RESTRICTED and blocked contexts retain authorized history. Block-management
+UI/API are described below; reporting remains deferred.
 
 Messages have a server sequence and sender/client-message retry identity. Receipt
 acknowledgement is per recipient: READ implies DELIVERED, and both use server times.
@@ -39,8 +39,8 @@ all API processes must use the same configuration. Persisted retries consume no
 additional unit. Current Conversation access is always required; an identical
 persisted retry confirms its existing Message even after state, block or sender
 eligibility changes. Current send capability applies only to a genuinely new
-Message. A table SHARE lock serializes new sends against block mutations; it permits
-concurrent sends and may need a finer locking protocol with later block management.
+Message. A table SHARE lock serializes sends and inquiries against block mutations;
+it permits concurrent contact transactions while block/unblock writers serialize.
 
 Every new message commits one safe `message_sent` source event; the first provider
 reply commits one `provider_first_response` per Interaction. Outbox schema version 1
@@ -51,6 +51,31 @@ with synthetic/local TEST evidence. Broader G3 alpha functionality remains incom
 including external notifications, viewing, native calls and reviews; attachments and
 voice remain outside this slice. Real verification evidence intake retains E01 gates;
 real Cognito/account, deployment and pilot acceptance remain outstanding.
+
+## Block and contact safety (bounded G3-B candidate)
+
+Conversation controls let the seeker block its stable ProviderAccount, or the current
+individual provider block the seeker User. Listing controls resolve the provider
+server-side for pre-contact seeker protection. Membership never authorizes an
+organization-side block, and organization messaging remains unavailable.
+
+Blocks stop new messages and every inquiry path, including old successful inquiry-key
+replay. An identical already-persisted Message retry can still confirm persistence
+under current Conversation authority, without new message, receipt, event or rate
+effects. Blocking preserves authorized history and receipt acknowledgement; it does
+not rewrite OPEN/RESTRICTED/CLOSED state or clear independent restrictions.
+
+`/blocks` lists only the signed-in user's own episodes and supports versioned unblock
+even when the original resource disappears or phone participation is unavailable.
+SUSPENDED/DELETED identities remain rejected by normal authentication. Unblocking
+does not expose or clear a reciprocal block; re-block creates a new retained episode.
+UUID command keys deduplicate retries, with immutable private actions/audit/outbox.
+All targets come from authorized resource context, with private no-store APIs and
+same-origin CSRF-protected BFF commands. Delayed reads cannot restore capabilities
+or undo a confirmed own-unblock projection. These are functional development screens;
+native calling/phone exposure, mobile UI, reports, viewings and reviews remain deferred.
+The candidate requires independent review and separate merge authorization.
+**G3 remains NOT RUN.**
 
 ## Local foundation
 

@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  // Preserve the original inquiry/session assertions with the optional safety
+  // read temporarily unavailable. G3-B's dedicated suite covers live projections.
+  // Every new private read stays synthetic rather than hitting preview auth.
+  await page.route('**/api/account/**/contact-safety', route => route.fulfill({status:503,json:{error:'safety_unavailable'}}));
+});
+
 test('anonymous Contact provider starts sign-in without sending an inquiry', async ({ page }) => {
   const listingId='00000000-0000-4000-8000-000000000061';
   const listing={id:listingId,purpose:'RENT',title:'Synthetic contact flat',description:'Safe contact fixture',price:{amount_minor:200000,currency:'XAF',pricing_period:'MONTHLY',negotiable:false},terms:{deposit_amount_minor:null,advance_months:null,minimum_lease_months:null,utilities_included:null,service_charge_amount_minor:null,weekly_amount_minor:null,minimum_nights:null,guest_limit:null,check_in_time:null,check_out_time:null,cleaning_fee_minor:null},property:{property_type:'APARTMENT',bedrooms:2,bathrooms:1,size_sqm:null,furnishing:'FURNISHED'},location:{region:'Littoral',city:'Douala',neighborhood:'Akwa'},market_status:'AVAILABLE',available_from:'2026-10-01',expires_at:'2026-11-01T00:00:00.000Z',media:[]};

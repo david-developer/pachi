@@ -2,6 +2,7 @@ import { snapshotAnalyticsContext } from './analytics-context.js';
 import { createHash } from 'node:crypto';
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
+import { contactProhibited } from './contact-safety.js';
 import { readPublicListingVisibility } from './listing-visibility.js';
 import { requireConversationAccess, conversationListingProjection } from './conversation-access.js';
 
@@ -16,14 +17,18 @@ export class InteractionStore {
 
   public async createOrReuseInquiry(userId: string, listingId: string, idempotencyKey: string): Promise<InteractionResult> {
     if (!uuid(userId) || !uuid(listingId) || !uuid(idempotencyKey)) throw new IdentityError('INVALID_INPUT', 'Inquiry request is invalid');
+    userId = userId.toLowerCase(); listingId = listingId.toLowerCase(); idempotencyKey = idempotencyKey.toLowerCase();
     const requestHash = createHash('sha256').update(JSON.stringify({listing_id:listingId,initial_channel:'MESSAGE'})).digest('hex');
     return this.client.begin(async (tx) => {
+      await tx`LOCK TABLE block_relationships IN SHARE MODE`;
       const userRows = await tx<{id:string}[]>`SELECT u.id FROM users u WHERE u.id=${userId} AND u.account_state='ACTIVE' AND EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id=u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL) FOR SHARE OF u`;
       if (!userRows[0]) throw new IdentityError('PHONE_REQUIRED', 'A current verified phone is required for contact');
       const previous = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interaction_idempotency k JOIN interactions i ON i.id=k.interaction_id JOIN conversations c ON c.id=k.conversation_id WHERE k.seeker_user_id=${userId} AND k.operation='CREATE_INQUIRY' AND k.idempotency_key=${idempotencyKey} FOR UPDATE`;
       if (previous[0]) {
         const hashes = await tx<{request_hash:string}[]>`SELECT request_hash FROM interaction_idempotency WHERE seeker_user_id=${userId} AND operation='CREATE_INQUIRY' AND idempotency_key=${idempotencyKey}`;
         if (hashes[0]?.request_hash !== requestHash) throw new IdentityError('IDEMPOTENCY_KEY_REUSED', 'Inquiry key was used for another request');
+        const context = await requireConversationAccess(tx,userId,previous[0].id,'interaction');
+        if (await contactProhibited(tx,context.seeker_user_id,context.provider_account_id,context.provider_user_id)) throw new IdentityError('CAPABILITY_RESTRICTED','Contact is not available');
         return map(previous[0], false);
       }
       const context = await tx<{listing_id:string;provider_account_id:string;provider_user_id:string}[]>`SELECT l.id AS listing_id,l.provider_account_id,pp.user_id AS provider_user_id FROM listings l JOIN provider_accounts pa ON pa.id=l.provider_account_id JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE l.id=${listingId} FOR SHARE OF l,pa,pp`;
@@ -32,6 +37,7 @@ export class InteractionStore {
       if (listing.provider_user_id === userId) throw new IdentityError('RESOURCE_SCOPE_DENIED', 'Self contact is not available');
       const visibility = await readPublicListingVisibility(tx, listingId, {allowSyntheticVerification:this.allowSyntheticVerification});
       if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
+      if (await contactProhibited(tx,userId,listing.provider_account_id,listing.provider_user_id)) throw new IdentityError('CAPABILITY_RESTRICTED','Contact is not available');
       const existing = await tx<InteractionRow[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,i.opened_at,c.id AS conversation_id FROM interactions i JOIN conversations c ON c.interaction_id=i.id WHERE i.listing_id=${listingId} AND i.seeker_user_id=${userId} AND i.provider_account_id=${listing.provider_account_id} AND i.state IN ('OPEN','RESTRICTED') FOR UPDATE`;
       if (existing[0]?.state === 'RESTRICTED') throw new IdentityError('CAPABILITY_RESTRICTED', 'Contact is not available');
       if (existing[0]) {

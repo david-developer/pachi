@@ -36,3 +36,7 @@ export type { SafeMessage, MessageLimits } from './conversation.js';
 
 export { AnalyticsStore, ANALYTICS_CONSUMER, ANALYTICS_STREAMS, RESPONSE_FILTER_VERSION } from './analytics.js';
 export type { AnalyticsStream, ResponseReportInput, ResponseSegments } from './analytics.js';
+
+export { BlockStore } from './block.js';
+export type { BlockActor, BlockCommand, SafeBlock, ContactSafety } from './block.js';
+export { contactProhibited } from './contact-safety.js';
