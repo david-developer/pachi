@@ -118,7 +118,8 @@ void integration(
       assert.equal(+(await store.read(id)).row.authenticated_at, +initial);
       await client`UPDATE staff_grants SET revoked_at=${now.toISOString()} WHERE id=${grant}`;
       await assert.rejects(() => store.read(id), /RESOURCE_SCOPE_DENIED/);
-      await client`UPDATE staff_grants SET revoked_at=NULL,expires_at=${now.toISOString()} WHERE id=${grant}`;
+      // Grant expiry is database time; the injected clock below still drives session/token timers.
+      await client`UPDATE staff_grants SET revoked_at=NULL,expires_at=now() WHERE id=${grant}`;
       await assert.rejects(() => store.read(id), /RESOURCE_SCOPE_DENIED/);
       await client`UPDATE staff_grants SET expires_at=${new Date(+initial + 86400_000).toISOString()} WHERE id=${grant}`;
       now = new Date(+initial + 2700_000);
