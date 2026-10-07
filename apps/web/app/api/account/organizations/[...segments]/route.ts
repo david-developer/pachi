@@ -10,11 +10,12 @@ function allowed(segments: string[], mutation: boolean): boolean {
     return segments.length === 5 || (mutation && segments.length === 7 && uuid.test(segments[5] ?? '') && segments[6] === 'revoke');
   }
   if (!mutation) return segments.length === 1 ||
-    (segments.length === 2 && ['members', 'invitations'].includes(segments[1]!));
-  if (segments.length === 2) return segments[1] === 'invitations';
+    (segments.length === 2 && ['members', 'invitations', 'ownership-transfers'].includes(segments[1]!));
+  if (segments.length === 2) return ['invitations', 'ownership-transfers'].includes(segments[1]!);
   if (segments.length !== 4 || !uuid.test(segments[2] ?? '')) return false;
-  return (segments[1] === 'invitations' && segments[3] === 'revoke') ||
-    (segments[1] === 'members' && ['change-role', 'suspend', 'reactivate', 'revoke'].includes(segments[3]!));
+  return (segments[1] === 'ownership-transfers' && ['accept', 'complete', 'cancel'].includes(segments[3]!)) ||
+    (segments[1] === 'invitations' && segments[3] === 'revoke') ||
+    (segments[1] === 'members' && ['change-role', 'suspend', 'reactivate', 'revoke', 'privileged-role', 'privileged-revoke'].includes(segments[3]!));
 }
 async function handle(request: Request, context: Context, mutation = false): Promise<Response> {
   const { segments } = await context.params;

@@ -218,6 +218,13 @@
       "when": 1791849600000,
       "tag": "0030_organization_resource_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791936000000,
+      "tag": "0031_organization_owner_lifecycle",
+      "breakpoints": true
     }
   ]
 }

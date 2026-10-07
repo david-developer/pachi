@@ -83,8 +83,8 @@ revokes old grants, including if the resource later returns. Membership/session
 removal denies current authority without rewriting historical participants.
 Current onboarding creates a DRAFT ProviderAccount; this slice does not activate it
 or bypass business verification. Positive organization messaging, inbox/read access,
-viewings, organization-side blocking and owner transfer/recovery remain disabled or
-deferred. G3 remains NOT RUN; these are synthetic/local foundation checks only.
+viewings, organization-side blocking and owner recovery remain disabled or
+deferred. Owner transfer has separate G3-D commands requiring trusted step-up. G3 remains NOT RUN; these are synthetic/local foundation checks only.
 
 ## Block and contact safety (bounded G3-B candidate)
 
@@ -764,8 +764,18 @@ an invitation. No token retrieval endpoint exists. Recipient commands consume a
 privately delivered token in the request body. External delivery remains deferred.
 
 Organization ACTIVE and ProviderAccount existence do not establish BUSINESS
-verification, publication or messaging eligibility. Ownership/admin delegation,
-MFA step-up and transfer/recovery remain deferred. Mobile
+verification, publication or messaging eligibility. Additive migration0031 supports
+separate owner/admin role and revocation commands plus durable ownership transfer
+initiation, intended-recipient acceptance, completion and cancellation. Commands
+recheck current actor/target/session/phone state, expected organization/membership/
+transfer versions and trusted recent MFA-backed step-up. Completion promotes the
+recipient and demotes the source to the selected ordinary role in one transaction;
+versioned membership changes invalidate pending transfers. Current role/assignment
+authority and historical attribution remain separate. The default runtime has no
+trusted owner MFA adapter and returns `STEP_UP_REQUIRED`; only guarded synthetic
+TEST sessions can use the injected local harness. E07 and inaccessible-final-owner
+recovery remain outstanding, with no staff/admin/email bypass. `/organizations`
+provides functional controls and safe step-up-required feedback. Mobile
 organization screens and real-account acceptance are also deferred; G3 remains
 NOT RUN. Validation uses only guarded `localhost:5433/pachi_test`; development
 data and Cognito are preserved.
