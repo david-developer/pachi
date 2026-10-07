@@ -20,3 +20,4 @@ export type { MessageReceipt, MessageResponse, MessageSendRequest, MessageSendRe
 export type { OrganizationType, SupportedOrganizationType, OrganizationState, OrganizationRole, OrdinaryOrganizationRole, OrganizationMembershipState, OrganizationSummary, OrganizationMember, OrganizationInvitation, OrganizationListResponse, OrganizationMemberListResponse, OrganizationInvitationListResponse, OrganizationCreateRequest, OrganizationInvitationCreateRequest, OrganizationInvitationRespondRequest, OrganizationVersionRequest, OrganizationMemberRoleRequest } from './organization.js';
 
 export type { OwnBlockResponse, OwnBlockListResponse, ContactSafetyResponse, UnblockRequest } from './block.js';
+export type { OrganizationAssignment, OrganizationAssignmentListResponse, OrganizationAssignmentCreateRequest, OrganizationAssignmentRevokeRequest } from './organization-assignments.js';

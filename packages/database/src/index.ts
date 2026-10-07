@@ -40,3 +40,7 @@ export type { AnalyticsStream, ResponseReportInput, ResponseSegments } from './a
 export { BlockStore } from './block.js';
 export type { BlockActor, BlockCommand, SafeBlock, ContactSafety } from './block.js';
 export { contactProhibited } from './contact-safety.js';
+export { OrganizationAssignmentStore } from './organization-assignments.js';
+export type { OrganizationAssignment } from './organization-assignments.js';
+export { requireOrganizationResourceActor } from './organization-resource-actor.js';
+export type { OrganizationResource, OrganizationResourcePurpose, OrganizationResourceActorContext } from './organization-resource-actor.js';

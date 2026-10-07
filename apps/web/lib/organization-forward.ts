@@ -6,7 +6,8 @@ export async function forwardOrganizationRequest(
   request: Request,
   apiPath: string,
   session: { accessToken?: string | undefined; csrfToken?: string | undefined },
-  mutation = false
+  mutation = false,
+  queryKeys: readonly string[] = ['cursor', 'limit']
 ): Promise<Response> {
   const headers = { 'cache-control': 'private, no-store' };
   if (!session.accessToken)
@@ -20,7 +21,7 @@ export async function forwardOrganizationRequest(
   }
   const query = new URLSearchParams();
   if (!mutation) {
-    for (const key of ['cursor', 'limit']) {
+    for (const key of queryKeys) {
       const value = new URL(request.url).searchParams.get(key);
       if (value !== null) query.set(key, value);
     }

@@ -26,7 +26,7 @@ URLs remain text. This is a functional development interface, not approved final
 
 Sending requires current ACTIVE/phone eligibility and an OPEN Interaction; providers
 also need current profile/account/identity eligibility. Historical participant rows
-never grant access; organization messaging fails closed pending assignments.
+never grant access; organization messaging remains unavailable even with assignments.
 CLOSED/RESTRICTED and blocked contexts retain authorized history. Block-management
 UI/API are described below; reporting remains deferred.
 
@@ -51,6 +51,40 @@ with synthetic/local TEST evidence. Broader G3 alpha functionality remains incom
 including external notifications, viewing, native calls and reviews; attachments and
 voice remain outside this slice. Real verification evidence intake retains E01 gates;
 real Cognito/account, deployment and pilot acceptance remain outstanding.
+
+## Organization resource assignment foundation (G3-C)
+
+Authenticated assignment APIs use
+`/v1/account/organizations/:organizationId/resources/:resourceType/:resourceId/assignments`
+(GET history, POST assign) and `/:assignmentId/revoke` (POST). Resource types are
+exactly LISTING and INTERACTION. OWNER/ADMIN/LISTING_MANAGER manage assignments;
+AGENT and ANALYST cannot enumerate or manage them. Mutations require a UUID
+Idempotency-Key and expected_version (0 for the first grant, the latest history
+version thereafter). Assign also requires membership_id. Revocation retains the
+old episode; reassignment creates a new ID with the next version. Safe responses
+omit contact, evidence, role snapshots, granting actors and resource content.
+Marketplace-web routes mirror these APIs with server session, origin/CSRF checks
+and private no-store responses.
+
+The internal transaction helper `requireOrganizationResourceActor` resolves
+current session/account, ACTIVE organization/provider principal, active membership,
+role, assignment and owned resource state. It distinguishes LISTING_DRAFT,
+INTERACTION_OPERATION and ASSIGN_RESOURCE: OWNER/ADMIN have organization scope;
+LISTING_MANAGER has listing-draft/assignment scope but needs an explicit interaction
+assignment; AGENT needs the exact resource assignment; ANALYST has no operational
+authority. Listing assignment does not imply interaction assignment. Contexts
+include stable acting user/organization/provider/membership and assignment references
+and must be consumed inside the same transaction. Future callers must still check
+verification, lifecycle, restrictions, blocks/safety and step-up for their action.
+
+Migration 0030 retains membership-based assignment episodes, immutable actions,
+receipts and private outbox facts. Moving a listing/provider or interaction context
+revokes old grants, including if the resource later returns. Membership/session
+removal denies current authority without rewriting historical participants.
+Current onboarding creates a DRAFT ProviderAccount; this slice does not activate it
+or bypass business verification. Positive organization messaging, inbox/read access,
+viewings, organization-side blocking and owner transfer/recovery remain disabled or
+deferred. G3 remains NOT RUN; these are synthetic/local foundation checks only.
 
 ## Block and contact safety (bounded G3-B candidate)
 
@@ -731,7 +765,7 @@ privately delivered token in the request body. External delivery remains deferre
 
 Organization ACTIVE and ProviderAccount existence do not establish BUSINESS
 verification, publication or messaging eligibility. Ownership/admin delegation,
-MFA step-up, transfer/recovery and resource assignments remain deferred. Mobile
+MFA step-up and transfer/recovery remain deferred. Mobile
 organization screens and real-account acceptance are also deferred; G3 remains
 NOT RUN. Validation uses only guarded `localhost:5433/pachi_test`; development
 data and Cognito are preserved.
