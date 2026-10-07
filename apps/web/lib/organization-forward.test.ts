@@ -52,3 +52,11 @@ void test('organization BFF forwards only collection pagination query fields', a
   const response = await forwardOrganizationRequest(request, 'organizations', { accessToken: 'server-access' });
   assert.equal(response.status, 200);
 });
+
+void test('owner BFF conveys trusted step-up-required and final-owner protection safely with no-store', async t => {
+  for (const [message,error] of [['STEP_UP_REQUIRED','step_up_required'],['FINAL_OWNER_PROTECTED','final_owner_protected']]) {
+    t.mock.method(globalThis,'fetch',async()=>Response.json({message,private_evidence:'PRIVATE_SENTINEL'},{status:message==='STEP_UP_REQUIRED'?403:409}));
+    const response=await forwardOrganizationRequest(input(),'organizations/fixture/members/fixture/privileged-role',{accessToken:'server-access',csrfToken:'synthetic-csrf'},true);
+    assert.equal(response.headers.get('cache-control'),'private, no-store');assert.deepEqual(await response.json(),{error});
+  }
+});

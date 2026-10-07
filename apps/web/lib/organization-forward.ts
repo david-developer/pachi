@@ -48,7 +48,7 @@ export async function forwardOrganizationRequest(
     if (response.ok) projection = await response.json();
     else {
       const failure = await response.json().catch(() => null) as { message?: unknown } | null;
-      projection = { error: failure?.message === 'DELIVERY_UNAVAILABLE' ? 'delivery_unavailable' : 'organization_request_failed' };
+      projection = { error: failure?.message === 'DELIVERY_UNAVAILABLE' ? 'delivery_unavailable' : failure?.message === 'STEP_UP_REQUIRED' ? 'step_up_required' : failure?.message === 'FINAL_OWNER_PROTECTED' ? 'final_owner_protected' : 'organization_request_failed' };
     }
     return Response.json(projection, {
       status: response.status, headers

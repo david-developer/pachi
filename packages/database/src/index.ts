@@ -44,3 +44,6 @@ export { OrganizationAssignmentStore } from './organization-assignments.js';
 export type { OrganizationAssignment } from './organization-assignments.js';
 export { requireOrganizationResourceActor } from './organization-resource-actor.js';
 export type { OrganizationResource, OrganizationResourcePurpose, OrganizationResourceActorContext } from './organization-resource-actor.js';
+export { OrganizationOwnerStore } from './organization-owner-lifecycle.js';
+export type { OrganizationOwnershipTransfer } from './organization-owner-lifecycle.js';
+export { LocalOrganizationOwnerStepUp } from './organization-owner-step-up.js';

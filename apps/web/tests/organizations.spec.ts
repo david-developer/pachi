@@ -138,7 +138,7 @@ test('creation waits for the initial overview so an older response cannot hide t
   await expect(create).toBeEnabled();
 });
 
-test('creation establishes owner workspace with distinct business state and no privileged controls', async ({ page }) => {
+test('creation establishes owner workspace with distinct business state and separate step-up-protected controls', async ({ page }) => {
   const state = await workspace(page, { empty: true });
   await page.getByLabel('Legal organization name', { exact: true }).fill('Synthetic Legal Agency');
   await page.getByLabel('Public organization name', { exact: true }).fill('Created synthetic agency');
@@ -149,7 +149,8 @@ test('creation establishes owner workspace with distinct business state and no p
   expect(state.calls[0]!.csrf).toBe('synthetic-csrf');
   expect(state.calls[0]!.key).toMatch(/^[0-9a-f-]{36}$/);
   expect(state.calls[0]!.body).toEqual({ legal_name: 'Synthetic Legal Agency', public_name: 'Created synthetic agency', organization_type: 'REAL_ESTATE_AGENCY', public_phone_opt_in: false });
-  await expect(page.getByRole('button', { name: /transfer|recover|appoint owner|appoint admin|publish/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /recover|publish/i })).toHaveCount(0);
+  await expect(page.getByText('Ownership and admin changes require recent MFA-backed verification. Step-up is currently unavailable in this development interface. The server will require it before a change can proceed.')).toBeVisible();
   const privileged = page.getByRole('list', { name: 'Organization members', exact: true }).locator('li').filter({ hasText: ids.owner });
   await expect(privileged.getByRole('button')).toHaveCount(0);
   await expect(privileged.getByRole('combobox')).toHaveCount(0);

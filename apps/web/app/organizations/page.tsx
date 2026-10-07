@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { OwnerControls } from './owner-controls';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type {
@@ -25,6 +26,8 @@ async function read<T>(path: string): Promise<T> {
 }
 function feedback(error: unknown): string {
   if (!(error instanceof RequestFailure)) return 'The action could not be confirmed. Refresh before retrying.';
+  if (error.category === 'step_up_required') return 'Recent MFA-backed verification is required. Step-up is currently unavailable; no ownership or admin change was made.';
+  if (error.category === 'final_owner_protected') return 'The final active owner is protected. Complete an accepted ownership transfer before removing that owner.';
   if (error.category === 'delivery_unavailable') return 'Invitation delivery is unavailable. No invitation was created.';
   if (error.status === 401) return 'Your sign-in session has expired. Sign in again.';
   if (error.status === 403 || error.status === 404) return 'This action is no longer available to your account. Refresh your organizations.';
@@ -74,7 +77,7 @@ export default function OrganizationsPage() {
     setError(confirmedChange.current
       ? 'The change was confirmed, but current workspace access could not be refreshed. Refresh your organizations.'
       : feedback(issue));
-    if (issue instanceof RequestFailure && [401, 403, 404].includes(issue.status)) {
+    if (issue instanceof RequestFailure && issue.category !== 'step_up_required' && [401, 403, 404].includes(issue.status)) {
       const inaccessible = selected.current;
       forgetSelected();
       setOrganizations(current => current.filter(item => item.id !== inaccessible));
@@ -243,7 +246,7 @@ export default function OrganizationsPage() {
           <label>Public organization name<input disabled={!!busy} required minLength={2} maxLength={120} value={publicName} onChange={event => setPublicName(event.target.value)} /></label>
           <label>Organization type<select disabled={!!busy} value={organizationType} onChange={event => setOrganizationType(event.target.value as OrganizationType)}><option value="REAL_ESTATE_AGENCY">Real estate agency</option><option value="PROPERTY_MANAGEMENT_COMPANY">Property management company</option><option value="CORPORATE_PROPERTY_OWNER">Corporate property owner</option></select></label>
           <label className="organizationCheckbox"><input disabled={!!busy} type="checkbox" checked={phoneOptIn} onChange={event => setPhoneOptIn(event.target.checked)} />Use my current verified phone as the public business contact</label>
-          <p className="fineprint">You become the initial owner. Ownership changes and admin delegation require a future MFA-backed security flow; they are unavailable here.</p>
+          <p className="fineprint">You become the initial owner. Ownership changes and admin delegation require recent MFA-backed verification. Step-up and final-owner recovery remain unavailable here.</p>
           <button className="primary" disabled={!!busy || loading} type="submit">{busy === 'Creating organization' ? 'Creating…' : 'Create organization'}</button>
         </form></section>
         <section className="tool" aria-labelledby="organization-list"><h2 id="organization-list">Available organizations</h2>
@@ -262,6 +265,9 @@ export default function OrganizationsPage() {
         <dl><dt>Organization state</dt><dd>{organization.state}</dd><dt>Business verification</dt><dd>{organization.business_verification}</dd><dt>Publication</dt><dd>Unavailable</dd><dt>Your membership</dt><dd>{organization.membership.role} · {organization.membership.state}</dd></dl>
         {organization.public_contact.phone && <p>Opted-in public business phone: {organization.public_contact.phone}</p>}
         <p>Organization activity does not verify the business, its members or property authority. Resource assignments and organization marketplace operations remain unavailable.</p>
+        <OwnerControls key={`${organization.id}:${organization.version}:${organization.membership.version}`} organization={organization} members={members} busy={!!busy} execute={async (path, payload) => {
+          let result: unknown; await perform('Updating ownership', async () => { result = await mutate(path, payload); setNotice('Sensitive organization change confirmed.'); await loadOverview(); await selectOrganization(organization.id); }); return result;
+        }} />
         {canManage && <><h3>Members</h3><ul aria-label="Organization members">{members.map(member => <li key={member.id}><p>Member {member.user_id} · {member.role} · {member.state}</p>{roles.includes(member.role as OrdinaryRole) && ['ACTIVE', 'SUSPENDED'].includes(member.state) && <MemberControls key={`${member.id}:${member.version}`} member={member} busy={!!busy} command={membershipCommand} />}</li>)}</ul></>}
         {memberCursor && <button disabled={!!busy} type="button" onClick={() => void loadMore('members')}>Load more members</button>}
         {canManage && <><h3>Invite an ordinary member</h3><p>External invitation delivery is unavailable here. Invitations require private delivery to be enabled; no code is displayed to the manager.</p>
