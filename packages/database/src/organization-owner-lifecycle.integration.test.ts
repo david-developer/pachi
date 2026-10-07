@@ -229,3 +229,99 @@ void integration('privileged revocation contains a suspended admin without reviv
   await assert.rejects(f.role(f.actors.owner,f.memberships.admin,'OWNER'),{code:'INVALID_STATE'});
  }finally{await f.close();}
 });
+
+async function selfRevokeFixture(){
+ const f=await fixture();await f.role(f.actors.owner,f.memberships.agent,'OWNER');
+ const input={...await f.context(f.actors.owner),expectedMembershipVersion:1,command:'REVOKE' as const};
+ return{...f,input};
+}
+async function selfRevokeEffects(f:Awaited<ReturnType<typeof selfRevokeFixture>>){
+ const counts=await effects(f.client);
+ return{actions:Number(counts.actions),events:Number(counts.events),receipts:Number(counts.receipts),audit:Number((await f.client`SELECT count(*)::int AS count FROM audit_events`)[0]!.count),
+  member:(await f.client`SELECT id,role,state,version,revoked_at,changed_by FROM organization_memberships WHERE id=${f.memberships.owner}`)[0],
+  organization:(await f.client`SELECT version FROM organizations WHERE id=${f.org.id}`)[0],
+  owners:(await f.client`SELECT id FROM organization_memberships WHERE organization_id=${f.org.id} AND role='OWNER' AND state='ACTIVE' ORDER BY id`).map(r=>r.id)};
+}
+void integration('committed OWNER self-revocation survives a lost response with exact effect-free replay and body-bound key conflict',async()=>{
+ const f=await selfRevokeFixture();try{
+  const before=await selfRevokeEffects(f),first=await f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input);
+  assert.equal(first.state,'REVOKED');assert.equal(first.version,2);
+  const committed=await selfRevokeEffects(f);
+  for(const count of ['actions','events','receipts','audit'] as const)assert.equal(committed[count],before[count]+1);
+  assert.equal(committed.organization?.version,before.organization!.version+1);assert.deepEqual(committed.owners,[f.memberships.agent]);
+  const retry=await f.store.mutateMember({...f.actors.owner,userId:f.actors.owner.userId.toUpperCase()},f.org.id.toUpperCase(),f.memberships.owner.toUpperCase(),{...f.input,idempotencyKey:f.input.idempotencyKey.toUpperCase(),requestId:randomUUID()});
+  assert.deepEqual(retry,first);assert.deepEqual(await selfRevokeEffects(f),committed);
+  for(const change of [{expectedOrganizationVersion:f.input.expectedOrganizationVersion+1},{expectedMembershipVersion:2},{expectedActorMembershipVersion:2}])
+   await assert.rejects(f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,{...f.input,...change}),{code:'IDEMPOTENCY_KEY_REUSED'});
+  await assert.rejects(f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.agent,f.input),{code:'IDEMPOTENCY_KEY_REUSED'});
+  assert.deepEqual(await selfRevokeEffects(f),committed);
+ }finally{await f.close();}
+});
+for(const loss of ['expired','revokedSession','securityVersion','unregisteredSession','unverifiedPhone','replacedPhone','PENDING_PHONE','SUSPENDED','DEACTIVATED'] as const)
+void integration(`committed self-revoke replay denies current ${loss} without business or audit effects`,async()=>{
+ const f=await selfRevokeFixture();try{
+  await f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input);const before=await selfRevokeEffects(f);
+  let actor=f.actors.owner;
+  if(loss==='expired')await f.client`UPDATE security_sessions SET expires_at=statement_timestamp()-interval '1 second' WHERE id=${actor.sessionId}`;
+  else if(loss==='revokedSession')await f.client`UPDATE security_sessions SET revoked_at=statement_timestamp() WHERE id=${actor.sessionId}`;
+  else if(loss==='securityVersion')await f.client`UPDATE users SET security_version=security_version+1 WHERE id=${actor.userId}`;
+  else if(loss==='unregisteredSession')actor={...actor,sessionId:randomUUID()};
+  else if(loss==='unverifiedPhone')await f.client`UPDATE phone_contacts SET verified_at=NULL WHERE user_id=${actor.userId}`;
+  else if(loss==='replacedPhone')await f.client`UPDATE phone_contacts SET replaced_at=statement_timestamp() WHERE user_id=${actor.userId}`;
+  else await f.client`UPDATE users SET account_state=${loss} WHERE id=${actor.userId}`;
+  const code=['expired','revokedSession','securityVersion','unregisteredSession'].includes(loss)?'AUTH_REQUIRED':'CAPABILITY_RESTRICTED';
+  await assert.rejects(f.store.mutateMember(actor,f.org.id,f.memberships.owner,f.input),{code});
+  assert.deepEqual(await selfRevokeEffects(f),before);
+ }finally{await f.close();}
+});
+void integration('self-revoke confirmation preserves current trusted step-up policy and fails closed without fresh evidence',async()=>{
+ const f=await selfRevokeFixture();try{
+  let now=new Date();const step=new LocalOrganizationOwnerStepUp(f.client,()=>now);await step.establish(f.actors.owner,f.org.id);
+  const store=new OrganizationOwnerStore(f.client,step);await store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input);
+  const before=await selfRevokeEffects(f);now=new Date(+now+900000);
+  await assert.rejects(store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input),{code:'STEP_UP_REQUIRED'});
+  await assert.rejects(new OrganizationOwnerStore(f.client).mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input),{code:'STEP_UP_REQUIRED'});
+  assert.deepEqual(await selfRevokeEffects(f),before);
+ }finally{await f.close();}
+});
+void integration('self-revoke receipt grants no new organization authority, other-actor replay or cross-organization result',async()=>{
+ const f=await selfRevokeFixture();try{
+  const otherRevoke={...await f.context(f.actors.owner),expectedMembershipVersion:1,command:'REVOKE' as const};
+  await f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.admin,otherRevoke);
+  let transfer=await f.store.initiate(f.actors.agent,f.org.id,f.memberships.manager,{...await f.context(f.actors.agent),expectedRecipientMembershipVersion:1,sourceRoleAfter:'AGENT'});
+  transfer=await f.store.transferCommand(f.actors.manager,f.org.id,transfer.id,await f.transferInput(f.actors.manager,transfer,'ACCEPT'));
+  const selfInput={...await f.context(f.actors.owner),expectedMembershipVersion:1,command:'REVOKE' as const};
+  await f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,selfInput);const before=await effects(f.client);
+  await assert.rejects(f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.admin,otherRevoke),denied);
+  await assert.rejects(f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,{...selfInput,...f.command()}),denied);
+  await assert.rejects(f.store.mutateMember(f.actors.owner,f.org.id,f.memberships.agent,{...await f.context(f.actors.owner),expectedMembershipVersion:2,command:'ROLE',role:'ADMIN'}),denied);
+  await assert.rejects(f.store.initiate(f.actors.owner,f.org.id,f.memberships.manager,{...await f.context(f.actors.owner),expectedRecipientMembershipVersion:1,sourceRoleAfter:'AGENT'}),denied);
+  for(const command of ['COMPLETE','CANCEL'] as const)await assert.rejects(f.store.transferCommand(f.actors.owner,f.org.id,transfer.id,await f.transferInput(f.actors.owner,transfer,command)),denied);
+  await assert.rejects(f.store.list(f.actors.owner,f.org.id),denied);
+  await assert.rejects(new OrganizationAssignmentStore(f.client).authorize(f.actors.owner,f.resource('INTERACTION'),'INTERACTION_OPERATION'),denied);
+  for(const actor of [f.actors.unrelated,f.actors.otherOwner])await assert.rejects(f.store.mutateMember(actor,f.org.id,f.memberships.owner,selfInput),denied);
+  await assert.rejects(f.store.mutateMember(f.actors.agent,f.org.id,f.memberships.owner,selfInput),{code:'STALE_VERSION'});
+  await assert.rejects(f.store.mutateMember(f.actors.owner,f.otherOrg.id,f.memberships.owner,selfInput),{code:'IDEMPOTENCY_KEY_REUSED'});
+  assert.deepEqual(await effects(f.client),before);assert.equal((await f.client`SELECT state FROM organization_ownership_transfers WHERE id=${transfer.id}`)[0]?.state,'ACCEPTED');
+ }finally{await f.close();}
+});
+void integration('controlled ownership race: duplicate-self-revoke',async()=>{
+ const f=await selfRevokeFixture(),a=postgres(url!,{max:1,prepare:false}),b=postgres(url!,{max:1,prepare:false}),gate=postgres(url!,{max:1,prepare:false});
+ drizzle(a);drizzle(b);
+ let release!:()=>void,arrived!:()=>void;const freed=new Promise<void>(r=>{release=r;}),held=new Promise<void>(r=>{arrived=r;});
+ let holder:Promise<unknown>|undefined;const pending:Promise<PromiseSettledResult<unknown>[]>[]=[];
+ try{
+  const before=await selfRevokeEffects(f),first=new OrganizationOwnerStore(a,f.stepUp),second=new OrganizationOwnerStore(b,f.stepUp);
+  const aPid=(await a<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid,bPid=(await b<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+  holder=gate.begin(async tx=>{await tx`SELECT id FROM organizations WHERE id=${f.org.id} FOR UPDATE`;arrived();await freed;});await held;
+  pending.push(Promise.allSettled([first.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input)]));await waiting(f.client,aPid);
+  pending.push(Promise.allSettled([second.mutateMember(f.actors.owner,f.org.id,f.memberships.owner,f.input)]));await waiting(f.client,bPid);
+  release();await holder;const one=(await pending[0]!)[0]!,two=(await pending[1]!)[0]!;
+  assert.equal(one.status,'fulfilled');assert.equal(two.status,'fulfilled');
+  const result=(one as PromiseFulfilledResult<{state:string;version:number}>).value;assert.deepEqual(result,(two as PromiseFulfilledResult<unknown>).value);
+  assert.equal(result.state,'REVOKED');assert.equal(result.version,2);
+  const committed=await selfRevokeEffects(f);for(const count of ['actions','events','receipts','audit'] as const)assert.equal(committed[count],before[count]+1);
+  assert.equal(committed.organization?.version,before.organization!.version+1);assert.deepEqual(committed.owners,[f.memberships.agent]);
+  assert.equal(committed.member?.state,'REVOKED');assert.equal(committed.member?.version,2);
+ }finally{release();if(holder)await holder;await Promise.all(pending);await Promise.all([a.end(),b.end(),gate.end()]);await f.close();}
+});

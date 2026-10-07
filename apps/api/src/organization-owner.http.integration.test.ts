@@ -73,3 +73,21 @@ void integration('privileged HTTP exposes cancellation, final-owner protection a
  const cancelled=await call('owner',`${collection}/${transfer.id}/cancel`,{...await versions(f),expected_transfer_version:1,expected_source_membership_version:1,expected_recipient_membership_version:1});assert.equal(cancelled.status,201);assert.equal((await cancelled.json() as OrganizationOwnershipTransfer).state,'CANCELLED');
  assert.equal((await call('owner',`${f.org.id}/members/${f.memberships.admin}/privileged-revoke`,{...await versions(f),expected_membership_version:1})).status,201);
 }));
+void integration('authenticated HTTP self-revoke lost-response retry confirms the committed result privately without restoring authority',()=>scenario(async(call,f)=>{
+ assert.equal((await call('owner',`${f.org.id}/members/${f.memberships.agent}/privileged-role`,{...await versions(f),expected_membership_version:1,role:'OWNER'})).status,201);
+ const path=`${f.org.id}/members/${f.memberships.owner}/privileged-revoke`,body={...await versions(f),expected_membership_version:1},key=randomUUID();
+ const first=await call('owner',path,body,key);assert.equal(first.status,201);const result=await first.json() as {state:string;version:number};
+ assert.equal(result.state,'REVOKED');assert.equal(result.version,2);
+ const effects=async()=> (await f.client`SELECT (SELECT count(*)::int FROM organization_owner_actions) AS actions,
+  (SELECT count(*)::int FROM organization_owner_outbox) AS events,(SELECT count(*)::int FROM organization_command_receipts) AS receipts,
+  (SELECT count(*)::int FROM audit_events) AS audit,(SELECT version FROM organization_memberships WHERE id=${f.memberships.owner!}) AS member_version,
+  (SELECT version FROM organizations WHERE id=${f.org.id}) AS organization_version`)[0];
+ const committed=await effects(),retry=await call('owner',path,body,key);assert.equal(retry.status,201);assert.deepEqual(await retry.json(),result);assert.deepEqual(await effects(),committed);
+ const mismatch=await call('owner',path,{...body,expected_membership_version:2},key);assert.equal(mismatch.status,409);assert.equal((await mismatch.json() as {message:string}).message,'IDEMPOTENCY_KEY_REUSED');
+ assert.deepEqual(await effects(),committed);
+ for(const response of [await call('owner',path,body),await call('owner',`${f.org.id}/members/${f.memberships.agent}/privileged-role`,{...await versions(f),expected_membership_version:2,role:'ADMIN'}),await call('owner',`${f.org.id}/ownership-transfers`)]){
+  assert.equal(response.status,404);assert.deepEqual(await response.json(),{statusCode:404,message:'RESOURCE_UNAVAILABLE'});
+ }
+ assert.equal((await call('unrelated',path,body,key)).status,404);
+ assert.deepEqual(await effects(),committed);
+}));

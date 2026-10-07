@@ -86,11 +86,46 @@ export class OrganizationOwnerStore {
     await tx`INSERT INTO audit_events(actor_user_id,action,target_type,target_id,reason_code,request_id,safe_metadata)
       VALUES(${actor.userId},${action},'OrganizationOwnership',${details.transferId ?? orgId},'OWNER_GOVERNANCE',${input.requestId},${JSON.stringify({ policy_version: 'organization-owner-lifecycle-v1', organization_id: orgId, action_id: actionId })}::text::jsonb)`;
   }
+  private async replaySelfRevoke(tx: Tx, actor: OrganizationActor, orgId: string, input: Command,
+    membershipId: string, membershipVersion: number, requestHash: string): Promise<OrganizationMember | null> {
+    await requireOrganizationResourceSession(tx, actor);
+    const organizations = await tx`SELECT id FROM organizations WHERE id=${orgId} AND state='ACTIVE'
+      AND onboarding_completed_at IS NOT NULL FOR UPDATE`;
+    await requireOrganizationResourceSession(tx, actor);
+    if (!organizations[0]) throw denied();
+    // Only a receipt for revoking this actor's OWN membership qualifies. The
+    // immutable action corroborates the receipt's result id and committed version;
+    // no other privileged receipt is read ahead of membership authorization.
+    const row = (await tx<(OrganizationMember & { request_hash: string; receipt_organization_id: string })[]>`
+      SELECT m.id,m.organization_id,m.user_id,m.role,m.state,m.version,m.activated_at,m.revoked_at,
+        r.request_hash,r.organization_id AS receipt_organization_id
+      FROM organization_command_receipts r JOIN organization_memberships m
+        ON m.id::text=r.result->>'id' AND m.user_id=r.actor_user_id AND m.organization_id=r.organization_id
+      WHERE r.actor_user_id=${actor.userId} AND r.operation='OWNER_REVOKE' AND r.idempotency_key=${input.idempotencyKey}
+        AND EXISTS(SELECT 1 FROM organization_owner_actions a WHERE a.organization_id=r.organization_id
+          AND a.actor_user_id=r.actor_user_id AND a.membership_id=m.id AND a.action='PRIVILEGED_MEMBER_REVOKED'
+          AND a.before_role='OWNER' AND a.after_role='OWNER' AND a.membership_version=m.version)`)[0];
+    if (!row) return null;
+    if (row.request_hash !== requestHash) throw denied('IDEMPOTENCY_KEY_REUSED');
+    if (row.receipt_organization_id !== orgId || row.id !== membershipId || row.role !== 'OWNER' || row.state !== 'REVOKED'
+      || row.version !== membershipVersion + 1 || input.expectedActorMembershipVersion !== membershipVersion || !row.revoked_at) throw denied();
+    // Preserve the existing policy: even result confirmation requires current
+    // trusted step-up. This branch returns a projection and performs no writes.
+    await this.trusted(tx, actor, orgId);
+    await requireOrganizationResourceSession(tx, actor);
+    await this.trusted(tx, actor, orgId);
+    return { id: row.id, organization_id: row.organization_id, user_id: row.user_id, role: row.role, state: row.state,
+      version: row.version, activated_at: time(row.activated_at), revoked_at: time(row.revoked_at) };
+  }
   private async command<T>(actor: OrganizationActor, orgId: string, operation: string, input: Command, payload: Record<string, unknown>, work: (tx: Tx, context: { member: OrganizationMember; version: number }, prior: string | null) => Promise<T>): Promise<T> {
     if (!uuid(orgId) || !uuid(input.idempotencyKey) || !uuid(input.requestId) || !positive(input.expectedOrganizationVersion) || !positive(input.expectedActorMembershipVersion)) throw denied('INVALID_INPUT');
     const requestHash = digest(payload);
     const result = await this.client.begin(async tx => {
       await tx`SET LOCAL TIME ZONE 'UTC'`;
+      if (operation === 'OWNER_REVOKE' && typeof payload.membership_id === 'string' && positive(payload.membership_version)) {
+        const replay = await this.replaySelfRevoke(tx, actor, orgId, input, payload.membership_id, payload.membership_version, requestHash);
+        if (replay) return replay as T;
+      }
       const context = await this.actor(tx, actor, orgId);
       // Parent serialization also prevents differently-keyed conflicting mutations.
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`org-command:${actor.userId.toLowerCase()}:${operation}:${input.idempotencyKey.toLowerCase()}`},0))`;
