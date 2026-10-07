@@ -1,3 +1,54 @@
+## G3-B final refresh on verified PR #33 main — IMPLEMENTATION VERIFIED / DRAFT — 2026-10-07
+
+- **Authorized result / stopping boundary:** G3-B only; [PR #30](https://github.com/david-developer/pachi/pull/30) remains OPEN/DRAFT/UNMERGED. Full local gate and both exact implementation-head workflows PASS. The final docs-only checkpoint's own fresh push/PR workflows remain pending at this commit's observation and must pass independently before the verified draft handoff. No ready transition/merge/deploy/G3-C or other feature. **G3 remains NOT RUN.** Prior dated local-pending/blocked G3-B records are historical and superseded only by the evidence recorded here; failed Checks 37540121926 remains retained and was never rerun. Its staff-grant clock defect was repaired in separately verified main PR #33; the original CI's precise offset remains unknown.
+- **Immutable preflight / lineage:** fetched verified main `6869c017bcbd91131ab2e5ffa291a7856558e463`; old PR #30 head `ec6be1cd12b4e7c60f58b40e69d02c08f4d03841`, OPEN/DRAFT/UNMERGED, expected title/branch and 36 files. All four preservation states matched before mutation. New clean `/home/david/projects/pachi-g3b-refresh-final`, branch `feat/g3-block-contact-safety-refresh-final`, created from that exact PR head. Ordinary refresh merge **`5b8048270ea85c0c0edb482dd47e8001009d8fd7`**, exactly two ordered parents: first **`ec6be1cd12b4e7c60f58b40e69d02c08f4d03841`**, second **`6869c017bcbd91131ab2e5ffa291a7856558e463`**; tree **`a7078325f071b0d9e50ae1590687966243aa090b`**. No squash/rebase/historical9d52325 ancestry. One conflict, this handoff only, reconciled additively with both histories and main's PR #32 security/PR #33 clock evidence intact. No product conflict or product edit beyond the approved candidate.
+- **Exact final scope / inherited fixes:** direct relative-to-main diff is exactly the 36-file manifest below. All 35 files other than this handoff are byte-identical to old reviewed ec6 head; all tracked files outside the manifest are byte-identical to verified main. StaffStore, ProviderVerificationStore and ListingPhotoReviewStore production grant validity remain PostgreSQL-time based; authority-risk/listing moderation retain existing database time. Callback/session/token/application clocks unchanged. Relative to main, staff.ts/provider-verification.ts/listing-photo-review.ts/staff.integration.test.ts/staff-grant-clock.integration.test.ts have zero diff. All five deterministic clock regressions PASS locally and in both exact CI logs, including committed default-now with earlier application time, operator activation/DB expiry, future/expired/revoked/invalid scopes, provider assignment/current case and photo current grants. Existing negative session/auth/step-up/no-grant/self-review boundaries PASS; no immediate committed-grant RESOURCE_SCOPE_DENIED recurrence.
+- **Migration / complete fresh local gate:** pinned Node24.21.0/pnpm12 frozen install; history secrets/canary; dependency policy27 plus security compatibility4 =31; contracts **75 routes/63 shared schemas**; genuinely empty guarded localhost:5433/pachi_test schema replay of **30 migrations through0029_block_contact_safety.sql**, all SQL SHA256/journal ordering/timestamps/applied records verified before and after integrations. Historical0000–0028 and prior journal entries match main exactly, additive0029 matches old candidate, no0030. Focused block DB **21/21**, block HTTP **1/1**, BFF **2/2**; full DB **97/97**, analytics **11/11**, API **23/23**, startup **36/36**, workspace units **46/46** (forced11 tasks/zero cached), lint/typecheck, forced full build **8/8 tasks/zero cached**, mobile web/Android/iOS exports, Chromium web **42/42** and admin **7/7**, final scope/diff PASS. Zero failed/skipped tests and zero preview-session warnings. Actual post-refresh totals, no reuse of earlier totals or later passing workflow as replacement.
+- **G3-B semantics / all11 races:** seeker→stable ProviderAccount and individual provider→seeker; server-derived targets, organization-side authority fails closed. Versioned immutable block episodes/actions, normalized idempotent command receipts, safe audit/private outbox, no-store APIs and CSRF-protected BFF PASS. Current/legacy blocks use the canonical contact predicate, prohibit fresh/reused inquiry and new Message; identical committed Message replay requires current authority and creates no duplicate message/effect/event. Authorized history and designed acknowledgements remain; restriction state separate; reciprocal block survives unblock; reblock creates a new episode; own controls survive phone/resource changes while SUSPENDED/DELETED authentication remains denied. All four controlled contact races (message→block, inquiry→block, block→message, block→inquiry) and seven dedicated writer races (duplicate block/unblock, block→unblock, unblock→reblock, stale unblock→reblock, reblock→stale unblock, reblock→old unblock retry) PASS, with locks/assertions unchanged.
+- **Analytics / unchanged G2 TEST:** complete analytics11/11 includes the repaired G2 concurrent retry/convergence test and matching/conflicting receipt regressions; no job_receipts_pkey, deadlock or unexpected receipt mismatch, false duplicate acceptance or analytics production/test edits. G2_ACCEPTANCE_RESULT PASS_CANDIDATE/classificationTEST: publication1, Interaction1, Conversation1, Messages2, interaction_created1, message_sent2, provider_first_response1, analytics events5, analytics JobReceipts5, recipient receipts2; retriesPASS/privacyPASS/source flagsUNCHANGED; unrelated/historical participantsDENIED. Synthetic/local TEST only, not real-account, pilot or production acceptance.
+- **PR #32 dependencies / audit:** exact main security state retained: Sharp0.35.5 through media/web/admin, all16 matching platform packages0.35.5; all10 libvips packages generation1.3.4; shell-quote1.11.0 through mobile React DevTools; source-map-js1.2.2 through Next/PostCSS. All four security regressions PASS. Configured strict-low audit PASS. Fresh isolated unfiltered-low and production audits each exactly three unresolved findings, expected raw exit1: GHSA-86w9-cpqp-85rv/node-forge/HIGH and GHSA-vfj7-8cjw-p6xm/braces/HIGH, review2026-10-16; GHSA-hp3w-g68c-fv3c/sprintf-js/MODERATE, review2026-10-13. No fourth advisory/new exception/deadline extension/dependency or policy edit; temporary acceptance is not remediation.
+- **Exact implementation CI / own final gate:** implementation SHA `5b8048270ea85c0c0edb482dd47e8001009d8fd7`; push [Checks 37612354864](https://github.com/david-developer/pachi/actions/runs/37612354864) and PR [Checks 37612359639](https://github.com/david-developer/pachi/actions/runs/37612359639) each same exact SHA, attempt1 SUCCESS, all27 normal steps successful/zero skipped. Complete logs inspected, all substantive counts/G3-B21/races11/clock5/analytics11/G2/security/migration0029/build/mobile/browser evidence confirmed. Safe parsed `/tmp/pachi-g3b-final-ci-{run}-summary.json`, no raw CI log persisted. This sole final checkpoint changes only docs/engineering/current-state.md; its SHA is the commit introducing this entry. Push with expected-implementation-head protection and verify its own fresh exact-final-head push+PR attempt1/all27/zero-skips/complete substantive logs. Then update PR body additively with final SHA/CI IDs and historical failures explicitly labeled resolved history; keep draft/unmerged and stop. No recursive evidence commit.
+- **Preservation / environment / services:** all four original states match full pre-existing files/status/HEAD/branch/raw index/merge metadata/env hashes: root12394700/exact32-file recovery/backup SHA2562bf37c871f25e7d2759399b879a448595ea91cff265ff5d01b0b96101803b5a3; sync9d52325 clean/unpushed; old refreshc13842f/MERGE_HEAD10b7bef pending merge; latest refreshec6be1c/sole existing uncommitted blocked entry. None reused/modified/deleted. New final-refresh worktree retained as candidate evidence. Original .env/apps/web/.env/apps/admin/.env locations/hashes retained, values never copied/logged. Synthetic external environment /tmp/pachi-staff-clock-env.sh reused only for guarded TEST and isolated ephemeral previews; previews exited, PostgreSQL5432/5433 and unrelated listeners preserved, no development service restart. **No deployment/Cognito/cloud/real-account/grant/development-data mutation. G3 remains NOT RUN.** Local safe evidence /tmp/pachi-g3b-final-{local-summary,stage-results,migration-manifest,version-proof}.json and stage logs; these are diagnostics, not competing handoffs.
+
+**Exact relative-to-main manifest (36 files):**
+
+- `README.md`
+- `apps/api/openapi.yaml`
+- `apps/api/src/auth.module.ts`
+- `apps/api/src/block.controller.ts`
+- `apps/api/src/block.http.integration.test.ts`
+- `apps/api/src/logging.ts`
+- `apps/api/src/organization-exception.filter.ts`
+- `apps/web/app/api/account/blocks/[blockId]/unblock/route.ts`
+- `apps/web/app/api/account/blocks/route.ts`
+- `apps/web/app/api/account/interactions/[id]/block/route.ts`
+- `apps/web/app/api/account/interactions/[id]/contact-safety/route.ts`
+- `apps/web/app/api/account/listings/[listingId]/block-provider/route.ts`
+- `apps/web/app/api/account/listings/[listingId]/contact-safety/route.ts`
+- `apps/web/app/api/account/listings/[listingId]/inquiry/route.ts`
+- `apps/web/app/blocks/page.tsx`
+- `apps/web/app/components/block-controls.tsx`
+- `apps/web/app/conversations/[interactionId]/page.tsx`
+- `apps/web/app/listings/[id]/page.tsx`
+- `apps/web/lib/block-bff.ts`
+- `apps/web/lib/block-forward.test.ts`
+- `apps/web/lib/block-forward.ts`
+- `apps/web/tests/block-safety.spec.ts`
+- `apps/web/tests/conversation.spec.ts`
+- `apps/web/tests/interaction.spec.ts`
+- `apps/web/tests/public-listings.spec.ts`
+- `docs/engineering/current-state.md`
+- `packages/contracts/src/block.ts`
+- `packages/contracts/src/index.ts`
+- `packages/database/migrations/0029_block_contact_safety.sql`
+- `packages/database/migrations/meta/_journal.json`
+- `packages/database/src/block.integration.test.ts`
+- `packages/database/src/block.ts`
+- `packages/database/src/contact-safety.ts`
+- `packages/database/src/conversation.ts`
+- `packages/database/src/index.ts`
+- `packages/database/src/interaction.ts`
+
 ## G3-B final refresh on verified clock main — LOCAL VALIDATION PENDING — 2026-10-07
 
 - Authorized continuation of G3-B/PR #30 only; DRAFT/UNMERGED, no ready/merge/deploy/G3-C or new feature. **G3 remains NOT RUN.** Earlier G3-B blockers below are historical; the failed final push Checks 37540121926 is retained, never rerun, and its clock defect is addressed by separately verified PR #33. Full refreshed-candidate validation remains pending.
