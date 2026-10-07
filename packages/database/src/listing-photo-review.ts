@@ -22,8 +22,7 @@ export class ListingPhotoReviewStore {
   constructor(private readonly client: postgres.Sql, private readonly clock: () => Date = () => new Date()) {}
 
   private async grants(tx: postgres.TransactionSql, staff: StaffPrincipal): Promise<{ role: string; scope: StaffScope }[]> {
-    const now = this.clock().toISOString();
-    const rows = await tx<Grant[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=${now} AND expires_at>${now} FOR SHARE`;
+    const rows = await tx<Grant[]>`SELECT role,permission_scope FROM staff_grants WHERE user_id=${staff.row.user_id} AND revoked_at IS NULL AND active_from<=now() AND expires_at>now() FOR SHARE`;
     return rows.filter(g => validStaffScope(g.role, g.permission_scope)).map(g => ({ role: g.role, scope: g.permission_scope }));
   }
 

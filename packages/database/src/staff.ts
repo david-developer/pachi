@@ -72,10 +72,11 @@ export class StaffStore {
     return new Date(rows[0].started_at);
   }
   async grants(userId: string): Promise<Grant[]> {
-    const now = this.clock();
+    // Durable grant timestamps belong to PostgreSQL's clock and retain microseconds.
+    // Keep the application clock for callback freshness, tokens and session timers.
     const rows = await this.client<
       { role: StaffRole; permission_scope: StaffScope; expires_at: Date }[]
-    >`SELECT role,permission_scope,expires_at FROM staff_grants WHERE user_id=${userId} AND revoked_at IS NULL AND active_from<=${now.toISOString()} AND expires_at>${now.toISOString()}`;
+    >`SELECT role,permission_scope,expires_at FROM staff_grants WHERE user_id=${userId} AND revoked_at IS NULL AND active_from<=now() AND expires_at>now()`;
     return rows
       .filter((r) => validStaffScope(r.role, r.permission_scope))
       .map((r) => ({
@@ -236,7 +237,7 @@ export class StaffStore {
       !input.operator.trim() ||
       input.reason.trim().length < 10 ||
       !validStaffScope(input.role, input.scope) ||
-      input.expiresAt <= this.clock()
+      !Number.isFinite(+input.expiresAt)
     )
       throw new StaffAccessError('RESOURCE_SCOPE_DENIED');
     return this.client
@@ -258,7 +259,13 @@ export class StaffStore {
         }
         const rows = await tx<
           { id: string }[]
-        >`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason,active_from) VALUES (${input.userId},${input.role},${JSON.stringify(input.scope)}::jsonb,${input.expiresAt.toISOString()},${input.operator},${input.reason},${this.clock().toISOString()}) RETURNING id`;
+        >`INSERT INTO staff_grants(user_id,role,permission_scope,expires_at,granted_by,reason)
+          SELECT ${input.userId},${input.role},${JSON.stringify(input.scope)}::jsonb,${input.expiresAt.toISOString()}::timestamptz,${input.operator},${input.reason}
+          WHERE ${input.expiresAt.toISOString()}::timestamptz>now() RETURNING id`;
+        if (!rows[0]) {
+          await store.audit(input.operator, input.userId, 'staff:grant', input.reason, 'DENIED', input.role, input.scope);
+          return '';
+        }
         await tx`UPDATE staff_sessions SET revoked_at=COALESCE(revoked_at,${this.clock().toISOString()}) WHERE user_id=${input.userId}`;
         await store.audit(
           input.operator,
