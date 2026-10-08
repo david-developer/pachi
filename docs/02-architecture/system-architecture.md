@@ -182,3 +182,11 @@ an incomplete projection. Event corrections, spam signals, city suppression,
 client discovery events, dashboards and external analytics adapters remain later
 scope. Synthetic integration metrics do not establish marketplace performance or
 complete G2 acceptance.
+
+### Listing lifecycle scheduling and region control (G3-E candidate)
+
+The additive 0032 lifecycle tables hold immutable command results/actions/outbox and freshness episodes with versioned listing references. API commands reload current authority before receipt replay, check optimistic version plus exact revision/OfferingVersion, and produce state/audit/outbox atomically. Shared current visibility covers expiry, central region enablement, approval snapshots, media, provider verification and authority risk; public search/detail/media and private lifecycle responses are no-store.
+
+The local worker invokes bounded expiry materialization and reminder-intent preparation. PostgreSQL locks and persisted state own correctness; the existing polling timer only invokes work. Expiry uses deterministic deadline/id ordering and SKIP LOCKED. Reminder preparation locks region, listing and schedule in that order, skips locked parents, emits at most one future eligibility intent per episode/deadline and skips late/ineligible schedules. There is no external queue or real notification delivery. A future notification consumer must lease/recheck intent timing, current episode and all eligibility before delivery; this candidate does not implement that consumer.
+
+Region configuration is an internal store method with current registered MFA staff session/security version/recent step-up and an explicit current `configuration:manage` grant for that exact region. No broad admin or worker HTTP endpoint exists. Region changes exclusively lock the central control; submission/publication/renewal/new inquiry retain its shared lock across their transaction. Existing historical inquiries use their current private participation boundary rather than region permission. Lifecycle analytics consumes only freshness-confirmed/expired outbox categories with the existing generic consumer receipt; G2 cohort/response definitions and original source flags are unchanged.
