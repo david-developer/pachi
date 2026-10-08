@@ -1,3 +1,4 @@
+import { lockListingRegion } from './region-publication.js';
 import { snapshotAnalyticsContext } from './analytics-context.js';
 import { createHash } from 'node:crypto';
 import type postgres from 'postgres';
@@ -31,6 +32,7 @@ export class InteractionStore {
         if (await contactProhibited(tx,context.seeker_user_id,context.provider_account_id,context.provider_user_id)) throw new IdentityError('CAPABILITY_RESTRICTED','Contact is not available');
         return map(previous[0], false);
       }
+      await lockListingRegion(tx, listingId);
       const context = await tx<{listing_id:string;provider_account_id:string;provider_user_id:string}[]>`SELECT l.id AS listing_id,l.provider_account_id,pp.user_id AS provider_user_id FROM listings l JOIN provider_accounts pa ON pa.id=l.provider_account_id JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE l.id=${listingId} FOR SHARE OF l,pa,pp`;
       const listing = context[0];
       if (!listing) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
