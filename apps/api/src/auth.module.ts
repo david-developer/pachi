@@ -1,3 +1,5 @@
+import { ListingLifecycleController } from './listing-lifecycle.controller.js';
+import { ListingLifecycleStore } from '@pachi/database';
 import { OrganizationOwnerController, OrganizationOwnerNoStoreGuard } from './organization-owner.controller.js';
 import { OrganizationOwnerStore } from '@pachi/database';
 import { BlockController } from './block.controller.js';
@@ -56,8 +58,9 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [OrganizationOwnerController, OrganizationAssignmentsController, BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [ListingLifecycleController,OrganizationOwnerController, OrganizationAssignmentsController, BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
+  { provide: 'LISTING_LIFECYCLE_STORE', useValue: new ListingLifecycleStore(client) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },

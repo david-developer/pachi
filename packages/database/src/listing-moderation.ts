@@ -1,3 +1,4 @@
+import { lockListingRegion } from './region-publication.js';
 import { snapshotAnalyticsContext } from './analytics-context.js';
 import type postgres from 'postgres';
 import { IdentityError } from './identity.js';
@@ -156,6 +157,7 @@ export class ListingModerationStore {
     this.validate(input);
     try {
       return await this.client.begin(async (tx) => {
+        await lockListingRegion(tx, listingId);
         const { grants } = await this.staff(tx, principal);
         const priorRows = await tx<ActionRow[]>`SELECT * FROM listing_revision_moderation_actions WHERE idempotency_key=${input.idempotencyKey}`;
         if (priorRows[0]) {

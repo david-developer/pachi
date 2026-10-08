@@ -12,7 +12,10 @@ type VisibilityRow = {
   approved_revision_id: string | null;
   approved_submission_id: string | null;
   freshness_current: boolean;
+  principal_unchanged: boolean;
+  material_snapshot_exact: boolean;
   region: string;
+  region_enabled: boolean;
   purpose: string;
   market_status: string;
   property_state: string;
@@ -32,7 +35,7 @@ export type PublicListingVisibility = {
 
 const blocked = (reason: string): PublicListingVisibility => ({ visible: false, reason });
 
-export async function readPublicListingVisibilities(sql: Sql, listingIds: string[], options: { allowSyntheticVerification?: boolean } = {}): Promise<Map<string, PublicListingVisibility>> {
+export async function readPublicListingVisibilities(sql: Sql, listingIds: string[], options: { allowSyntheticVerification?: boolean; renewal?: boolean; marketStatus?: string } = {}): Promise<Map<string, PublicListingVisibility>> {
   if (!listingIds.length) return new Map();
   const rows = await sql<VisibilityRow[]>`SELECT
     l.id AS listing_id,
@@ -43,8 +46,11 @@ export async function readPublicListingVisibilities(sql: Sql, listingIds: string
     l.current_revision_id,
     l.approved_revision_id,
     l.approved_submission_id,
+    (l.initial_provider_account_id=l.provider_account_id) AS principal_unchanged,
+    COALESCE(l.approved_material_snapshot=listing_current_material_snapshot(l.id),false) AS material_snapshot_exact,
     (l.expires_at IS NOT NULL AND l.expires_at > statement_timestamp()) AS freshness_current,
     p.region,
+    COALESCE((SELECT enabled FROM region_publication_controls WHERE region=p.region),false) AS region_enabled,
     l.purpose,
     l.market_status,
     p.record_state AS property_state,
@@ -55,7 +61,7 @@ export async function readPublicListingVisibilities(sql: Sql, listingIds: string
     )) AS provider_eligible,
     EXISTS (
       SELECT 1 FROM verification_claims vc JOIN verification_cases c ON c.id=vc.source_case_id
-      WHERE vc.provider_profile_id=pp.id AND vc.status='VERIFIED' AND vc.valid_until>statement_timestamp()
+      WHERE vc.provider_profile_id=pp.id AND vc.status='VERIFIED' AND vc.valid_from<=statement_timestamp() AND vc.valid_until>statement_timestamp()
         AND vc.revoked_at IS NULL AND (c.policy_version <> 'provider-identity-synthetic-v1' OR ${options.allowSyntheticVerification === true})
     ) AS identity_current,
     (o.purpose=l.purpose AND ov.currency='XAF' AND ov.amount_minor>0
@@ -65,7 +71,7 @@ export async function readPublicListingVisibilities(sql: Sql, listingIds: string
       SELECT 1 FROM listing_submissions s
       WHERE s.id=l.approved_submission_id AND s.listing_id=l.id
         AND s.listing_revision_id=l.current_revision_id AND s.offering_id=o.id
-        AND s.offering_version_id=ov.id
+        AND s.offering_version_id=ov.id AND s.provider_property_relationship_id=l.provider_property_relationship_id AND s.submitted_by_user_id=pp.user_id
     )) AS approved_submission_exact,
     (EXISTS (SELECT 1 FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id
       WHERE lm.listing_id=l.id AND lm.removed_at IS NULL AND ma.classification='PUBLIC_MARKETPLACE')
@@ -90,20 +96,21 @@ export async function readPublicListingVisibilities(sql: Sql, listingIds: string
     WHERE l.id=ANY(${listingIds}::uuid[])`;
   const authorities = await readAuthorityRisks(sql, rows.map((row) => ({relationshipId:row.relationship_id,principalId:row.provider_account_id})));
   const result = new Map<string, PublicListingVisibility>();
-  for (const row of rows) result.set(row.listing_id, evaluateVisibility(row, authorities.get(row.relationship_id) ?? {status:'INCOMPLETE',next_action:'Authority review is unavailable.'}));
+  for (const row of rows) result.set(row.listing_id, evaluateVisibility({...row, ...(options.renewal ? {publication_status:'PUBLISHED',freshness_current:true} : {}), ...(options.marketStatus ? {market_status:options.marketStatus} : {})}, authorities.get(row.relationship_id) ?? {status:'INCOMPLETE',next_action:'Authority review is unavailable.'}));
   for (const listingId of listingIds) if (!result.has(listingId)) result.set(listingId, blocked('LISTING_NOT_FOUND'));
   return result;
 }
 
-export async function readPublicListingVisibility(sql: Sql, listingId: string, options: { allowSyntheticVerification?: boolean } = {}): Promise<PublicListingVisibility> {
+export async function readPublicListingVisibility(sql: Sql, listingId: string, options: { allowSyntheticVerification?: boolean; renewal?: boolean; marketStatus?: string } = {}): Promise<PublicListingVisibility> {
   return (await readPublicListingVisibilities(sql, [listingId], options)).get(listingId) ?? blocked('LISTING_NOT_FOUND');
 }
 
 function evaluateVisibility(row: VisibilityRow, authority: AuthorityRiskStatus): PublicListingVisibility {
   if (row.publication_status !== 'PUBLISHED' || row.moderation_status !== 'APPROVED') return blocked('LISTING_NOT_PUBLISHED');
+  if (!row.principal_unchanged) return blocked('PROVIDER_CONTEXT_CHANGED');
   if (!row.approved_submission_exact) return blocked('APPROVED_SNAPSHOT_STALE');
   if (!row.freshness_current) return blocked('LISTING_FRESHNESS_EXPIRED');
-  if (!['Southwest', 'Littoral'].includes(row.region)) return blocked('REGION_NOT_ENABLED');
+  if (!row.region_enabled) return blocked('REGION_NOT_ENABLED');
   if (row.property_state !== 'ACTIVE' || !row.property_specification_ready) return blocked('PROPERTY_NOT_ELIGIBLE');
   if (!row.provider_eligible) return blocked('PROVIDER_NOT_ELIGIBLE');
   if (!row.identity_current) return blocked('IDENTITY_NOT_CURRENT');
@@ -111,11 +118,12 @@ function evaluateVisibility(row: VisibilityRow, authority: AuthorityRiskStatus):
   if (!row.offering_eligible) return blocked('OFFERING_NOT_ELIGIBLE');
   if (!row.media_eligible) return blocked('MEDIA_NOT_ELIGIBLE');
   if (authority.status !== 'CLEAR') return blocked(`AUTHORITY_${authority.status}`);
+  if (!row.material_snapshot_exact) return blocked('APPROVED_SNAPSHOT_STALE');
   if (!discoverable(row.purpose, row.market_status)) return blocked('MARKET_NOT_DISCOVERABLE');
   return { visible: true, reason: 'VISIBLE' };
 }
 
-function discoverable(purpose: string, marketStatus: string): boolean {
+export function discoverable(purpose: string, marketStatus: string): boolean {
   if (purpose === 'SHORT_LET') return ['AVAILABLE', 'PARTIALLY_BOOKED'].includes(marketStatus);
   return ['RENT', 'SALE'].includes(purpose) && ['AVAILABLE', 'UNDER_OFFER'].includes(marketStatus);
 }
