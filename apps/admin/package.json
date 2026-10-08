@@ -20,7 +20,7 @@
     "@pachi/database": "workspace:*",
     "iron-session": "9.0.1",
     "jose": "6.2.12",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "openid-client": "6.8.8",
     "react": "19.2.0",
     "react-dom": "19.2.0"
