@@ -11,7 +11,7 @@
     "db:migrate": "tsx src/migrate.ts",
     "db:migrate:test": "node scripts/migrate-test.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node scripts/test-unit.mjs",
     "test:integration": "node scripts/test-integration.mjs"
   },
