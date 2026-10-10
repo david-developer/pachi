@@ -6,6 +6,6 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "scripts": { "build": "tsc -p tsconfig.json", "lint": "eslint .", "typecheck": "tsc -p tsconfig.json", "test": "node --test" },
+  "scripts": { "build": "tsc -p tsconfig.json", "lint": "eslint .", "typecheck": "tsc --noEmit -p tsconfig.json", "test": "node --test" },
   "devDependencies": { "@pachi/eslint-config": "workspace:*", "@pachi/typescript-config": "workspace:*", "typescript": "5.9.2" }
 }
