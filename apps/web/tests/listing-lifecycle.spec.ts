@@ -131,7 +131,7 @@ test("G3-E ambiguous transport retry preserves the same UUID, body and selected 
   f.disconnect();
   await page.getByLabel("Market availability").selectOption("UNDER_OFFER");
   await page.getByRole("button", { name: "Save market availability" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
   await expect(page.getByLabel("Market availability")).toHaveValue(
     "UNDER_OFFER",
   );
@@ -146,7 +146,11 @@ test("G3-E loss of current access removes controls and never retains the old pri
   await expect(page.getByLabel("Market availability")).toBeVisible();
   f.deny();
   await page.getByRole("button", { name: "Refresh listing state" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByRole("main").getByRole("alert").filter({
+      hasText: "Listing controls are unavailable for this account.",
+    }),
+  ).toBeVisible();
   await expect(page.getByLabel("Market availability")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Confirm freshness" }),
