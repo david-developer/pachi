@@ -225,6 +225,13 @@
       "when": 1791936000000,
       "tag": "0031_organization_owner_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792022400000,
+      "tag": "0032_listing_market_freshness_lifecycle",
+      "breakpoints": true
     }
   ]
 }

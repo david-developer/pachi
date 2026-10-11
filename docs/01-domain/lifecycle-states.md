@@ -152,3 +152,13 @@ Media: UPLOAD_AUTHORIZED → UPLOADED_QUARANTINED → PROCESSING → READY or RE
 | Region disabled | Suppress new submissions/discovery per rollout control; preserve participant history and notify affected providers. |
 
 Required tests include invalid transitions, races at expiry/reveal boundaries, stale workers, duplicate commands, revision approval mismatch and every cross-aggregate effect above.
+
+### Bounded post-publication implementation (G3-E candidate)
+
+Provider market commands use a separate `lifecycle_version` and exact current revision/OfferingVersion identifiers. UUID command receipts are immutable, replay the committed result without effects, and still require current registered session/account/phone/provider ownership or organization role/assignment. RENTED/SOLD to AVAILABLE composes explicit freshness confirmation and current publication reevaluation.
+
+An unchanged exact approved snapshot may renew EXPIRED to PUBLISHED after all current publication guards pass. Changed material content gets a new current revision and exact submission in the existing PENDING_REVIEW/IN_REVIEW workflow; old approval is cleared and freshness is not renewed before moderation. Archived, removed, hidden and other publication states have no lifecycle restoration command here. Organization role/assignment control permits market withdrawal, while BUSINESS verification/publication/renewal remain unavailable through the existing fail-closed verification boundary.
+
+Server confirmation creates an immutable freshness episode and 7-day/1-day schedules. Maintenance records future reminder eligibility as `listing_freshness_reminder_scheduled` private intents; the future delivery consumer must recheck the current episode and eligibility at intended time. Late schedules are SKIPPED, never retroactively emitted. Eligibility intent is not notification delivery. Timestamp visibility already denies expired listings before the bounded SKIP LOCKED worker records EXPIRED.
+
+Southwest/Littoral publication controls are persisted centrally. Disabled regions deny new submission, publication, renewal, public reads and new inquiry, while current authorized interaction history retains the existing private safe-history projection. Disable does not delete or archive listing history.

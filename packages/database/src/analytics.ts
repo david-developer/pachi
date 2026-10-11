@@ -10,6 +10,7 @@ export const ANALYTICS_STREAMS = [
   'listing_revision_moderation_outbox',
   'interaction_outbox',
   'communication_outbox',
+  'listing_lifecycle_outbox',
 ] as const;
 export type AnalyticsStream = (typeof ANALYTICS_STREAMS)[number];
 type Classification = 'PRODUCTION' | 'TEST';
@@ -152,6 +153,8 @@ export class AnalyticsStore {
             Source[]
           >`SELECT o.id,o.event_type AS event_name,i.opened_at::text AS occurred_at,o.safe_payload,i.listing_id,i.provider_account_id,i.id AS interaction_id,NULL::uuid AS message_id,NULL::uuid AS submission_id,NULL::uuid AS revision_id,i.seeker_user_id AS actor_id,1 AS schema_version
             FROM interaction_outbox o JOIN interactions i ON i.id=o.interaction_id WHERE ${pending} ORDER BY o.created_at,o.id LIMIT ${limit} FOR UPDATE OF o SKIP LOCKED`;
+        } else if (stream === 'listing_lifecycle_outbox') {
+          sources = await tx<Source[]>`SELECT o.id,o.event_type AS event_name,a.created_at::text AS occurred_at,o.safe_payload,a.listing_id,a.provider_account_id,NULL::uuid AS interaction_id,NULL::uuid AS message_id,NULL::uuid AS submission_id,NULL::uuid AS revision_id,a.actor_user_id AS actor_id,1 AS schema_version FROM listing_lifecycle_outbox o JOIN listing_lifecycle_actions a ON a.id=o.action_id WHERE o.event_type IN ('listing_freshness_confirmed','listing_expired') AND ${pending} ORDER BY o.created_at,o.id LIMIT ${limit} FOR UPDATE OF o SKIP LOCKED`;
         } else {
           // Missing contact projections are not selected, so a backlog of orphans
           // cannot starve independent, ready communication rows at the batch limit.

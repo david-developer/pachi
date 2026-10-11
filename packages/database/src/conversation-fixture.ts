@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { AuthorityRiskStore } from './authority-risk.js';
 import { createDatabase } from './client.js';
 import { ListingSubmissionStore } from './listing-submission.js';
-import { PropertyDraftStore } from './property.js';
+import { PropertyDraftStore, type ListingPurpose } from './property.js';
 export type Fixture = {
   seekerId: string;
   otherUserId: string;
@@ -13,7 +13,8 @@ export type Fixture = {
   otherListingId: string;
 };
 export async function fixtureFor(
-  client: ReturnType<typeof createDatabase>['client']
+  client: ReturnType<typeof createDatabase>['client'],
+  purpose: ListingPurpose = 'RENT'
 ): Promise<Fixture> {
   const users = await client<
     { id: string }[]
@@ -47,7 +48,7 @@ export async function fixtureFor(
   });
   const draft = await properties.createDraft(providerUserId, {
     propertyId: property.id,
-    purpose: 'RENT',
+    purpose,
     title: 'Interaction listing',
     description: 'Safe interaction listing',
     amountMinor: 200000,
@@ -55,7 +56,7 @@ export async function fixtureFor(
   });
   const otherDraft = await properties.createDraft(providerUserId, {
     propertyId: secondProperty.id,
-    purpose: 'RENT',
+    purpose,
     title: 'Other interaction listing',
     description: 'Other listing',
     amountMinor: 250000,
@@ -88,7 +89,7 @@ export async function fixtureFor(
       }
     );
     assert.ok(submitted.submission);
-    await client`UPDATE listings SET publication_status='PUBLISHED',moderation_status='APPROVED',approved_revision_id=${submitted.submission.revisionId},approved_submission_id=${submitted.submission.id},approved_by_user_id=${providerUserId},approved_at=statement_timestamp(),last_confirmed_at=statement_timestamp(),expires_at=statement_timestamp()+interval '30 days' WHERE id=${id}`;
+    await client`UPDATE listings SET publication_status='PUBLISHED',moderation_status='APPROVED',approved_revision_id=${submitted.submission.revisionId},approved_submission_id=${submitted.submission.id},approved_by_user_id=${providerUserId},approved_at=statement_timestamp(),last_confirmed_at=statement_timestamp(),expires_at=statement_timestamp()+CASE purpose WHEN 'RENT' THEN interval '30 days' WHEN 'SALE' THEN interval '60 days' ELSE interval '14 days' END WHERE id=${id}`;
   }
   return {
     seekerId,

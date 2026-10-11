@@ -12,7 +12,8 @@ export class PublicListingController {
   ) {}
 
   @Get()
-  public async search(@Query() query: PublicListingQuery) {
+  public async search(@Query() query: PublicListingQuery, @Res({passthrough:true}) response: Response) {
+    response.setHeader('Cache-Control','no-store');
     try {
       const filters: PublicListingFilters = {};
       if (query.purpose !== undefined) filters.purpose = query.purpose;
@@ -31,7 +32,8 @@ export class PublicListingController {
   }
 
   @Get(':id')
-  public async detail(@Param('id') id: string) {
+  public async detail(@Param('id') id: string, @Res({passthrough:true}) response: Response) {
+    response.setHeader('Cache-Control','no-store');
     if (!isUuid(id)) throw new NotFoundException('Listing is not available');
     try { return await this.store.detail(id); }
     catch (error) { throw this.error(error, false); }

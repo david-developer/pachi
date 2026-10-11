@@ -13,6 +13,10 @@ export function isContactSafetyPath(path: string): boolean {
   return /^\/(?:v1\/)?account\/(?:blocks(?:\/|$)|(?:interactions|listings)\/[^/]+\/(?:block|block-provider|contact-safety)(?:\/|$))/i.test(path);
 }
 
+export function isListingLifecyclePath(path: string): boolean {
+  return /^\/(?:v1\/)?account\/listings\/[^/]+\/lifecycle(?:\/|$)/i.test(path);
+}
+
 /** Reuse the server-established correlation identity; never arbitrary header text. */
 export function organizationRequestId(request: Request): string {
   const current = request.res?.locals.requestId as unknown;
@@ -23,14 +27,14 @@ export function organizationRequestId(request: Request): string {
 
 export function requestIdMiddleware(request: Request, response: Response, next: NextFunction): void {
   const incoming = request.header('x-request-id');
-  const organizationRequest = isOrganizationRequestPath(request.path) || isContactSafetyPath(request.path);
+  const organizationRequest = isOrganizationRequestPath(request.path) || isContactSafetyPath(request.path) || isListingLifecyclePath(request.path);
   const requestId = incoming && (organizationRequest ? organizationRequestIdPattern : requestIdPattern).test(incoming) ? incoming : randomUUID();
-  if (organizationRequest) response.setHeader('Cache-Control', 'no-store');
+  if (organizationRequest) response.setHeader('Cache-Control', isListingLifecyclePath(request.path) ? 'private, no-store' : 'no-store');
   response.setHeader('x-request-id', requestId);
   response.locals.requestId = requestId;
   const startedAt = Date.now();
   response.on('finish', () => {
-    const path = organizationRequest ? (typeof request.route?.path === 'string' ? request.route.path : (isContactSafetyPath(request.path) ? '/v1/account/contact-safety/*' : '/v1/account/organizations/*')) : request.path;
+    const path = organizationRequest ? (typeof request.route?.path === 'string' ? request.route.path : (isListingLifecyclePath(request.path) ? '/v1/account/listings/*/lifecycle/*' : isContactSafetyPath(request.path) ? '/v1/account/contact-safety/*' : '/v1/account/organizations/*')) : request.path;
     console.log(JSON.stringify({ event: 'http_request', request_id: requestId, method: request.method, path, status: response.statusCode, duration_ms: Date.now() - startedAt }));
   });
   next();
