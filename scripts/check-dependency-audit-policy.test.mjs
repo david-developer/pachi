@@ -10,7 +10,7 @@ const today = '2026-10-06';
 const exceptions = [
   { ghsa: 'GHSA-86w9-cpqp-85rv', reviewBy: '2026-10-16', overlong: '2026-10-20', changed: '2026-10-15' },
   { ghsa: 'GHSA-vfj7-8cjw-p6xm', reviewBy: '2026-10-16', overlong: '2026-10-20', changed: '2026-10-15' },
-  { ghsa: 'GHSA-hp3w-g68c-fv3c', reviewBy: '2026-10-13', overlong: '2026-10-21', changed: '2026-10-12' },
+  { ghsa: 'GHSA-hp3w-g68c-fv3c', reviewBy: '2026-10-16', overlong: '2026-10-21', changed: '2026-10-13' },
 ];
 const advisories = exceptions.map(({ ghsa }) => ghsa);
 const validate = (config = workspace, document = readiness) => validateDependencyAuditPolicy(config, document, today);
@@ -84,13 +84,20 @@ for (const { ghsa, reviewBy, overlong, changed } of exceptions) {
   });
 }
 
-test('the review deadline day itself is blocked', () => {
-  assert.throws(() => validateDependencyAuditPolicy(workspace, readiness, '2026-10-16'), /overdue/);
-});
+for (const date of ['2026-10-12', '2026-10-13', '2026-10-15']) {
+  test(`owner-approved review extension permits ${date}`, () => {
+    assert.doesNotThrow(() => validateDependencyAuditPolicy(workspace, readiness, date));
+  });
+}
 
-test('sprintf-js earlier deadline day itself is blocked independently', () => {
-  assert.doesNotThrow(() => validateDependencyAuditPolicy(workspace, readiness, '2026-10-12'));
-  assert.throws(() => validateDependencyAuditPolicy(workspace, readiness, '2026-10-13'), /GHSA-hp3w-g68c-fv3c: temporary audit exception review date is overdue/);
+for (const date of ['2026-10-16', '2026-10-17']) {
+  test(`expired review exceptions block ${date}`, () => {
+    assert.throws(() => validateDependencyAuditPolicy(workspace, readiness, date), /temporary audit exception review date is overdue/);
+  });
+}
+
+test('sprintf-js cannot extend beyond October 16 within its 14-day window', () => {
+  assert.throws(() => validate(workspace, changeRecord('GHSA-hp3w-g68c-fv3c', (record) => record.replace('Review by:** 2026-10-16', 'Review by:** 2026-10-17'))), /approved deadline/);
 });
 
 test('metadata outside the exception section cannot satisfy the guard', () => {

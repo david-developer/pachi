@@ -21,7 +21,7 @@ const expectedExceptions = [
     cve: 'CVE-2026-97058',
     package: 'sprintf-js@1.0.3',
     createdOn: '2026-10-06',
-    reviewBy: '2026-10-13',
+    reviewBy: '2026-10-16',
   },
 ];
 const requiredFields = [
