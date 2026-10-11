@@ -725,7 +725,10 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   exactly three temporary advisory exceptions, enforced by the policy checker:
   `GHSA-86w9-cpqp-85rv` (node-forge) and `GHSA-vfj7-8cjw-p6xm` (braces),
   due for review on 2026-10-16, and `GHSA-hp3w-g68c-fv3c` (sprintf-js),
-  due for review on 2026-10-13. Source-map-js is remediated by its compatible
+  due for review on 2026-10-16 after an owner-approved three-day extension from
+  October 13. The sprintf vulnerability remains unfixed; this temporary risk
+  acceptance authorizes no real-user deployment. All three exceptions block
+  beginning October 16 at 00:00 UTC. Source-map-js is remediated by its compatible
   1.2.2 lockfile resolution and is not excepted. Scoped overrides in
   `pnpm-workspace.yaml` fix upstream transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old
   Metro passes filenames to the removed v1 API. Mobile exports exercise this
