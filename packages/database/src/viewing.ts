@@ -10,9 +10,9 @@ import { readAuthorityRisk } from './authority-risk.js';
 import { requireOrganizationResourceActor, requireOrganizationResourceSession, type OrganizationResourceActorContext } from './organization-resource-actor.js';
 import type { OrganizationActor } from './organization-lifecycle.js';
 
-type Tx = postgres.TransactionSql;
+export type Tx = postgres.TransactionSql;
 export type ViewingState = 'REQUESTED'|'ACCEPTED'|'SCHEDULED'|'RESCHEDULED'|'DECLINED'|'EXPIRED'|'CANCELLED_BY_SEEKER'|'CANCELLED_BY_PROVIDER'|'SEEKER_NO_SHOW'|'PROVIDER_NO_SHOW'|'COMPLETED'|'DISPUTED';
-type Side = 'SEEKER'|'PROVIDER';
+export type Side = 'SEEKER'|'PROVIDER';
 export type ViewingResponse = {
   id:string; interaction_id:string; listing_id:string; provider_account_id:string; seeker_user_id:string;
   state:ViewingState; proposed_start:string; proposed_end:string; scheduled_start:string|null; scheduled_end:string|null;
@@ -25,9 +25,9 @@ export type ViewingCreateInput = {proposed_start:string;proposed_end:string;disp
 export type ViewingVersionInput = {expected_version:number;expected_schedule_version:number};
 export type ViewingAcceptInput = ViewingVersionInput & {scheduled_start:string;scheduled_end:string;private_instructions:string};
 export type ViewingReasonInput = ViewingVersionInput & {reason:string};
-type Context = {id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:string;kind:string;organization_id:string|null;provider_user_id:string|null;provider_profile_id:string|null};
-type Authority = {context:Context;side:Side;organization:OrganizationResourceActorContext|null};
-type Row = {id:string;interaction_id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:ViewingState;proposed_start:Date;proposed_end:Date;scheduled_start:Date|null;scheduled_end:Date|null;display_timezone:string;response_deadline:Date;version:number;schedule_version:number;seeker_confirmed:boolean;provider_confirmed:boolean;private_instructions:string|null;reason:string|null;created_at:Date;updated_at:Date};
+export type Context = {id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:string;kind:string;organization_id:string|null;provider_user_id:string|null;provider_profile_id:string|null};
+export type Authority = {context:Context;side:Side;organization:OrganizationResourceActorContext|null};
+export type Row = {id:string;interaction_id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:ViewingState;proposed_start:Date;proposed_end:Date;scheduled_start:Date|null;scheduled_end:Date|null;display_timezone:string;response_deadline:Date;version:number;schedule_version:number;seeker_confirmed:boolean;provider_confirmed:boolean;private_instructions:string|null;reason:string|null;created_at:Date;updated_at:Date};
 const active = ['REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED','DISPUTED'];
 const cancellable = ['REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED'];
 const reasons = ['UNAVAILABLE','TIME_UNSUITABLE','SAFETY','PLANS_CHANGED','OTHER'] as const;
@@ -37,28 +37,28 @@ const createSchema = z.object({proposed_start:iso,proposed_end:iso,display_timez
 const acceptSchema = z.object({...versions,scheduled_start:iso,scheduled_end:iso,private_instructions:z.string().trim().min(1).max(2000)}).strict();
 const reasonSchema = z.object({...versions,reason:z.enum(reasons)}).strict();
 const versionSchema = z.object(versions).strict();
-function fail(code:string):never {throw new IdentityError(code,code);}
-function validId(id:string,code='RESOURCE_SCOPE_DENIED') {if(!isUuid(id))fail(code);return id.toLowerCase();}
-function instant(v:Date|string|null):string|null {return v===null?null:new Date(v).toISOString();}
+export function fail(code:string):never {throw new IdentityError(code,code);}
+export function validId(id:string,code='RESOURCE_SCOPE_DENIED') {if(!isUuid(id))fail(code);return id.toLowerCase();}
+export function instant(v:Date|string|null):string|null {return v===null?null:new Date(v).toISOString();}
 function timezone(name:string):boolean {
   if (name!=='UTC' && !/^[A-Za-z_]+\/[A-Za-z0-9_+\-/]+$/.test(name)) return false;
   try {new Intl.DateTimeFormat('en',{timeZone:name}).format();return true;}catch{return false;}
 }
-function actorNormalized(actor:OrganizationActor):OrganizationActor {
+export function actorNormalized(actor:OrganizationActor):OrganizationActor {
   return {...actor,userId:validId(actor.userId,'AUTH_REQUIRED'),sessionId:validId(actor.sessionId,'AUTH_REQUIRED')};
 }
 
 /** Current scope is resolved for every command and receipt replay. Receipts only
  * point to an episode; they never cache instructions or historical authority. */
 export class ViewingStore {
-  constructor(private readonly client:postgres.Sql,private readonly allowSyntheticVerification=false) {}
-  private async context(tx:Tx,id:string):Promise<Context> {
+  constructor(protected readonly client:postgres.Sql,protected readonly allowSyntheticVerification=false) {}
+  protected async context(tx:Tx,id:string):Promise<Context> {
     const row=(await tx<Context[]>`SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.state,pa.kind,pa.organization_id,
       pp.user_id AS provider_user_id,pa.provider_profile_id FROM interactions i JOIN provider_accounts pa ON pa.id=i.provider_account_id
       LEFT JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE i.id=${id}`)[0];
     if(!row)fail('RESOURCE_SCOPE_DENIED');return row;
   }
-  private async authorize(tx:Tx,actor:OrganizationActor,interactionId:string):Promise<Authority> {
+  protected async authorize(tx:Tx,actor:OrganizationActor,interactionId:string):Promise<Authority> {
     await requireOrganizationResourceSession(tx,actor,false);
     const initial=await this.context(tx,interactionId);
     await lockListingRegion(tx,initial.listing_id);
@@ -70,6 +70,12 @@ export class ViewingStore {
       organization=await requireOrganizationResourceActor(tx,actor,{organizationId:initial.organization_id,resourceType:'INTERACTION',resourceId:interactionId},'INTERACTION_OPERATION',false);
       side='PROVIDER';
     } else fail('RESOURCE_SCOPE_DENIED');
+    const current=await this.lockContext(tx,initial);
+    if(side==='PROVIDER' && current.kind==='INDIVIDUAL' && current.provider_user_id!==actor.userId)fail('RESOURCE_SCOPE_DENIED');
+    await requireOrganizationResourceSession(tx,actor,false);
+    return {context:current,side,organization};
+  }
+  protected async lockContext(tx:Tx,initial:Context):Promise<Context> {
     // Parent order agrees with inquiry/listing/organization operations. Every
     // episode writer holds this Interaction before its child Viewing.
     // Existing property writers lock provider user/profile/account before any
@@ -82,17 +88,15 @@ export class ViewingStore {
     if(!listings[0])fail('RESOURCE_SCOPE_DENIED');
     // NO KEY UPDATE serializes episode writers while remaining compatible with
     // the expiry event's foreign-key KEY SHARE on the parent Interaction.
-    await tx`SELECT id FROM interactions WHERE id=${interactionId} FOR NO KEY UPDATE`;
-    const current=await this.context(tx,interactionId);
+    await tx`SELECT id FROM interactions WHERE id=${initial.id} FOR NO KEY UPDATE`;
+    const current=await this.context(tx,initial.id);
     if(current.provider_account_id!==initial.provider_account_id || current.listing_id!==initial.listing_id || current.seeker_user_id!==initial.seeker_user_id
-      || current.provider_user_id!==initial.provider_user_id || current.organization_id!==initial.organization_id || current.kind!==initial.kind
-      || (side==='PROVIDER' && current.kind==='INDIVIDUAL' && current.provider_user_id!==actor.userId))fail('RESOURCE_SCOPE_DENIED');
-    const conversation=await tx`SELECT id FROM conversations WHERE interaction_id=${interactionId} FOR SHARE`;
+      || current.provider_user_id!==initial.provider_user_id || current.organization_id!==initial.organization_id || current.kind!==initial.kind)fail('RESOURCE_SCOPE_DENIED');
+    const conversation=await tx`SELECT id FROM conversations WHERE interaction_id=${initial.id} FOR SHARE`;
     if(!conversation[0])fail('RESOURCE_SCOPE_DENIED');
-    await requireOrganizationResourceSession(tx,actor,false);
-    return {context:current,side,organization};
+    return current;
   }
-  private async currentScope(tx:Tx,actor:OrganizationActor,a:Authority):Promise<void> {
+  protected async currentScope(tx:Tx,actor:OrganizationActor,a:Authority):Promise<void> {
     await requireOrganizationResourceSession(tx,actor,false);
     if(a.organization?.assignmentId) {
       // Row locks prevent revocation, but time can still cross valid_until while
@@ -103,15 +107,17 @@ export class ViewingStore {
       if(!current[0])fail('RESOURCE_SCOPE_DENIED');
     }
   }
-  private async participantEligible(tx:Tx,userId:string):Promise<boolean> {
+  protected async participantEligible(tx:Tx,userId:string):Promise<boolean> {
     const user=await tx`SELECT id FROM users WHERE id=${userId} AND account_state='ACTIVE' FOR SHARE`;
     const phone=await tx`SELECT id FROM phone_contacts WHERE user_id=${userId} AND verified_at IS NOT NULL AND replaced_at IS NULL AND verification_version>0 FOR SHARE`;
     return !!user[0] && !!phone[0];
   }
-  private async eligible(tx:Tx,actor:OrganizationActor,a:Authority):Promise<boolean> {
-    const c=a.context;
-    if(c.state!=='OPEN' || !(await this.participantEligible(tx,actor.userId)) || !(await this.participantEligible(tx,c.seeker_user_id)))return false;
-    if(a.side==='SEEKER' && (c.provider_user_id===actor.userId || (c.organization_id && (await tx`SELECT id FROM organization_memberships WHERE organization_id=${c.organization_id} AND user_id=${actor.userId} AND state='ACTIVE'`)[0])))return false;
+  protected async eligible(tx:Tx,actor:OrganizationActor,a:Authority):Promise<boolean> {
+    return this.contextEligible(tx,a.context,actor.userId,a.side);
+  }
+  protected async contextEligible(tx:Tx,c:Context,actorUserId:string=c.seeker_user_id,side:Side='SEEKER'):Promise<boolean> {
+    if(c.state!=='OPEN' || !(await this.participantEligible(tx,actorUserId)) || !(await this.participantEligible(tx,c.seeker_user_id)))return false;
+    if(side==='SEEKER' && (c.provider_user_id===actorUserId || (c.organization_id && (await tx`SELECT id FROM organization_memberships WHERE organization_id=${c.organization_id} AND user_id=${actorUserId} AND state='ACTIVE'`)[0])))return false;
     if(c.provider_user_id && !(await this.participantEligible(tx,c.provider_user_id)))return false;
     if(await contactProhibited(tx,c.seeker_user_id,c.provider_account_id,c.provider_user_id))return false;
     // Pin the same mutable approval/eligibility inputs as listing lifecycle
@@ -132,7 +138,7 @@ export class ViewingStore {
     // policy; membership cannot invent an approved organization listing.
     return (await readPublicListingVisibility(tx,c.listing_id,{allowSyntheticVerification:this.allowSyntheticVerification})).visible;
   }
-  private async projection(tx:Tx,actor:OrganizationActor,a:Authority,row:Row):Promise<ViewingResponse> {
+  protected async projection(tx:Tx,actor:OrganizationActor,a:Authority,row:Row):Promise<ViewingResponse> {
     await this.currentScope(tx,actor,a);
     const eligible=await this.eligible(tx,actor,a);
     const now=new Date((await tx<{now:Date}[]>`SELECT statement_timestamp() AS now`)[0]!.now);
@@ -151,10 +157,10 @@ export class ViewingStore {
       can_confirm:row.state==='ACCEPTED'&&eligible&&future&&!ownConfirmed,
       can_cancel:cancellable.includes(row.state)};
   }
-  private async row(tx:Tx,id:string):Promise<Row> {
+  protected async row(tx:Tx,id:string):Promise<Row> {
     const row=(await tx<Row[]>`SELECT * FROM viewings WHERE id=${id} FOR UPDATE`)[0];if(!row)fail('RESOURCE_SCOPE_DENIED');return row;
   }
-  private async record(tx:Tx,row:Row,a:Authority|null,actor:OrganizationActor|null,event:string,prior:string|null,requestId?:string):Promise<void> {
+  protected async record(tx:Tx,row:Row,a:Authority|null,actor:OrganizationActor|null,event:string,prior:string|null,requestId?:string):Promise<void> {
     const e=(await tx<{id:string}[]>`INSERT INTO viewing_events(viewing_id,interaction_id,sequence,event_type,actor_user_id,actor_side,membership_id,assignment_id,prior_state,new_state,version,schedule_version,reason_code,scheduled_start,request_id)
       VALUES(${row.id},${row.interaction_id},${row.version},${event},${actor?.userId??null},${a?.side??null},${a?.organization?.membershipId??null},${a?.organization?.assignmentId??null},${prior},${row.state},${row.version},${row.schedule_version},${row.reason},${row.scheduled_start},${requestId??null}) RETURNING id`)[0]!;
     const payload={viewing_id:row.id,interaction_id:row.interaction_id,state:row.state,version:row.version,schedule_version:row.schedule_version,reason_code:row.reason,policy_version:'viewing-scheduling-v1'};
@@ -164,7 +170,7 @@ export class ViewingStore {
     await tx`INSERT INTO audit_events(actor_user_id,action,target_type,target_id,reason_code,safe_metadata)
       VALUES(${actor?.userId??null},${event.toUpperCase()},'Viewing',${row.id},${row.reason??'PARTICIPANT_ACTION'},${JSON.stringify({event_id:e.id,version:row.version,schedule_version:row.schedule_version,policy_version:'viewing-scheduling-v1'})}::jsonb)`;
   }
-  private async closeAction(tx:Tx,id:string):Promise<void> {
+  protected async closeAction(tx:Tx,id:string):Promise<void> {
     await tx`UPDATE viewing_scheduled_actions SET state='SKIPPED',lease_token=NULL,lease_until=NULL,processed_at=statement_timestamp()
       WHERE viewing_id=${id} AND state IN ('PENDING','LEASED')`;
   }
@@ -313,7 +319,7 @@ export class ViewingStore {
     // inversion against participant commands (which use Viewing→action).
     const token=randomUUID();
     const jobs=await this.client.begin(async tx=>tx<{id:string;viewing_id:string}[]>`UPDATE viewing_scheduled_actions SET state='LEASED',lease_token=${token},lease_until=statement_timestamp()+interval '1 minute',attempts=attempts+1
-      WHERE id IN (SELECT id FROM viewing_scheduled_actions WHERE due_at<=statement_timestamp() AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
+      WHERE id IN (SELECT id FROM viewing_scheduled_actions WHERE action_type='EXPIRE_REQUEST' AND due_at<=statement_timestamp() AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
         ORDER BY due_at,id LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id,viewing_id`);
     let expired=0,skipped=0;
     for(const job of jobs) {

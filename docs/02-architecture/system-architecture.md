@@ -80,9 +80,19 @@ through the parent Interaction and then the Viewing. Every effective transition
 commits retained ViewingEvent, safe outbox/notification intent and AuditEvent with
 its domain mutation. Command receipts retain a request hash and episode reference;
 replays resolve current scope and projection rather than storing private instructions.
-Only unanswered-request expiry is activated in the request/scheduling slice;
-appointment reminders, attendance, disputes and review work retain their canonical
-contracts for later implementation.
+F1 activates unanswered-request expiry. F2 adds a retained proposal per scheduled
+Viewing: neither side is approved by proposal creation, both explicit approvals
+atomically retain the old schedule and replace it through RESCHEDULED → SCHEDULED.
+One pending proposal and immutable capped expiry prevent conflicting replacement.
+Viewing outbox inserts transactionally create per-business-recipient in-app notices;
+per-user acknowledgements remain separate from availability and inactive external
+delivery. A bounded replay fills pre-F2 history. Persisted 24-hour/2-hour intent is
+leased and fairly revalidated, with obsolete schedule/safety/window work skipped.
+The 24-hour window ends at the 2-hour milestone and the 2-hour window at appointment
+start; future-only creation and post-wait checks prevent catch-up bursts. Current
+resource authority is required on notice reads; stable ProviderAccount recipients
+never grant historical members access. Attendance, disputes, review work and
+external delivery retain their canonical contracts for later implementation.
 
 External outage does not roll back a committed core message or review. In-app notification intent persists before external delivery. Stale projection repair uses source-of-truth events and no private payload in generic queues.
 

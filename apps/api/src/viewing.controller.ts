@@ -3,9 +3,9 @@ import {
   Get, Headers, Inject, NotFoundException, Param, Post, Query, Req,
   UnauthorizedException, UseGuards,
 } from '@nestjs/common';
-import { IdentityError, ViewingStore } from '@pachi/database';
+import { IdentityError, ViewingAppointmentStore } from '@pachi/database';
 import type {
-  ViewingAcceptRequest, ViewingConfirmRequest, ViewingCreateRequest, ViewingReasonRequest,
+  ViewingAcceptRequest, ViewingConfirmRequest, ViewingCreateRequest, ViewingReasonRequest, ViewingRescheduleRequest, ViewingRescheduleActionRequest, ViewingRescheduleCommandResponse, ViewingRescheduleListResponse,
 } from '@pachi/contracts';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { OrganizationOwnerNoStoreGuard } from './organization-owner.controller.js';
@@ -32,7 +32,7 @@ function versions(body: Record<string, unknown>): void {
 @Controller('account')
 @UseGuards(OrganizationOwnerNoStoreGuard, AuthGuard)
 export class ViewingController {
-  constructor(@Inject('VIEWING_STORE') private readonly store: ViewingStore) {}
+  constructor(@Inject('VIEWING_STORE') private readonly store: ViewingAppointmentStore) {}
 
   @Post('interactions/:interactionId/viewings')
   create(@Req() request: AuthenticatedRequest, @Param('interactionId') id: string,
@@ -94,6 +94,54 @@ export class ViewingController {
     return this.run(() => this.store.cancel(this.actor(request), resource(id), body, this.options(request, key)));
   }
 
+  @Post('viewings/:id/reschedules')
+  proposeReschedule(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Headers('idempotency-key') key:string|undefined,@Body() input:unknown):Promise<ViewingRescheduleCommandResponse> {
+    const body=fields(input,['expected_version','expected_schedule_version','proposed_start','proposed_end']);versions(body);
+    if(typeof body.proposed_start!=='string'||typeof body.proposed_end!=='string')throw new BadRequestException('INVALID_INPUT');
+    return this.run(()=>this.store.proposeReschedule(this.actor(request),resource(id),body as ViewingRescheduleRequest,this.options(request,key)));
+  }
+  @Get('viewings/:id/reschedules')
+  reschedules(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Query() query:Record<string,unknown>):Promise<ViewingRescheduleListResponse> {
+    const pagination=this.pagination(query,['cursor','limit']);
+    return this.run(()=>this.store.listReschedules(this.actor(request),resource(id),pagination));
+  }
+  @Post('viewings/:id/reschedules/:proposalId/accept')
+  acceptReschedule(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Param('proposalId') proposalId:string,@Headers('idempotency-key') key:string|undefined,@Body() input:unknown):Promise<ViewingRescheduleCommandResponse> {
+    return this.rescheduleResponse(request,id,proposalId,'accept',input,key);
+  }
+  @Post('viewings/:id/reschedules/:proposalId/reject')
+  rejectReschedule(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Param('proposalId') proposalId:string,@Headers('idempotency-key') key:string|undefined,@Body() input:unknown):Promise<ViewingRescheduleCommandResponse> {
+    return this.rescheduleResponse(request,id,proposalId,'reject',input,key);
+  }
+  @Post('viewings/:id/reschedules/:proposalId/withdraw')
+  withdrawReschedule(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Param('proposalId') proposalId:string,@Headers('idempotency-key') key:string|undefined,@Body() input:unknown):Promise<ViewingRescheduleCommandResponse> {
+    return this.rescheduleResponse(request,id,proposalId,'withdraw',input,key);
+  }
+  @Get('viewings/:id/reminders')
+  reminders(@Req() request:AuthenticatedRequest,@Param('id') id:string) {
+    return this.run(()=>this.store.reminderStatus(this.actor(request),resource(id)));
+  }
+  @Get('viewing-notices')
+  notices(@Req() request:AuthenticatedRequest,@Query() query:Record<string,unknown>) {
+    const pagination=this.pagination(query,['viewing_id','cursor','limit']);
+    if(query.viewing_id!==undefined&&!uuid(query.viewing_id))throw new BadRequestException('INVALID_INPUT');
+    return this.run(()=>this.store.listNotices(this.actor(request),{...pagination,...(query.viewing_id===undefined?{}:{viewing_id:query.viewing_id as string})}));
+  }
+  @Post('viewing-notices/:id/read')
+  noticeRead(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Body() input:unknown) {
+    fields(input,[]);return this.run(()=>this.store.readNotice(this.actor(request),resource(id)));
+  }
+  private pagination(query:Record<string,unknown>,allowed:string[]) {
+    if(Object.keys(query).some(k=>!allowed.includes(k))||(query.cursor!==undefined&&!uuid(query.cursor))||
+      (query.limit!==undefined&&(typeof query.limit!=='string'||!/^([1-9]|[1-4][0-9]|50)$/.test(query.limit))))throw new BadRequestException('INVALID_INPUT');
+    return {...(query.cursor===undefined?{}:{cursor:query.cursor as string}),...(query.limit===undefined?{}:{limit:Number(query.limit)})};
+  }
+  private rescheduleResponse(request:AuthenticatedRequest,id:string,proposalId:string,action:'accept'|'reject'|'withdraw',input:unknown,key:string|undefined):Promise<ViewingRescheduleCommandResponse> {
+    const body=fields(input,['expected_version','expected_schedule_version','expected_proposal_version']);versions(body);
+    if(!Number.isSafeInteger(body.expected_proposal_version)||Number(body.expected_proposal_version)<1)throw new BadRequestException('INVALID_INPUT');
+    return this.run(()=>this.store.respondReschedule(this.actor(request),resource(id),resource(proposalId),action,body as ViewingRescheduleActionRequest,this.options(request,key)));
+  }
+
   private reason(input: unknown): ViewingReasonRequest {
     const body = fields(input, ['expected_version', 'expected_schedule_version', 'reason']);
     versions(body);
@@ -117,7 +165,7 @@ export class ViewingController {
       if (['RESOURCE_SCOPE_DENIED', 'PUBLIC_LISTING_NOT_FOUND'].includes(error.code)) throw new NotFoundException('RESOURCE_UNAVAILABLE');
       if (error.code === 'INVALID_INPUT') throw new BadRequestException('INVALID_INPUT');
       if (['CAPABILITY_RESTRICTED', 'PHONE_REQUIRED'].includes(error.code)) throw new ForbiddenException(error.code);
-      throw new ConflictException(['STALE_VERSION', 'STALE_SCHEDULE_VERSION', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_STATE', 'REQUEST_EXPIRED', 'APPOINTMENT_PAST', 'ACTIVE_VIEWING_EXISTS'].includes(error.code) ? error.code : 'REQUEST_CONFLICT');
+      throw new ConflictException(['STALE_VERSION', 'STALE_SCHEDULE_VERSION', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_STATE', 'REQUEST_EXPIRED', 'APPOINTMENT_PAST', 'ACTIVE_VIEWING_EXISTS','STALE_PROPOSAL_VERSION','PENDING_PROPOSAL_EXISTS','PROPOSAL_EXPIRED'].includes(error.code) ? error.code : 'REQUEST_CONFLICT');
     }
   }
 }

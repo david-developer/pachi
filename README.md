@@ -136,12 +136,66 @@ accounts; this slice does not add an alternative authentication path.
 Migration 0033 adds retained appointment episodes, append-only events/receipts,
 safe transactional outbox/notification intent and leased request-expiry actions.
 The local worker expires unanswered requests at request+48 hours or proposed start,
-whichever comes first. External delivery and appointment reminders remain inactive.
+whichever comes first. External delivery remains inactive; the G3-F2 candidate below adds durable in-app appointment reminders.
 Current organization membership/role/exact Interaction assignment is checked for
 reads and commands; organization publication and inquiry eligibility are still
-required and cannot be supplied by membership alone. Rescheduling negotiations,
-attendance/no-show/disputes, reviews, native screens and real-account/production
+required and cannot be supplied by membership alone. The G3-F2 candidate below implements time-only rescheduling.
+Attendance/no-show/disputes, reviews, native screens and real-account/production
 acceptance remain deferred. **G3-wide acceptance remains NOT RUN.**
+
+## Rescheduling and appointment notices (G3-F2 candidate)
+
+From a scheduled viewing, either current participant can propose a future
+replacement time in the appointment's retained timezone. A proposal gives neither
+side automatic approval: both explicitly approve the same proposal/version.
+Until then, the confirmed time and meeting guidance remain authoritative.
+Rejection or withdrawal closes only the proposal. Joint approval atomically
+records RESCHEDULED then SCHEDULED, increments schedule_version and retains the
+previous range. Meeting guidance and display timezone remain unchanged in this
+time-only slice.
+
+One pending proposal is permitted per Viewing. The fail-closed proposal policy
+`viewing-rescheduling-v1` expires at the earliest of creation+48 hours, the
+existing appointment start, and the proposed start. There is no replacement of
+an outstanding proposal or automatic acceptance. New proposals/approvals require
+full current participation, listing eligibility and clear blocks. Current-scope
+rejection/withdrawal are safe abandonment controls, including after participation
+loss or blocking. Receipts share the existing per-actor UUID namespace and always
+reauthorize/reproject current state; no private response is cached.
+
+Appointment details show the confirmed range, independently paginated proposal
+history/current proposal, each side's explicit approval, expiry, prior confirmed
+times, notice history and reminder status. `/viewings/notices` provides the
+participant inbox and explicit per-user read acknowledgement. The viewing outbox
+creates safe, immutable seeker/ProviderAccount notices in the business transaction;
+organization role/exact Interaction assignment is checked on every read.
+Reassigned members receive current authorized inbox access with their own read
+state; historical agent attribution never grants access. BFF authentication,
+same-origin CSRF, neutral errors and private/no-store responses remain required.
+
+Migration 0034 expands the retained F1 aggregate without changing previous SQL.
+Its bounded worker also reconciles pre-F2 outbox history and scheduled appointments.
+24-hour and 2-hour jobs are created only when their target is still future.
+Processing leases persisted intent and rechecks the current schedule, participation,
+listing safety and window after lock waits. The 24-hour delivery window ends at
+the 2-hour milestone; the 2-hour window ends at appointment start. Older windows
+skip, preventing a catch-up burst. Notices use generic reminder previews rather
+than claiming an exact time remaining. Cancellation, replacement and detected
+restrictions invalidate pending work; expired leases safely replay without
+additional notices. Inbox AVAILABLE, per-actor read_at and external NOT_ENABLED
+are distinct facts. No directions, exact locations or appointment ranges enter
+notice previews, generic outbox/audit or analytics.
+
+Rollback uses the existing recovery runbook: older F1 artifacts can ignore the
+new structures, and database guards preserve cancellation invariants. Pause
+appointment maintenance during rollback because the old worker does not understand
+new action types; use a forward corrective migration or incident-only isolated
+restore/reconciliation. This candidate does not claim a new restore rehearsal.
+External email/SMS/push, attendance/claims/disputes/reviews, native interfaces,
+broader visual approval and real-account/pilot/production evidence remain deferred.
+Positive organization progression still requires fail-closed publication/inquiry
+prerequisites; existing suspended/deleted-account authentication limits remain.
+**G3-wide acceptance remains NOT RUN.** One draft PR requires separate merge review.
 
 ## Local foundation
 
