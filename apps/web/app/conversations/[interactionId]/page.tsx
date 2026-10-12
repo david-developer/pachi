@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { BlockControls } from '../../components/block-controls';
+import { ViewingList } from '../../components/viewing-controls';
 import { useEffect, useRef, useState } from 'react';
 import type {
   InteractionReadResponse,
@@ -289,7 +290,7 @@ export default function ConversationPage({
   return (
     <main className="publicShell">
       <Link href="/conversations">← Your conversations</Link> ·{' '}
-      <Link href="/listings">Browse listings</Link>
+      <Link href="/listings">Browse listings</Link> · <Link href="/viewings">Your viewings</Link>
       <section className="conversationShell">
         <h1>{interaction.title ?? 'Your listing interaction'}</h1>
         <p className="muted">Interaction state: {interaction.state}</p>
@@ -371,6 +372,7 @@ export default function ConversationPage({
         {feedback && <p role="status">{feedback}</p>}
         {receiptFeedback && <p role="status">{receiptFeedback}</p>}
       </section>
+      <ViewingList key={interaction.interaction_id} interactionId={interaction.interaction_id} csrfToken={session?.csrfToken} />
     </main>
   );
 }

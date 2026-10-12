@@ -48,7 +48,7 @@ records only approved structured metadata and response buckets, never message te
 The 24-hour bucket includes exactly 24 hours. Analytics consumption/deduplication,
 measurement validation and the coherent G2 vertical-slice acceptance are recorded
 with synthetic/local TEST evidence. Broader G3 alpha functionality remains incomplete,
-including external notifications, viewing, native calls and reviews; attachments and
+including external notifications, viewing completion, native calls and reviews; attachments and
 voice remain outside this slice. Real verification evidence intake retains E01 gates;
 real Cognito/account, deployment and pilot acceptance remain outstanding.
 
@@ -82,8 +82,8 @@ receipts and private outbox facts. Moving a listing/provider or interaction cont
 revokes old grants, including if the resource later returns. Membership/session
 removal denies current authority without rewriting historical participants.
 Current onboarding creates a DRAFT ProviderAccount; this slice does not activate it
-or bypass business verification. Positive organization messaging, inbox/read access,
-viewings, organization-side blocking and owner recovery remain disabled or
+or bypass business verification. Positive organization messaging, conversation inbox/read access,
+new viewing requests for unpublished organization inventory, organization-side blocking and owner recovery remain disabled or
 deferred. Owner transfer has separate G3-D commands requiring trusted step-up. G3 remains NOT RUN; these are synthetic/local foundation checks only.
 
 ## Block and contact safety (bounded G3-B candidate)
@@ -107,9 +107,41 @@ UUID command keys deduplicate retries, with immutable private actions/audit/outb
 All targets come from authorized resource context, with private no-store APIs and
 same-origin CSRF-protected BFF commands. Delayed reads cannot restore capabilities
 or undo a confirmed own-unblock projection. These are functional development screens;
-native calling/phone exposure, mobile UI, reports, viewings and reviews remain deferred.
+native calling/phone exposure, mobile UI, reports, viewing completion and reviews remain deferred.
 The candidate requires independent review and separate merge authorization.
 **G3 remains NOT RUN.**
+
+## Viewing requests and scheduling (G3-F1)
+
+An eligible seeker can request a future viewing from an existing conversation.
+`/viewings` shows authorized appointments and incoming provider requests; its detail
+screen supports accepting the proposed range with safe guidance, declining, both
+parties' explicit time confirmation, and cancellation with a reason. Acceptance
+alone is ACCEPTED; only both confirmations produce SCHEDULED. Times are stored in
+UTC with the submitted IANA display timezone (default Africa/Douala).
+
+The API exposes `POST /v1/account/interactions/:interactionId/viewings`,
+`GET /v1/account/viewings` (optional `interaction_id`, `cursor`, `limit`),
+`GET /v1/account/viewings/:id`, and named `accept`, `decline`, `confirm`, `cancel`
+POST commands. Every mutation requires a UUID Idempotency-Key; existing-appointment
+commands also require `expected_version` and `expected_schedule_version`.
+Current server scope supplies all participant/listing/provider identities.
+One active episode per Interaction is enforced in PostgreSQL. Instructions are
+hidden until SCHEDULED and current eligibility, and never appear in notification
+intent, public discovery, analytics or command receipts. Safe history/cancellation
+survives listing closure, blocks and participation loss while current resource
+authority is still required. Normal authentication still denies suspended/deleted
+accounts; this slice does not add an alternative authentication path.
+
+Migration 0033 adds retained appointment episodes, append-only events/receipts,
+safe transactional outbox/notification intent and leased request-expiry actions.
+The local worker expires unanswered requests at request+48 hours or proposed start,
+whichever comes first. External delivery and appointment reminders remain inactive.
+Current organization membership/role/exact Interaction assignment is checked for
+reads and commands; organization publication and inquiry eligibility are still
+required and cannot be supplied by membership alone. Rescheduling negotiations,
+attendance/no-show/disputes, reviews, native screens and real-account/production
+acceptance remain deferred. **G3-wide acceptance remains NOT RUN.**
 
 ## Local foundation
 

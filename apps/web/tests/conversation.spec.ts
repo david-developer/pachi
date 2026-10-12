@@ -92,6 +92,7 @@ async function fixture(
       }
     })
   );
+  await page.route('**/api/account/viewings*', route => route.fulfill({ json: { items: [], next_cursor: null, can_request: false } }));
   await page.route('**/api/account/conversations/*/messages*', (route) => {
     if (route.request().method() === 'POST') {
       const input = route.request().postDataJSON() as {

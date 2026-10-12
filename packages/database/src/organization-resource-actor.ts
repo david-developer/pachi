@@ -13,12 +13,18 @@ export type OrganizationResourceActorContext = {
 };
 export const organizationResourceDenied = (code = 'RESOURCE_SCOPE_DENIED'): IdentityError => new IdentityError(code, code);
 
-export async function requireOrganizationResourceSession(tx: postgres.TransactionSql, actor: OrganizationActor): Promise<void> {
+export async function requireOrganizationResourceSession(tx: postgres.TransactionSql, actor: OrganizationActor, participation = true): Promise<void> {
   if (!isUuid(actor.userId) || !isUuid(actor.sessionId) || !Number.isSafeInteger(actor.securityVersion)) throw organizationResourceDenied('AUTH_REQUIRED');
-  const sessions = await tx`SELECT s.id FROM security_sessions s JOIN users u ON u.id=s.user_id
+  const sessions = await tx<{account_state:string}[]>`SELECT u.account_state FROM security_sessions s JOIN users u ON u.id=s.user_id
     WHERE s.id=${actor.sessionId} AND s.user_id=${actor.userId} AND s.revoked_at IS NULL
       AND s.expires_at>statement_timestamp() AND u.security_version=${actor.securityVersion} FOR SHARE OF s,u`;
   if (!sessions[0]) throw organizationResourceDenied('AUTH_REQUIRED');
+  // Safe viewing history/cancellation retains current session and resource
+  // authority without granting new marketplace participation.
+  if (!participation) {
+    if (!['ACTIVE','PENDING_PHONE','LIMITED','DEACTIVATED','DELETION_PENDING'].includes(sessions[0].account_state)) throw organizationResourceDenied('AUTH_REQUIRED');
+    return;
+  }
   const eligible = await tx`SELECT u.id FROM users u WHERE u.id=${actor.userId} AND u.account_state='ACTIVE'
     AND EXISTS(SELECT 1 FROM phone_contacts p WHERE p.user_id=u.id AND p.verified_at IS NOT NULL AND p.replaced_at IS NULL AND p.verification_version>0)`;
   if (!eligible[0]) throw organizationResourceDenied('CAPABILITY_RESTRICTED');
@@ -33,9 +39,9 @@ export async function requireOrganizationResourceSession(tx: postgres.Transactio
  * block/safety and step-up. This does not authorize messaging or viewings.
  * A future viewing uses its server-resolved INTERACTION with this same path. */
 export async function requireOrganizationResourceActor(
-  tx: postgres.TransactionSql, actor: OrganizationActor, resource: OrganizationResource, purpose: OrganizationResourcePurpose
+  tx: postgres.TransactionSql, actor: OrganizationActor, resource: OrganizationResource, purpose: OrganizationResourcePurpose, participation = true
 ): Promise<OrganizationResourceActorContext> {
-  await requireOrganizationResourceSession(tx, actor);
+  await requireOrganizationResourceSession(tx, actor, participation);
   if (!isUuid(resource.organizationId) || !isUuid(resource.resourceId) || !['LISTING','INTERACTION'].includes(resource.resourceType)) throw organizationResourceDenied();
   if ((purpose === 'LISTING_DRAFT' && resource.resourceType !== 'LISTING') || (purpose === 'INTERACTION_OPERATION' && resource.resourceType !== 'INTERACTION')
     || !['LISTING_DRAFT','INTERACTION_OPERATION','ASSIGN_RESOURCE'].includes(purpose)) throw organizationResourceDenied();
@@ -78,7 +84,7 @@ export async function requireOrganizationResourceActor(
     assignmentVersion = current[0].version;
   }
   // A lock wait must not carry an expired session through this boundary.
-  await requireOrganizationResourceSession(tx,actor);
+  await requireOrganizationResourceSession(tx,actor,participation);
   return { actorUserId: actor.userId.toLowerCase(), organizationId: resource.organizationId.toLowerCase(), providerAccountId: providerId,
     membershipId: member.id, membershipVersion: member.version, role: member.role, assignmentId, assignmentVersion,
     resourceType: resource.resourceType, resourceId: resource.resourceId.toLowerCase(), resourceState: rows[0].state };

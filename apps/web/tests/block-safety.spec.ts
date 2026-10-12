@@ -17,6 +17,7 @@ async function fixture(page:Page,side='SEEKER',otherRestriction=false) {
     }
     if(path.endsWith('/unblock')){expect(route.request().postDataJSON()).toEqual({expected_version:1});state.own=false;state.canSend=!otherRestriction;return route.fulfill({status:201,json:{...block,state:'REVOKED',version:2,revoked_at:block.created_at}});}
     if(path==='/api/account/blocks')return route.fulfill({json:{items:state.own?[block]:[],next_cursor:null}});
+    if(path==='/api/account/viewings')return route.fulfill({json:{items:[],next_cursor:null,can_request:false}});
     if(path.endsWith('/inquiry')){if(state.holdInquiry){const respond=state.holdInquiry;state.holdInquiry=undefined;return respond(route);}return route.fulfill({status:state.inquiryDenied?403:201,json:state.inquiryDenied?{message:'Contact is not available'}:context});}
     if(path.endsWith('/messages')){
       if(method==='POST'){if(state.send)return state.send(route);return route.fulfill({status:403,json:{message:'Unavailable'}});}

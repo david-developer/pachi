@@ -24,3 +24,4 @@ export type { OrganizationAssignment, OrganizationAssignmentListResponse, Organi
 export type { OrganizationOwnershipTransfer, OrganizationOwnershipTransferListResponse, OrganizationPrivilegedMemberRequest, OrganizationPrivilegedRoleRequest, OrganizationOwnershipTransferCreateRequest, OrganizationOwnershipTransferCommandRequest } from './organization-owner-lifecycle.js';
 
 export * from './listing-lifecycle.js';
+export * from './viewing.js';
