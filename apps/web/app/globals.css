@@ -76,6 +76,14 @@ input:focus { outline: 3px solid rgba(196, 79, 50, .2); border-color: var(--acce
 .readinessReady strong { color: var(--success); }
 .readinessBlocked strong { color: var(--accent-dark); }
 .publicShell { width: min(100%, 1240px); margin: 0 auto; padding: 34px 22px 80px; }
+.viewingPanel { max-width: 780px; margin-top: 28px; padding: 24px; background: var(--panel); border: 1px solid var(--line); }
+.viewingPanel ul { list-style: none; padding: 0; }
+.viewingPanel li { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.viewingPanel button { padding: 10px 14px; min-height: 44px; cursor: pointer; }
+.viewingPanel button:disabled { opacity: .6; cursor: not-allowed; }
+.viewingPanel textarea { min-height: 100px; width: 100%; padding: 12px; font: inherit; }
+.viewingPanel legend { margin-bottom: 12px; font-weight: 700; }
+.viewingInstructions { margin: 20px 0; padding: 18px; background: #edf8f2; border: 1px solid #a8d1c1; }
 .publicHeader { max-width: 720px; padding: 42px 0 30px; }
 .publicHeader h1 { max-width: 10ch; }
 .publicLead { max-width: 58ch; color: var(--muted); font-size: 19px; line-height: 1.5; }

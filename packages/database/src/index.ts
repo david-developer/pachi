@@ -51,3 +51,5 @@ export { LocalOrganizationOwnerStepUp } from './organization-owner-step-up.js';
 export { ListingLifecycleStore, MARKET_STATES } from './listing-lifecycle.js';
 export type { ListingLifecycleState, ListingLifecycleCommand } from './listing-lifecycle.js';
 export { RegionPublicationStore } from './region-publication.js';
+export { ViewingStore } from './viewing.js';
+export type { ViewingResponse, ViewingState, ViewingCommandOptions, ViewingCreateInput, ViewingVersionInput, ViewingAcceptInput, ViewingReasonInput } from './viewing.js';

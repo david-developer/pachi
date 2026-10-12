@@ -232,7 +232,7 @@ export default function OrganizationsPage() {
   }
 
   return <main className="workspace organizationWorkspace">
-    <nav aria-label="Marketplace"><Link href="/">Your account</Link><Link href="/listings">Browse listings</Link><Link href="/organizations" className="active">Organizations</Link></nav>
+    <nav aria-label="Marketplace"><Link href="/">Your account</Link><Link href="/listings">Browse listings</Link><Link href="/viewings">Your viewings</Link><Link href="/organizations" className="active">Organizations</Link></nav>
     <header><p className="eyebrow">PACHI / ORGANIZATIONS</p><h1>Your organizations</h1><p className="muted">Create an organization and manage ordinary members. Business verification, organization publication and organization messaging are unavailable here.</p></header>
     {loading && <p role="status">Loading organizations…</p>}
     {error && <p className="error" role="alert">{error}</p>}

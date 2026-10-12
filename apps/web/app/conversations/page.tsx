@@ -54,7 +54,7 @@ export default function ConversationsPage() {
   }, []);
   return (
     <main className="publicShell">
-      <Link href="/listings">Browse listings</Link>
+      <Link href="/listings">Browse listings</Link> · <Link href="/viewings">Your viewings</Link>
       <h1>Your conversations</h1>
       <button disabled={busy} onClick={() => void load()}>
         Refresh conversations

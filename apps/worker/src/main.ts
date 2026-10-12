@@ -1,4 +1,5 @@
 import { runAnalyticsWorker } from './analytics-worker.js';
+import { ViewingStore } from '@pachi/database';
 import { AnalyticsStore, ListingLifecycleStore, createDatabase, ListingMediaStore, OrganizationStore, ProviderVerificationStore } from '@pachi/database';
 import { createMediaWorkerFromEnvironment, runMediaWorker } from './media-worker.js';
 
@@ -18,10 +19,12 @@ const workerTask = runMediaWorker({ ...worker, signal: abort.signal });
 const verificationStore = new ProviderVerificationStore(client, process.env.VERIFICATION_EVIDENCE_SECRET ?? '');
 const organizationStore = new OrganizationStore(client);
 const listingLifecycle = new ListingLifecycleStore(client);
+const viewingStore = new ViewingStore(client);
 const retentionTimer = setInterval(() => {
   void verificationStore.expireClaims().then(() => verificationStore.purgeExpiredEvidence()).catch(() => console.error(JSON.stringify({event:'verification_maintenance_failed'})));
   void listingLifecycle.expireOnce().then(() => listingLifecycle.prepareRemindersOnce()).catch(() => console.error(JSON.stringify({event:'listing_lifecycle_maintenance_failed'})));
   void organizationStore.expireInvitations().catch(() => console.error(JSON.stringify({event:'organization_invitation_maintenance_failed'})));
+  void viewingStore.expireOnce().catch(() => console.error(JSON.stringify({event:'viewing_expiry_maintenance_failed'})));
 }, 60_000);
 
 const shutdown = async (signal: string) => {

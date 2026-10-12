@@ -232,6 +232,13 @@
       "when": 1792022400000,
       "tag": "0032_listing_market_freshness_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792108800000,
+      "tag": "0033_viewing_request_scheduling",
+      "breakpoints": true
     }
   ]
 }

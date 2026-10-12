@@ -73,6 +73,17 @@ Separate queues for notifications, media, and domain maintenance with DLQs. Retr
 
 Expiry/review windows/reminders use persisted ScheduledAction rows with due_at and a leasing scheduler; do not rely on process timers or long queue delays. Cancellation/rescheduling invalidates old schedule-version work. Dead-letter replay requires root-cause resolution, current authorization/state checks, bounded rate and an audit record.
 
+Viewing request expiry uses `viewing_scheduled_actions` with a durable deadline,
+lease token/expiry and expected schedule version. The scheduler commits its lease
+before locking the Viewing and action in that order; participant commands serialize
+through the parent Interaction and then the Viewing. Every effective transition
+commits retained ViewingEvent, safe outbox/notification intent and AuditEvent with
+its domain mutation. Command receipts retain a request hash and episode reference;
+replays resolve current scope and projection rather than storing private instructions.
+Only unanswered-request expiry is activated in the request/scheduling slice;
+appointment reminders, attendance, disputes and review work retain their canonical
+contracts for later implementation.
+
 External outage does not roll back a committed core message or review. In-app notification intent persists before external delivery. Stale projection repair uses source-of-truth events and no private payload in generic queues.
 
 ## Media and geospatial boundaries
