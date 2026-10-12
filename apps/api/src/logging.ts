@@ -18,7 +18,7 @@ export function isListingLifecyclePath(path: string): boolean {
 }
 
 export function isViewingPath(path: string): boolean {
-  return /^\/(?:v1\/)?account\/(?:viewings(?:\/|$)|interactions\/[^/]+\/viewings(?:\/|$))/i.test(path);
+  return /^\/(?:v1\/)?account\/(?:viewing-notices(?:\/|$)|viewings(?:\/|$)|interactions\/[^/]+\/viewings(?:\/|$))/i.test(path);
 }
 
 /** Reuse the server-established correlation identity; never arbitrary header text. */

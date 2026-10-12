@@ -25,3 +25,5 @@ export type { OrganizationOwnershipTransfer, OrganizationOwnershipTransferListRe
 
 export * from './listing-lifecycle.js';
 export * from './viewing.js';
+
+export type * from './viewing-appointments.js';

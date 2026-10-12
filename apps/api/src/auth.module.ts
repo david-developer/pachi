@@ -1,6 +1,6 @@
 import { ListingLifecycleController } from './listing-lifecycle.controller.js';
 import { ListingLifecycleStore } from '@pachi/database';
-import { ViewingStore } from '@pachi/database';
+import { ViewingAppointmentStore } from '@pachi/database';
 import { ViewingController } from './viewing.controller.js';
 import { OrganizationOwnerController, OrganizationOwnerNoStoreGuard } from './organization-owner.controller.js';
 import { OrganizationOwnerStore } from '@pachi/database';
@@ -63,7 +63,7 @@ const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT
 @Module({ controllers: [ViewingController, ListingLifecycleController,OrganizationOwnerController, OrganizationAssignmentsController, BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'LISTING_LIFECYCLE_STORE', useValue: new ListingLifecycleStore(client) },
-  { provide: 'VIEWING_STORE', useValue: new ViewingStore(client, false) },
+  { provide: 'VIEWING_STORE', useValue: new ViewingAppointmentStore(client, false) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },
   { provide: 'PROVIDER_STORE', useValue: new ProviderStore(client) },

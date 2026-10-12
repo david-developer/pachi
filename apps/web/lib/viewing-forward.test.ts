@@ -58,3 +58,14 @@ void test('viewing BFF transport errors return a safe unavailable response', asy
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.deepEqual(await response.json(), { error: 'viewing_unavailable' });
 });
+
+void test('G3-F2 BFF forwards only participant notice and proposal pagination filters with server-only credentials',async(t)=>{
+  let calls=0;t.mock.method(globalThis,'fetch',async(url:string,init:RequestInit)=>{calls++;assert.equal(url,calls===1?'http://localhost:3001/v1/account/viewing-notices?viewing_id=appointment&cursor=page&limit=5':'http://localhost:3001/v1/account/viewings/appointment/reschedules?cursor=page&limit=5');assert.equal(init.cache,'no-store');assert.equal((init.headers as Record<string,string>).authorization,'Bearer server-only-token');return Response.json({items:[],next_cursor:null});});
+  await forwardViewingRequest(new Request('http://localhost:3000/api/account/viewing-notices?viewing_id=appointment&cursor=page&limit=5&organization_id=untrusted'),'viewing-notices',{accessToken:'server-only-token'});
+  await forwardViewingRequest(new Request('http://localhost:3000/api/account/viewings/appointment/reschedules?cursor=page&limit=5&role=OWNER'),'viewings/appointment/reschedules',{accessToken:'server-only-token'});assert.equal(calls,2);
+});
+void test('G3-F2 BFF preserves exact proposal versions and retry key and masks private backend conflict details',async(t)=>{
+  const body={expected_version:5,expected_schedule_version:1,expected_proposal_version:2};t.mock.method(globalThis,'fetch',async(url:string,init:RequestInit)=>{assert.equal(url,'http://localhost:3001/v1/account/viewings/appointment/reschedules/proposal/accept');assert.equal(init.body,JSON.stringify(body));assert.equal((init.headers as Record<string,string>)['idempotency-key'],key);return Response.json({code:'STALE_PROPOSAL_VERSION',message:'PRIVATE_MEETING_BACKEND_SENTINEL'},{status:409});});
+  const request=new Request('http://localhost:3000/api/account/viewings/appointment/reschedules/proposal/accept',{method:'POST',headers:{origin:'http://localhost:3000','x-csrf-token':'synthetic','idempotency-key':key},body:JSON.stringify(body)});
+  const response=await forwardViewingRequest(request,'viewings/appointment/reschedules/proposal/accept',{accessToken:'server-only-token',csrfToken:'synthetic'},true);assert.equal(response.headers.get('cache-control'),'private, no-store');assert.deepEqual(await response.json(),{error:'request_conflict',code:'STALE_PROPOSAL_VERSION'});
+});

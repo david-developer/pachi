@@ -50,6 +50,12 @@ async function fixture(page: Page, initial: ViewingResponse | null = null) {
       const row = projection();
       return route.fulfill({ json: { items: row ? [row] : [], next_cursor: null, can_request: url.searchParams.has('interaction_id') ? state.requestAllowed && state.side === 'SEEKER' && (!row || !['REQUESTED', 'ACCEPTED', 'SCHEDULED'].includes(row.state)) : null } });
     }
+    if(request.method()==='GET'&&(path.endsWith('/reschedules')||path.endsWith('/reminders')||path==='/api/account/viewing-notices')) {
+      if(state.readStatus!==200)return route.fulfill({status:state.readStatus,json:{message:'PRIVATE_BACKEND_ERROR'}});
+      if(path.endsWith('/reschedules'))return route.fulfill({json:{items:[],current_proposal:null,next_cursor:null,can_propose:false,schedule_history:[]}});
+      if(path.endsWith('/reminders'))return route.fulfill({json:{schedule_version:state.viewing?.schedule_version??1,plan_status:'NOT_PREPARED',planned_at:null,items:[],external_state:'NOT_ENABLED'}});
+      return route.fulfill({json:{items:[],next_cursor:null}});
+    }
     if (path === `/api/account/viewings/${ids.viewing}` && request.method() === 'GET') {
       if (state.readStatus !== 200) return route.fulfill({ status: state.readStatus, json: { message: 'PRIVATE_BACKEND_ERROR' } });
       return route.fulfill({ json: projection() });

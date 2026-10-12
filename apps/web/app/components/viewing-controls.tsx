@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ViewingCommandResponse, ViewingListResponse, ViewingResponse } from '@pachi/contracts';
+import { ViewingAppointmentControls } from './viewing-appointment-controls';
 import { DEFAULT_VIEWING_TIMEZONE, viewingTimeLabel, viewingTimeToUtc } from '@/lib/viewing-time';
 
 type Session = { authenticated: boolean; csrfToken?: string };
@@ -154,6 +155,8 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
   const [busy, setBusy] = useState(true);
   const [sending, setSending] = useState(false);
   const [stale, setStale] = useState(false);
+  const [appointmentBusy,setAppointmentBusy]=useState(false);
+  const [appointmentRefresh,setAppointmentRefresh]=useState(0);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -177,7 +180,7 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
       const [result, actor] = await Promise.all([response.json() as Promise<ViewingResponse>, sessionResponse.json() as Promise<Session>]);
       if (!alive.current || current !== generation.current) return;
       if (!actor.authenticated) { setViewing(null); setSession(null); setError(safeError(401)); return; }
-      setViewing(result); setSession(actor); setStale(false);
+      setViewing(result); setSession(actor); setStale(false);setAppointmentRefresh(value=>value+1);
     } catch { if (alive.current && current === generation.current) { setViewing(null); setError('Viewing details could not be loaded. Refresh to try again.'); } }
     finally { if (alive.current && current === generation.current) setBusy(false); }
   }
@@ -221,18 +224,19 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
     } catch { if (alive.current && current === generation.current) { setError(safeError(503)); setFeedback(''); } }
     finally { if (alive.current && current === generation.current) setSending(false); }
   }
-  const actionable = !busy && !sending && !stale && !pending && !!session?.csrfToken;
+  const actionable = !busy && !sending && !stale && !pending && !appointmentBusy && !!session?.csrfToken;
   return <section className="viewingPanel" aria-label="Viewing details">
     <button disabled={busy || sending} onClick={() => void load()}>Refresh viewing</button>
     {busy && <p role="status">Loading viewing details…</p>}
     {error && <p className="error" role="alert">{error}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {viewing && <>
-      <ViewingSummary viewing={viewing} />
+      {viewing.state==='SCHEDULED'&&<h2>Confirmed appointment</h2>}
+      <div role="group" aria-label={viewing.state==='SCHEDULED'?'Confirmed appointment time':'Viewing time'}><ViewingSummary viewing={viewing} /></div>
       {viewing.state === 'REQUESTED' && <p>Response deadline: {viewingTimeLabel(viewing.response_deadline, viewing.display_timezone)}</p>}
       {viewing.state === 'ACCEPTED' && <p>Acceptance reserves this proposed time. Both parties must confirm it before the appointment is scheduled.</p>}
       {['ACCEPTED', 'SCHEDULED'].includes(viewing.state) && <p>Seeker confirmation: {viewing.seeker_confirmed ? 'Confirmed' : 'Waiting'} · Provider confirmation: {viewing.provider_confirmed ? 'Confirmed' : 'Waiting'}</p>}
-      {viewing.state === 'SCHEDULED' && !stale && !busy && !pending && !sending && viewing.private_instructions && <div className="viewingInstructions"><h2>Private meeting instructions</h2><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{viewing.private_instructions}</p></div>}
+      {viewing.state === 'SCHEDULED' && !stale && !busy && !pending && !sending && !appointmentBusy && viewing.private_instructions && <div className="viewingInstructions"><h2>Private meeting instructions</h2><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{viewing.private_instructions}</p></div>}
       {viewing.reason && <p>Reason: {historyReasonLabels[viewing.reason] ?? 'Other'}</p>}
       {viewing.can_accept && !pending && !stale && <form onSubmit={event => { event.preventDefault(); void command('accept'); }}>
         <fieldset disabled={!actionable}><legend>Accept proposed time</legend>
@@ -252,6 +256,12 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
         </fieldset>
       </form>}
       {pending && <button disabled={sending} onClick={() => void command()}>{sending ? 'Saving…' : 'Retry pending change'}</button>}
+      <ViewingAppointmentControls viewing={viewing} csrfToken={session?.csrfToken} disabled={busy||sending||stale||!!pending} refreshVersion={appointmentRefresh}
+        onBusyChange={setAppointmentBusy}
+        onChange={current=>{generation.current++;setViewing(current);setBusy(false);setStale(false);}}
+        onDenied={status=>{generation.current++;setViewing(null);setSession(null);setInstructions('');setReason('');setBusy(false);setError(safeError(status));}}
+        onStale={()=>{generation.current++;setBusy(false);setStale(true);}}
+      />
     </>}
   </section>;
 }

@@ -1,7 +1,7 @@
 import { csrfValid } from './csrf';
 
 const safeCodes = new Set(['REQUEST_EXPIRED', 'APPOINTMENT_PAST', 'STALE_VERSION', 'STALE_SCHEDULE_VERSION',
-  'ACTIVE_VIEWING_EXISTS', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_INPUT', 'INVALID_STATE', 'CAPABILITY_RESTRICTED', 'RESOURCE_SCOPE_DENIED']);
+  'ACTIVE_VIEWING_EXISTS', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_INPUT', 'INVALID_STATE', 'CAPABILITY_RESTRICTED', 'RESOURCE_SCOPE_DENIED', 'STALE_PROPOSAL_VERSION', 'PENDING_PROPOSAL_EXISTS', 'PROPOSAL_EXPIRED']);
 
 /** Callers select fixed viewing paths; the API resolves all participant authority. */
 export async function forwardViewingRequest(
@@ -21,9 +21,10 @@ export async function forwardViewingRequest(
     catch { return Response.json({ error: 'invalid_request' }, { status: 400, headers }); }
   }
   const query = new URLSearchParams();
-  if (!mutation && path === 'viewings') {
+  const queryKeys=path==='viewings'?['interaction_id','cursor','limit']:path==='viewing-notices'?['viewing_id','cursor','limit']:/^viewings\/[^/]+\/reschedules$/.test(path)?['cursor','limit']:[];
+  if (!mutation && queryKeys.length) {
     const supplied = new URL(request.url).searchParams;
-    for (const key of ['interaction_id', 'cursor', 'limit']) {
+    for (const key of queryKeys) {
       const value = supplied.get(key);
       if (value !== null) query.set(key, value);
     }

@@ -239,6 +239,13 @@
       "when": 1792108800000,
       "tag": "0033_viewing_request_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792195200000,
+      "tag": "0034_viewing_reschedules_notices",
+      "breakpoints": true
     }
   ]
 }
