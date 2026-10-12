@@ -91,8 +91,29 @@ leased and fairly revalidated, with obsolete schedule/safety/window work skipped
 The 24-hour window ends at the 2-hour milestone and the 2-hour window at appointment
 start; future-only creation and post-wait checks prevent catch-up bursts. Current
 resource authority is required on notice reads; stable ProviderAccount recipients
-never grant historical members access. Attendance, disputes, review work and
-external delivery retain their canonical contracts for later implementation.
+never grant historical members access.
+
+The G3-F3 attendance candidate adds retained exact-schedule claims and one outcome
+per Viewing/schedule. Claim transactions create private inbox notices before
+persisting their availability-based 48-hour deadline and finalization intent.
+Completion is claimable after scheduled end; no-show after start plus 30 minutes.
+Counterparty confirmation or leased uncontested finalization validates the outcome;
+incompatible claims and disputes instead open a private pending moderation case.
+Current participant/principal authority, safety restrictions and blocks govern
+attendance independently of advertisement market closure, freshness and region
+availability. Existing new-contact and scheduling gates remain in force.
+
+Attendance jobs recheck schedule, claim, current safety and authority after lock
+waits. Temporary restrictions preserve the original response deadline; disputes
+and obsolete schedules stop automatic effects. The first validated completion
+per Interaction atomically establishes the bilateral eligibility boundary and
+14-day slots; no-show creates only structured validated operational history.
+Late disputes hold unused eligibility and invalidate no-show effects while
+retaining their original records. Case evidence accepts only scoped Message
+references, never private content or storage URLs in generic payloads. Staff case
+resolution, appeals, review submission/reveal/reputation and external delivery
+remain separate slices. This describes the candidate mechanism; validation and
+integration evidence belongs in the engineering handoff.
 
 External outage does not roll back a committed core message or review. In-app notification intent persists before external delivery. Stale projection repair uses source-of-truth events and no private payload in generic queues.
 

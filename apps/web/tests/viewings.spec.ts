@@ -50,10 +50,11 @@ async function fixture(page: Page, initial: ViewingResponse | null = null) {
       const row = projection();
       return route.fulfill({ json: { items: row ? [row] : [], next_cursor: null, can_request: url.searchParams.has('interaction_id') ? state.requestAllowed && state.side === 'SEEKER' && (!row || !['REQUESTED', 'ACCEPTED', 'SCHEDULED'].includes(row.state)) : null } });
     }
-    if(request.method()==='GET'&&(path.endsWith('/reschedules')||path.endsWith('/reminders')||path==='/api/account/viewing-notices')) {
+    if(request.method()==='GET'&&(path.endsWith('/reschedules')||path.endsWith('/reminders')||path.endsWith('/attendance')||path==='/api/account/viewing-notices')) {
       if(state.readStatus!==200)return route.fulfill({status:state.readStatus,json:{message:'PRIVATE_BACKEND_ERROR'}});
       if(path.endsWith('/reschedules'))return route.fulfill({json:{items:[],current_proposal:null,next_cursor:null,can_propose:false,schedule_history:[]}});
       if(path.endsWith('/reminders'))return route.fulfill({json:{schedule_version:state.viewing?.schedule_version??1,plan_status:'NOT_PREPARED',planned_at:null,items:[],external_state:'NOT_ENABLED'}});
+      if(path.endsWith('/attendance'))return route.fulfill({json:{viewing_id:ids.viewing,schedule_version:state.viewing?.schedule_version??1,version:state.viewing?.version??1,state:'NONE',outcome:null,actor_side:state.side,can_claim_completion:false,can_claim_no_show:false,claims:[],next_cursor:null,case:null,response_window_hours:48,review_eligibility_created:false}});
       return route.fulfill({json:{items:[],next_cursor:null}});
     }
     if (path === `/api/account/viewings/${ids.viewing}` && request.method() === 'GET') {

@@ -3,9 +3,11 @@ import {
   Get, Headers, Inject, NotFoundException, Param, Post, Query, Req,
   UnauthorizedException, UseGuards,
 } from '@nestjs/common';
-import { IdentityError, ViewingAppointmentStore } from '@pachi/database';
+import { IdentityError, ViewingAttendanceStore } from '@pachi/database';
 import type {
   ViewingAcceptRequest, ViewingConfirmRequest, ViewingCreateRequest, ViewingReasonRequest, ViewingRescheduleRequest, ViewingRescheduleActionRequest, ViewingRescheduleCommandResponse, ViewingRescheduleListResponse,
+  ViewingAttendanceCompletionRequest, ViewingAttendanceNoShowRequest, ViewingAttendanceConfirmRequest,
+  ViewingAttendanceDisputeRequest, ViewingAttendanceResponse, ViewingAttendanceCommandResponse, ViewingAttendanceCaseResponse,
 } from '@pachi/contracts';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { OrganizationOwnerNoStoreGuard } from './organization-owner.controller.js';
@@ -32,7 +34,7 @@ function versions(body: Record<string, unknown>): void {
 @Controller('account')
 @UseGuards(OrganizationOwnerNoStoreGuard, AuthGuard)
 export class ViewingController {
-  constructor(@Inject('VIEWING_STORE') private readonly store: ViewingAppointmentStore) {}
+  constructor(@Inject('VIEWING_STORE') private readonly store: ViewingAttendanceStore) {}
 
   @Post('interactions/:interactionId/viewings')
   create(@Req() request: AuthenticatedRequest, @Param('interactionId') id: string,
@@ -131,6 +133,80 @@ export class ViewingController {
   noticeRead(@Req() request:AuthenticatedRequest,@Param('id') id:string,@Body() input:unknown) {
     fields(input,[]);return this.run(()=>this.store.readNotice(this.actor(request),resource(id)));
   }
+
+  @Get('viewings/:id/attendance')
+  attendance(@Req() request: AuthenticatedRequest, @Param('id') id: string,
+    @Query() query: Record<string, unknown>): Promise<ViewingAttendanceResponse> {
+    return this.run(() => this.store.attendance(this.actor(request), resource(id), this.pagination(query, ['cursor', 'limit'])));
+  }
+
+  @Post('viewings/:id/attendance/completion')
+  claimCompletion(@Req() request: AuthenticatedRequest, @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined, @Body() input: unknown): Promise<ViewingAttendanceCommandResponse> {
+    const body = fields(input, ['expected_version', 'expected_schedule_version']);
+    versions(body);
+    return this.run(() => this.store.claimAttendance(this.actor(request), resource(id),
+      { ...body as ViewingAttendanceCompletionRequest, claim_type: 'COMPLETION' }, this.options(request, key)));
+  }
+
+  @Post('viewings/:id/attendance/no-show')
+  claimNoShow(@Req() request: AuthenticatedRequest, @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined, @Body() input: unknown): Promise<ViewingAttendanceCommandResponse> {
+    const body = fields(input, ['expected_version', 'expected_schedule_version', 'absent_side']);
+    versions(body);
+    if (typeof body.absent_side !== 'string' || !['SEEKER', 'PROVIDER'].includes(body.absent_side)) throw new BadRequestException('INVALID_INPUT');
+    return this.run(() => this.store.claimAttendance(this.actor(request), resource(id),
+      { ...body as ViewingAttendanceNoShowRequest, claim_type: 'NO_SHOW' }, this.options(request, key)));
+  }
+
+  @Post('viewings/:id/attendance/claims/:claimId/confirm')
+  confirmAttendance(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Param('claimId') claimId: string,
+    @Headers('idempotency-key') key: string | undefined, @Body() input: unknown): Promise<ViewingAttendanceCommandResponse> {
+    const body = fields(input, ['expected_version', 'expected_schedule_version', 'expected_claim_version']);
+    this.claimVersions(body);
+    return this.run(() => this.store.respondAttendance(this.actor(request), resource(id), resource(claimId),
+      'confirm', body as ViewingAttendanceConfirmRequest, this.options(request, key)));
+  }
+
+  @Post('viewings/:id/attendance/claims/:claimId/dispute')
+  disputeAttendance(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Param('claimId') claimId: string,
+    @Headers('idempotency-key') key: string | undefined, @Body() input: unknown): Promise<ViewingAttendanceCommandResponse> {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('INVALID_INPUT');
+    const names = ['expected_version', 'expected_schedule_version', 'expected_claim_version', 'reason'];
+    if ('evidence' in input) names.push('evidence');
+    const body = fields(input, names);
+    this.claimVersions(body);
+    if (typeof body.reason !== 'string' || !['DID_NOT_ATTEND', 'OUTCOME_INCORRECT', 'SAFETY', 'OTHER'].includes(body.reason))
+      throw new BadRequestException('INVALID_INPUT');
+    if (body.evidence !== undefined) {
+      if (!Array.isArray(body.evidence) || body.evidence.length > 5) throw new BadRequestException('INVALID_INPUT');
+      const references = new Set<string>();
+      for (const item of body.evidence) {
+        const evidence = fields(item, ['reference', 'kind']);
+        if (!uuid(evidence.reference) || evidence.kind !== 'MESSAGE' || references.has(evidence.reference))
+          throw new BadRequestException('INVALID_INPUT');
+        references.add(evidence.reference);
+      }
+    }
+    return this.run(() => this.store.respondAttendance(this.actor(request), resource(id), resource(claimId),
+      'dispute', body as ViewingAttendanceDisputeRequest, this.options(request, key)));
+  }
+
+  @Get('viewings/:id/attendance/case')
+  attendanceCase(@Req() request: AuthenticatedRequest, @Param('id') id: string,
+    @Query() query: Record<string, unknown>): Promise<ViewingAttendanceCaseResponse> {
+    this.pagination(query, []);
+    return this.run(async () => {
+      const attendance = await this.store.attendance(this.actor(request), resource(id));
+      return { viewing_id: attendance.viewing_id, schedule_version: attendance.schedule_version, case: attendance.case };
+    });
+  }
+
+  private claimVersions(body: Record<string, unknown>): void {
+    versions(body);
+    if (!Number.isSafeInteger(body.expected_claim_version) || Number(body.expected_claim_version) < 1)
+      throw new BadRequestException('INVALID_INPUT');
+  }
   private pagination(query:Record<string,unknown>,allowed:string[]) {
     if(Object.keys(query).some(k=>!allowed.includes(k))||(query.cursor!==undefined&&!uuid(query.cursor))||
       (query.limit!==undefined&&(typeof query.limit!=='string'||!/^([1-9]|[1-4][0-9]|50)$/.test(query.limit))))throw new BadRequestException('INVALID_INPUT');
@@ -164,8 +240,8 @@ export class ViewingController {
       if (error.code === 'AUTH_REQUIRED') throw new UnauthorizedException('AUTH_REQUIRED');
       if (['RESOURCE_SCOPE_DENIED', 'PUBLIC_LISTING_NOT_FOUND'].includes(error.code)) throw new NotFoundException('RESOURCE_UNAVAILABLE');
       if (error.code === 'INVALID_INPUT') throw new BadRequestException('INVALID_INPUT');
-      if (['CAPABILITY_RESTRICTED', 'PHONE_REQUIRED'].includes(error.code)) throw new ForbiddenException(error.code);
-      throw new ConflictException(['STALE_VERSION', 'STALE_SCHEDULE_VERSION', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_STATE', 'REQUEST_EXPIRED', 'APPOINTMENT_PAST', 'ACTIVE_VIEWING_EXISTS','STALE_PROPOSAL_VERSION','PENDING_PROPOSAL_EXISTS','PROPOSAL_EXPIRED'].includes(error.code) ? error.code : 'REQUEST_CONFLICT');
+      if (['CAPABILITY_RESTRICTED', 'PHONE_REQUIRED', 'SELF_CONFIRMATION_DENIED'].includes(error.code)) throw new ForbiddenException(error.code);
+      throw new ConflictException(['STALE_VERSION', 'STALE_SCHEDULE_VERSION', 'IDEMPOTENCY_KEY_REUSED', 'INVALID_STATE', 'REQUEST_EXPIRED', 'APPOINTMENT_PAST', 'ACTIVE_VIEWING_EXISTS','STALE_PROPOSAL_VERSION','PENDING_PROPOSAL_EXISTS','PROPOSAL_EXPIRED', 'CLAIM_TOO_EARLY', 'STALE_CLAIM_VERSION', 'ATTENDANCE_CLAIM_EXISTS', 'ATTENDANCE_PENDING'].includes(error.code) ? error.code : 'REQUEST_CONFLICT');
     }
   }
 }

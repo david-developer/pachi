@@ -155,7 +155,7 @@ export class ViewingStore {
       can_accept:a.side==='PROVIDER'&&row.state==='REQUESTED'&&eligible&&timely,
       can_decline:a.side==='PROVIDER'&&row.state==='REQUESTED'&&timely,
       can_confirm:row.state==='ACCEPTED'&&eligible&&future&&!ownConfirmed,
-      can_cancel:cancellable.includes(row.state)};
+      can_cancel:cancellable.includes(row.state)&&!(await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0]};
   }
   protected async row(tx:Tx,id:string):Promise<Row> {
     const row=(await tx<Row[]>`SELECT * FROM viewings WHERE id=${id} FOR UPDATE`)[0];if(!row)fail('RESOURCE_SCOPE_DENIED');return row;
@@ -265,8 +265,7 @@ export class ViewingStore {
     const parsed=reasonSchema.safeParse(input);if(!parsed.success)fail('INVALID_INPUT');
     return this.command(actor,'CANCEL',id,parsed.data,options,async(tx,current,a,old)=>{
       const row=old!;if(!cancellable.includes(row.state))fail('INVALID_STATE');
-      // Attendance commands/claims are deliberately absent in F1. Future claim
-      // introduction must guard this transition before allowing cancellation.
+      if((await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0])fail('ATTENDANCE_PENDING');
       const updated=(await tx<Row[]>`UPDATE viewings SET state=${a.side==='SEEKER'?'CANCELLED_BY_SEEKER':'CANCELLED_BY_PROVIDER'},reason=${parsed.data.reason},cancelled_at=statement_timestamp(),version=version+1,updated_at=statement_timestamp() WHERE id=${row.id} RETURNING *`)[0]!;
       await this.closeAction(tx,row.id);await this.record(tx,updated,a,current,'viewing_cancelled',row.state,options.requestId);return updated;
     });
