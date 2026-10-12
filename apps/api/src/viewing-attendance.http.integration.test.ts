@@ -350,3 +350,31 @@ void integration('G3-F3 HTTP advertisement closure and region suppression retain
   assert.equal(history.outcome, 'COMPLETED');
   assert.deepEqual(await effects(f), { claims: 1, eligibility: 2, no_shows: 0 });
 }));
+
+
+for(const outcome of ['COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW'] as const)
+for(const state of ['REQUESTED','SCHEDULED'] as const)
+void integration(`G3-F3 HTTP historical ${outcome} dispute preserves newer ${state} and blocks further requests after its cancellation`,()=>scenario(async(call,f)=>{
+  const old=await scheduled(call,f),path=`/viewings/${old.id}/attendance`,claimant=outcome==='SEEKER_NO_SHOW'?'provider':'seeker',counterparty=claimant==='seeker'?'provider':'seeker';
+  const claimed=await value<ViewingAttendanceCommandResponse>(await call(claimant,path+(outcome==='COMPLETED'?'/completion':'/no-show'),outcome==='COMPLETED'?versions(old):{...versions(old),absent_side:outcome==='SEEKER_NO_SHOW'?'SEEKER':'PROVIDER'}));
+  const done=await value<ViewingAttendanceCommandResponse>(await call(counterparty,`${path}/claims/${claimed.claim.id}/confirm`,responseVersions(claimed)));
+  let current=(await value<{viewing:ViewingResponse}>(await call('seeker',`/interactions/${old.interaction_id}/viewings`,f.input))).viewing;
+  if(state==='SCHEDULED'){
+    current=(await value<{viewing:ViewingResponse}>(await call('provider',`/viewings/${current.id}/accept`,{...versions(current),scheduled_start:f.input.proposed_start,scheduled_end:f.input.proposed_end,private_instructions:guidance}))).viewing;
+    current=(await value<{viewing:ViewingResponse}>(await call('seeker',`/viewings/${current.id}/confirm`,versions(current)))).viewing;
+    current=(await value<{viewing:ViewingResponse}>(await call('provider',`/viewings/${current.id}/confirm`,versions(current)))).viewing;
+    current=await value<ViewingResponse>(await call('seeker',`/viewings/${current.id}`),200);
+  }
+  const disputed=await value<ViewingAttendanceCommandResponse>(await call(counterparty,`${path}/claims/${done.claim.id}/dispute`,{...responseVersions(done),reason:'OUTCOME_INCORRECT'}));
+  assert.equal(disputed.viewing.state,'DISPUTED');assert.equal(disputed.attendance.case?.review_status,'PENDING_REVIEW');assert.equal(disputed.attendance.review_eligibility_created,false);
+  assert.equal(JSON.stringify(disputed).includes('attendance_validated_at'),false);assert.equal(JSON.stringify(disputed).includes(guidance),false);
+  assert.deepEqual(await value<ViewingResponse>(await call('seeker',`/viewings/${current.id}`),200),current);
+  const caseStatus=await value<ViewingAttendanceCaseResponse>(await call(counterparty,path+'/case'),200);assert.equal(caseStatus.case?.state,'OPEN');
+  const holds=await f.client`SELECT state FROM viewing_review_eligibilities`;assert.equal(holds.length,outcome==='COMPLETED'?2:0);assert.ok(holds.every(row=>row.state==='HELD'));
+  assert.equal((await effects(f)).no_shows,0);
+  if(outcome!=='COMPLETED')assert.equal((await f.client`SELECT id FROM viewing_no_show_events WHERE invalidated_at IS NOT NULL`).length,1);
+  await value(await call('seeker',`/viewings/${current.id}/cancel`,{...versions(current),reason:'PLANS_CHANGED'}));
+  const listed=await value<{can_request:boolean;items:ViewingResponse[]}>(await call('seeker',`/viewings?interaction_id=${old.interaction_id}`),200);
+  assert.equal(listed.can_request,false);assert.equal(listed.items.length,2);
+  await error(await call('seeker',`/interactions/${old.interaction_id}/viewings`,f.input),409,'ACTIVE_VIEWING_EXISTS');
+}));

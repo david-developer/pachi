@@ -239,19 +239,35 @@ END $$;
 CREATE TRIGGER viewing_review_eligibility_guard BEFORE INSERT OR UPDATE OR DELETE ON viewing_review_eligibilities FOR EACH ROW EXECUTE FUNCTION viewing_review_eligibility_guard();
 
 -- Only a persisted validated or disputed attendance outcome allows a terminal transition.
+-- Previously validated disputes are historical. They retain their trust hold but
+-- do not replace a newer current appointment. Only the guard derives provenance.
+ALTER TABLE viewings ADD COLUMN attendance_validated_at timestamptz;
+ALTER TABLE viewings ADD CONSTRAINT viewing_validated_attendance_state CHECK
+ (attendance_validated_at IS NULL OR state IN ('COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW','DISPUTED'));
+DROP INDEX viewings_one_active_interaction;
+CREATE UNIQUE INDEX viewings_one_active_interaction ON viewings(interaction_id)
+ WHERE state IN ('REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED')
+ OR (state='DISPUTED' AND attendance_validated_at IS NULL);
 CREATE OR REPLACE FUNCTION viewing_episode_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE replacement boolean; attendance boolean;
 BEGIN
   IF TG_OP='DELETE' THEN RAISE EXCEPTION 'viewing episodes are retained'; END IF;
   IF TG_OP='INSERT' THEN
+    -- Serialize request insertion with attendance commands on the parent. The
+    -- uniqueness predicate alone cannot enforce the historical dispute hold.
+    PERFORM id FROM interactions WHERE id=NEW.interaction_id FOR UPDATE;
     IF NOT EXISTS (SELECT 1 FROM interactions i WHERE i.id=NEW.interaction_id AND i.listing_id=NEW.listing_id
       AND i.provider_account_id=NEW.provider_account_id AND i.seeker_user_id=NEW.seeker_user_id)
       OR NEW.state<>'REQUESTED' OR NEW.version<>1 OR NEW.schedule_version<>1
-      OR NEW.accepted_at IS NOT NULL OR NEW.seeker_confirmed OR NEW.provider_confirmed
+      OR NEW.accepted_at IS NOT NULL OR NEW.seeker_confirmed OR NEW.provider_confirmed OR NEW.attendance_validated_at IS NOT NULL
       THEN RAISE EXCEPTION 'invalid viewing context'; END IF;
+    IF EXISTS(SELECT 1 FROM viewings v WHERE v.interaction_id=NEW.interaction_id AND v.state='DISPUTED')
+      THEN RAISE EXCEPTION 'attendance dispute prevents new appointment'; END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_timezone_names WHERE name=NEW.display_timezone) THEN RAISE EXCEPTION 'invalid viewing timezone'; END IF;
     RETURN NEW;
   END IF;
+  IF NEW.attendance_validated_at IS DISTINCT FROM OLD.attendance_validated_at
+    THEN RAISE EXCEPTION 'validated attendance provenance is immutable'; END IF;
   replacement := OLD.state='SCHEDULED' AND NEW.state='RESCHEDULED' AND NEW.schedule_version=OLD.schedule_version+1
     AND EXISTS (SELECT 1 FROM viewing_schedule_history h JOIN viewing_reschedule_proposals p ON p.id=h.superseded_by_proposal_id
       WHERE h.viewing_id=OLD.id AND h.schedule_version=OLD.schedule_version AND h.scheduled_start=OLD.scheduled_start
@@ -283,6 +299,11 @@ BEGIN
     THEN RAISE EXCEPTION 'schedule replacement requires joint approval'; END IF;
   IF (OLD.seeker_confirmed AND NOT NEW.seeker_confirmed) OR (OLD.provider_confirmed AND NOT NEW.provider_confirmed)
     THEN RAISE EXCEPTION 'confirmations are retained'; END IF;
+  IF attendance AND OLD.state='SCHEDULED' AND NEW.state IN ('COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW') THEN
+    SELECT a.finalized_at INTO NEW.attendance_validated_at FROM viewing_attendance_outcomes a
+      WHERE a.viewing_id=OLD.id AND a.schedule_version=OLD.schedule_version AND a.state=NEW.state;
+    IF NEW.attendance_validated_at IS NULL THEN RAISE EXCEPTION 'validated attendance provenance required'; END IF;
+  END IF;
   RETURN NEW;
 END $$;
 

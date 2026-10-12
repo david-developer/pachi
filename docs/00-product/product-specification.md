@@ -625,6 +625,15 @@ promotion.
 
 DECLINED records a provider refusal before acceptance; EXPIRED records an unanswered request at its 48-hour-or-appointment deadline. These are terminal appointment episodes. The first validated completed viewing per Interaction creates review slots; later appointments do not create additional slots.
 
+**Accepted amendment — 2026-10-13:** retain at most one current appointment per
+Interaction. REQUESTED, ACCEPTED, SCHEDULED, RESCHEDULED and disputes of an
+unvalidated schedule occupy that slot. A dispute of a previously validated
+COMPLETED or no-show viewing is historical: it may coexist with the current
+appointment without cancelling or replacing it. Hold the historical outcome's
+review eligibility and no-show effects, retain its case and history, and block
+further viewing requests in that Interaction until resolution. Existing
+appointment operations retain their ordinary authority and safety guards.
+
 ## 12.2 Completion and safety rules
 
 | **ID**       | **Requirement**                                                                                                          | **Acceptance evidence**                                                              |

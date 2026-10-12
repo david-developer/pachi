@@ -283,3 +283,108 @@ void integration('G3-F3 independent SQL guard rejects validation when an incompa
     assert.equal((await effects(f)).eligibilities,0);assert.equal((await effects(f)).no_shows,0);assert.equal((await f.client`SELECT state FROM viewing_attendance_outcomes`)[0]!.state,'AWAITING_VALIDATION');
   }finally{await f.close();}
 });
+
+
+async function validated(f:Fixture,outcome:'COMPLETED'|'SEEKER_NO_SHOW'|'PROVIDER_NO_SHOW') {
+  const v=await scheduled(f),side=outcome==='SEEKER_NO_SHOW'?'provider':'seeker';
+  const input=outcome==='COMPLETED'?{...expected(v),claim_type:'COMPLETION' as const}:{...expected(v),claim_type:'NO_SHOW' as const,absent_side:(outcome==='SEEKER_NO_SHOW'?'SEEKER':'PROVIDER') as 'SEEKER'|'PROVIDER'};
+  const c=await f.store.claimAttendance(f.actors[side],v.id,input,f.command());
+  return f.store.respondAttendance(f.actors[side==='seeker'?'provider':'seeker'],v.id,c.claim.id,'confirm',{...expected(c.viewing),expected_claim_version:1},f.command());
+}
+async function scheduleCurrent(f:Fixture,v:ViewingResponse) {
+  const accepted=await f.store.accept(f.actors.provider,v.id,{...expected(v),scheduled_start:f.input.proposed_start,scheduled_end:f.input.proposed_end,private_instructions:'SYNTHETIC_CURRENT_GUIDANCE_F3'},f.command());
+  const seeker=await f.store.confirm(f.actors.seeker,v.id,expected(accepted.viewing),f.command());
+  await f.store.confirm(f.actors.provider,v.id,expected(seeker.viewing),f.command());
+  return f.store.get(f.actors.seeker,v.id);
+}
+for(const outcome of ['COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW'] as const)
+for(const state of ['REQUESTED','SCHEDULED'] as const)
+void integration(`G3-F3 historical ${outcome} dispute retains newer ${state}, holds its own trust effects and blocks further requests`,async()=>{
+  const f=await fixture();try{
+    const done=await validated(f,outcome),old=done.viewing;
+    const provenance=(await f.client`SELECT v.attendance_validated_at,a.finalized_at FROM viewings v JOIN viewing_attendance_outcomes a ON a.viewing_id=v.id AND a.schedule_version=v.schedule_version WHERE v.id=${old.id}`)[0]!;
+    assert.ok(provenance.attendance_validated_at);assert.equal(+provenance.attendance_validated_at,+provenance.finalized_at);
+    let current=(await f.store.create(f.actors.seeker,old.interaction_id,f.input,f.command())).viewing;
+    if(state==='SCHEDULED')current=await scheduleCurrent(f,current);
+    const actor=done.claim.claimant_side==='SEEKER'?f.actors.provider:f.actors.seeker;
+    const disputed=await f.store.respondAttendance(actor,old.id,done.claim.id,'dispute',{...expected(old),expected_claim_version:2,reason:'OUTCOME_INCORRECT'},f.command());
+    assert.equal(disputed.viewing.state,'DISPUTED');assert.equal(disputed.attendance.case?.review_status,'PENDING_REVIEW');assert.equal(disputed.claim.state,'DISPUTED');
+    assert.deepEqual(await f.store.get(f.actors.seeker,current.id),current);
+    const retained=(await f.client`SELECT (SELECT attendance_validated_at FROM viewings WHERE id=${old.id}) AS provenance,(SELECT count(*)::int FROM viewing_review_eligibilities WHERE state='OPEN') AS open_slots,(SELECT count(*)::int FROM viewing_review_eligibilities WHERE state='HELD') AS held_slots,(SELECT count(*)::int FROM viewing_no_show_events WHERE invalidated_at IS NULL) AS no_shows,(SELECT count(*)::int FROM viewing_no_show_events WHERE invalidated_at IS NOT NULL) AS invalidated`)[0]!;
+    assert.equal(+retained.provenance,+provenance.attendance_validated_at);assert.equal(retained.open_slots,0);assert.equal(retained.held_slots,outcome==='COMPLETED'?2:0);assert.equal(retained.no_shows,0);assert.equal(retained.invalidated,outcome==='COMPLETED'?0:1);
+    if(state==='REQUESTED')current=await scheduleCurrent(f,current);
+    assert.equal(current.state,'SCHEDULED');
+    const marker=(await f.client`SELECT attendance_validated_at FROM viewings WHERE id=${current.id}`)[0]!;assert.equal(marker.attendance_validated_at,null);
+    await f.store.cancel(f.actors.seeker,current.id,{...expected(current),reason:'PLANS_CHANGED'},f.command());
+    assert.equal((await f.store.list(f.actors.seeker,{interaction_id:old.interaction_id})).can_request,false);
+    await assert.rejects(f.store.create(f.actors.seeker,old.interaction_id,f.input,f.command()),{code:'ACTIVE_VIEWING_EXISTS'});
+    await assert.rejects(f.client`INSERT INTO viewings(interaction_id,listing_id,provider_account_id,seeker_user_id,requested_by_user_id,proposed_start,proposed_end,display_timezone,response_deadline)
+      VALUES(${old.interaction_id},${old.listing_id},${old.provider_account_id},${old.seeker_user_id},${old.seeker_user_id},${f.input.proposed_start},${f.input.proposed_end},'Africa/Douala',${f.input.proposed_start})`,/attendance dispute prevents new appointment/);
+    assert.equal((await f.client`SELECT id FROM viewings WHERE interaction_id=${old.interaction_id}`).length,2);
+    assert.equal((await f.client`SELECT id FROM viewing_attendance_cases WHERE viewing_id=${old.id}`).length,1);
+    assert.equal((await f.store.attendanceOnce()).processed,0);
+  }finally{await f.close();}
+});
+void integration('G3-F3 validation provenance cannot be fabricated or cleared to release an unvalidated or historical dispute slot',async()=>{
+  const f=await fixture();try{
+    const v=await scheduled(f);
+    await assert.rejects(f.client`INSERT INTO viewings(interaction_id,listing_id,provider_account_id,seeker_user_id,requested_by_user_id,proposed_start,proposed_end,display_timezone,response_deadline,attendance_validated_at)
+      VALUES(${v.interaction_id},${v.listing_id},${v.provider_account_id},${v.seeker_user_id},${v.seeker_user_id},${f.input.proposed_start},${f.input.proposed_end},'Africa/Douala',${f.input.proposed_start},statement_timestamp())`,/invalid viewing context/);
+    await assert.rejects(f.client`UPDATE viewings SET attendance_validated_at=statement_timestamp(),version=version+1 WHERE id=${v.id}`,/validated attendance provenance is immutable/);
+    const one=await f.store.claimAttendance(f.actors.provider,v.id,{...expected(v),claim_type:'COMPLETION'},f.command());
+    const conflict=await f.store.claimAttendance(f.actors.seeker,v.id,{...expected(one.viewing),claim_type:'NO_SHOW',absent_side:'PROVIDER'},f.command());
+    assert.equal(conflict.viewing.state,'DISPUTED');assert.equal((await f.client`SELECT attendance_validated_at FROM viewings WHERE id=${v.id}`)[0]!.attendance_validated_at,null);
+    await assert.rejects(f.client`UPDATE viewings SET attendance_validated_at=statement_timestamp(),version=version+1 WHERE id=${v.id}`,/validated attendance provenance is immutable/);
+    await assert.rejects(f.store.create(f.actors.seeker,v.interaction_id,f.input,f.command()),{code:'ACTIVE_VIEWING_EXISTS'});
+    await f.client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const next=await viewingFixture(f.client),store=new ViewingAttendanceStore(f.client,true),fresh={...next,client:f.client,store,close:f.close};
+    const done=await validated(fresh,'COMPLETED');
+    await assert.rejects(f.client`UPDATE viewings SET attendance_validated_at=NULL,version=version+1 WHERE id=${done.viewing.id}`,/validated attendance provenance is immutable/);
+  }finally{await f.close();}
+});
+for(const order of ['request-first','dispute-first'] as const)
+void integration(`G3-F3 controlled historical dispute versus new request ${order} preserves one current appointment and the dispute hold`,async()=>{
+  const f=await fixture(),a=dedicated(),b=dedicated(),gate=dedicated();let release!:()=>void;let holder:Promise<unknown>|undefined,first:Promise<PromiseSettledResult<unknown>[]>|undefined,second:Promise<PromiseSettledResult<unknown>[]>|undefined;
+  try{
+    const done=await validated(f,'COMPLETED'),one=new ViewingAttendanceStore(a,true),two=new ViewingAttendanceStore(b,true);
+    let ready!:()=>void;const held=new Promise<void>(r=>{ready=r;}),free=new Promise<void>(r=>{release=r;});
+    holder=gate.begin(async tx=>{await tx`LOCK TABLE viewing_notices IN SHARE MODE`;ready();await free;});await held;
+    const pidA=(await a<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid,pidB=(await b<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+    const request=(store:ViewingAttendanceStore)=>store.create(f.actors.seeker,done.viewing.interaction_id,f.input,f.command());
+    const dispute=(store:ViewingAttendanceStore)=>store.respondAttendance(f.actors.provider,done.viewing.id,done.claim.id,'dispute',{...expected(done.viewing),expected_claim_version:2,reason:'DID_NOT_ATTEND'},f.command());
+    first=Promise.allSettled([order==='request-first'?request(one):dispute(one)]);await waiting(f.client,pidA);
+    second=Promise.allSettled([order==='request-first'?dispute(two):request(two)]);await waiting(f.client,pidB);release();await holder;
+    assert.equal((await first)[0]!.status,'fulfilled');const trailing=(await second)[0]!;
+    if(order==='request-first')assert.equal(trailing.status,'fulfilled');else{assert.equal(trailing.status,'rejected');assert.equal((trailing as PromiseRejectedResult).reason.code,'ACTIVE_VIEWING_EXISTS');}
+    assert.equal((await f.store.attendance(f.actors.seeker,done.viewing.id)).state,'DISPUTED');
+    assert.equal((await f.client`SELECT id FROM viewings WHERE state IN ('REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED')`).length,order==='request-first'?1:0);
+    assert.equal((await f.client`SELECT id FROM viewing_attendance_cases`).length,1);assert.equal((await f.client`SELECT id FROM viewing_review_eligibilities WHERE state='HELD'`).length,2);
+  }finally{release?.();await holder?.catch(()=>{});await Promise.all([first,second]);await Promise.all([a.end(),b.end(),gate.end()]);await f.close();}
+});
+
+
+void integration('G3-F3 later completion cannot replace the held first review boundary and both validated histories can be disputed independently',async()=>{
+  const f=await fixture();try{
+    await clock(f);
+    // Stored defaults bind the original function OID. Rebind only TEST defaults
+    // for this controlled future request/claim, then restore before clock cleanup.
+    await f.client.unsafe('ALTER TABLE viewings ALTER COLUMN created_at SET DEFAULT public.statement_timestamp(), ALTER COLUMN updated_at SET DEFAULT public.statement_timestamp()');
+    await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');
+    const first=await validated(f,'COMPLETED');
+    const current=await scheduleCurrent(f,(await f.store.create(f.actors.seeker,first.viewing.interaction_id,f.input,f.command())).viewing);
+    await f.store.respondAttendance(f.actors.provider,first.viewing.id,first.claim.id,'dispute',{...expected(first.viewing),expected_claim_version:2,reason:'DID_NOT_ATTEND'},f.command());
+    await f.client`UPDATE f3_test_clock SET value=${current.scheduled_end}::timestamptz+interval '1 microsecond'`;
+    const claimed=await f.store.claimAttendance(f.actors.seeker,current.id,{...expected(current),claim_type:'COMPLETION'},f.command());
+    const done=await f.store.respondAttendance(f.actors.provider,current.id,claimed.claim.id,'confirm',{...expected(claimed.viewing),expected_claim_version:1},f.command());
+    assert.equal(done.viewing.state,'COMPLETED');assert.equal(done.attendance.review_eligibility_created,false);
+    assert.equal((await f.client`SELECT id FROM viewing_review_eligibilities WHERE state='HELD'`).length,2);assert.equal((await f.client`SELECT id FROM viewing_review_eligibilities WHERE state='OPEN'`).length,0);
+    assert.equal((await f.client`SELECT viewing_id FROM viewing_review_boundaries`)[0]!.viewing_id,first.viewing.id);
+    await f.store.respondAttendance(f.actors.provider,current.id,claimed.claim.id,'dispute',{...expected(done.viewing),expected_claim_version:2,reason:'OUTCOME_INCORRECT'},f.command());
+    assert.equal((await f.client`SELECT id FROM viewing_attendance_cases`).length,2);assert.equal((await f.client`SELECT id FROM viewings WHERE state='DISPUTED' AND attendance_validated_at IS NOT NULL`).length,2);
+    assert.equal((await f.store.list(f.actors.seeker,{interaction_id:current.interaction_id})).can_request,false);
+  }finally{
+    await f.client.unsafe('ALTER TABLE viewings ALTER COLUMN created_at SET DEFAULT pg_catalog.statement_timestamp(), ALTER COLUMN updated_at SET DEFAULT pg_catalog.statement_timestamp()');
+    await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT pg_catalog.statement_timestamp()');
+    await f.close();
+  }
+});

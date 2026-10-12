@@ -109,7 +109,13 @@ and obsolete schedules stop automatic effects. The first validated completion
 per Interaction atomically establishes the bilateral eligibility boundary and
 14-day slots; no-show creates only structured validated operational history.
 Late disputes hold unused eligibility and invalidate no-show effects while
-retaining their original records. Case evidence accepts only scoped Message
+retaining their original records. Immutable `attendance_validated_at` provenance
+on the Viewing is derived from its validated exact-schedule outcome by the SQL
+guard. A dispute with this provenance is historical and does not occupy the one
+current appointment slot; an unvalidated dispute still does. Any dispute blocks
+new requests through current Interaction locking and an independent insert guard,
+while the newer current appointment keeps its ordinary guarded operations.
+Case evidence accepts only scoped Message
 references, never private content or storage URLs in generic payloads. Staff case
 resolution, appeals, review submission/reveal/reputation and external delivery
 remain separate slices. This describes the candidate mechanism; validation and

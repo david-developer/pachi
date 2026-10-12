@@ -10,7 +10,7 @@ type Session = { authenticated: boolean; csrfToken?: string };
 type Attempt = { path: string; body: Record<string, unknown>; key: string };
 const safeError = (status: number, code?: string) => code === 'REQUEST_EXPIRED' ? 'This request has expired. Refresh its current state.' :
   code === 'APPOINTMENT_PAST' ? 'The appointment time has passed. Refresh its current state.' :
-    code === 'ACTIVE_VIEWING_EXISTS' ? 'This conversation already has an active appointment. Refresh your viewings.' :
+    code === 'ACTIVE_VIEWING_EXISTS' ? 'A current appointment or unresolved attendance dispute prevents another request. Refresh your viewings.' :
       status === 401 ? 'Sign in again to view your appointments.' :
   [403, 404].includes(status) ? 'This viewing is not available with your current account permissions.' :
     status === 409 ? 'This viewing changed. Refresh its current state before trying again.' :

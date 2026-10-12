@@ -194,3 +194,52 @@ test('G3-F3 actual attendance BFF routes deny anonymous reads and writes with pr
   for (const path of [`/api/account/viewings/${id}/attendance/completion`, `/api/account/viewings/${id}/attendance/no-show`, ...['confirm', 'dispute'].map(action => `/api/account/viewings/${id}/attendance/claims/${claimId}/${action}`)]) { const response = await request.post(path, { data: {} }); expect(response.status()).toBe(401); expect(response.headers()['cache-control']).toBe('private, no-store'); }
   for (const path of [`/api/account/viewings/${id}/attendance/finalize`, `/api/account/viewings/${id}/attendance/claims/${claimId}/resolve`]) { const response = await request.post(path, { data: {} }); expect(response.status()).toBe(404); expect(response.headers()['cache-control']).toBe('private, no-store'); }
 });
+
+
+test('G3-F3 historical dispute retains the current appointment controls and keeps further requests unavailable after cancellation', async ({ page }) => {
+  const state = await fixture(page, 'SEEKER');
+  state.claims = [{ ...pendingClaim('PROVIDER'), state: 'CONFIRMED', version: 2, finalized_at: now, responded_at: now }];
+  state.attendanceState = 'COMPLETED'; state.outcome = 'COMPLETED'; state.reviewEligible = true;
+  state.viewing = { ...state.viewing, state: 'COMPLETED', private_instructions: null, version: 5 };
+  const currentId = '00000000-0000-4000-8000-000000000809', currentGuide = 'SYNTHETIC_CURRENT_APPOINTMENT_GUIDANCE';
+  let current: ViewingResponse = { ...seed, id: currentId, state: 'SCHEDULED', actor_side: 'SEEKER', version: 3, schedule_version: 1,
+    proposed_start: '2031-01-12T13:00:00.000Z', proposed_end: '2031-01-12T14:00:00.000Z',
+    scheduled_start: '2031-01-12T13:00:00.000Z', scheduled_end: '2031-01-12T14:00:00.000Z', private_instructions: currentGuide };
+  await page.route('**/api/**', async route => {
+    const request = route.request(), url = new URL(request.url()), path = url.pathname;
+    if (path === '/api/account/viewings') return route.fulfill({ json: { items: [{ ...state.viewing, actor_side: 'SEEKER' }, current], next_cursor: null, can_request: url.searchParams.has('interaction_id') ? false : null } });
+    if (path === `/api/account/interactions/${seed.interaction_id}`) return route.fulfill({ json: { interaction_id: seed.interaction_id, listing_id: seed.listing_id, conversation_id: seed.interaction_id, state: 'OPEN', title: 'Synthetic historical dispute', listing_visible: true, opened_at: now } });
+    if (path.endsWith('/contact-safety')) return route.fulfill({ json: { can_contact: true, can_block: true, own_block: null } });
+    if (path.endsWith('/messages')) return route.fulfill({ json: { items: [], next_cursor: null, can_send: true, actor_side: 'SEEKER' } });
+    if (path.startsWith(`/api/account/viewings/${currentId}`)) {
+      if (request.method() === 'POST') {
+        expect(path).toBe(`/api/account/viewings/${currentId}/cancel`);
+        expect(request.postDataJSON()).toEqual({ expected_version: current.version, expected_schedule_version: 1, reason: 'PLANS_CHANGED' });
+        expect(request.headers()['x-csrf-token']).toBe('synthetic');
+        current = { ...current, state: 'CANCELLED_BY_SEEKER', private_instructions: null, reason: 'PLANS_CHANGED', version: current.version + 1, can_cancel: false };
+        return route.fulfill({ status: 201, json: { viewing: current, replayed: false } });
+      }
+      if (path.endsWith('/attendance')) return route.fulfill({ json: { viewing_id: currentId, schedule_version: 1, version: current.version, state: 'NONE', outcome: null, actor_side: 'SEEKER', can_claim_completion: false, can_claim_no_show: false, claims: [], next_cursor: null, case: null, response_window_hours: 48, review_eligibility_created: false } });
+      if (path.endsWith('/reschedules')) return route.fulfill({ json: { items: [], current_proposal: null, next_cursor: null, can_propose: current.state === 'SCHEDULED', schedule_history: [] } });
+      if (path.endsWith('/reminders')) return route.fulfill({ json: { schedule_version: 1, plan_status: 'NO_FUTURE_WINDOW', planned_at: now, items: [], external_state: 'NOT_ENABLED' } });
+      return route.fulfill({ json: current });
+    }
+    return route.fallback();
+  });
+  await page.goto(`/viewings/${id}`);
+  await page.getByLabel('Dispute reason', { exact: true }).selectOption('OUTCOME_INCORRECT');
+  await page.getByRole('button', { name: 'Dispute attendance claim', exact: true }).click();
+  await expect(page.getByLabel('Attendance dispute status')).toContainText('Pending moderation review. No decision has been made.');
+  expect(current.state).toBe('SCHEDULED'); expect(current.version).toBe(3); expect(state.reviewEligible).toBe(false);
+  await page.goto(`/viewings/${currentId}`);
+  await expect(page.getByText(currentGuide, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Propose replacement time', exact: true })).toBeEnabled();
+  await page.getByRole('combobox', { name: 'Cancellation reason', exact: true }).selectOption('PLANS_CHANGED');
+  await page.getByRole('button', { name: 'Cancel viewing', exact: true }).click();
+  await expect(page.getByText('CANCELLED_BY_SEEKER', { exact: true })).toBeVisible();
+  await page.goto(`/conversations/${seed.interaction_id}`);
+  await expect(page.getByRole('list', { name: 'Viewings', exact: true })).toContainText('DISPUTED');
+  await expect(page.getByRole('list', { name: 'Viewings', exact: true })).toContainText('CANCELLED_BY_SEEKER');
+  await expect(page.getByRole('button', { name: 'Request viewing', exact: true })).toHaveCount(0);
+  await expect(page.getByText('A new viewing request is not available for this conversation. Existing appointments remain in your history.', { exact: true })).toBeVisible();
+});

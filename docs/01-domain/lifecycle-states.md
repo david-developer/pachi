@@ -125,6 +125,13 @@ Viewing states: REQUESTED, ACCEPTED, SCHEDULED, RESCHEDULED, DECLINED, EXPIRED, 
 
 DECLINED, EXPIRED and cancellation are terminal appointment episodes; create a new Viewing for another attempt. A completed viewing cannot be rescheduled. Use the exact cancellation/no-show side, not ambiguous CANCELLED/NO_SHOW alone.
 
+A COMPLETED/SEEKER_NO_SHOW/PROVIDER_NO_SHOW → DISPUTED transition retains immutable
+validation provenance. Under the accepted 2026-10-13 amendment this is a historical
+dispute, which may coexist with the one current appointment without changing that
+appointment. A SCHEDULED → DISPUTED transition without prior validation still
+occupies the current slot. Both kinds freeze their related trust effects and
+block further Viewing requests in the Interaction until resolution.
+
 ## Review and eligibility
 
 Eligibility states OPEN, HELD, CONSUMED, EXPIRED, REVOKED. First validated completion per Interaction creates OPEN; dispute → HELD; submission → CONSUMED; elapsed unused window → EXPIRED; invalidation → REVOKED. Dispute resolution may reopen previously unused eligibility with at least 7 days remaining; a consumed eligibility never becomes a new review slot.
