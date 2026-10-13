@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ViewingCommandResponse, ViewingListResponse, ViewingResponse } from '@pachi/contracts';
 import { ViewingAppointmentControls } from './viewing-appointment-controls';
+import { ViewingAttendanceControls } from './viewing-attendance-controls';
 import { DEFAULT_VIEWING_TIMEZONE, viewingTimeLabel, viewingTimeToUtc } from '@/lib/viewing-time';
 
 type Session = { authenticated: boolean; csrfToken?: string };
 type Attempt = { path: string; body: Record<string, unknown>; key: string };
 const safeError = (status: number, code?: string) => code === 'REQUEST_EXPIRED' ? 'This request has expired. Refresh its current state.' :
   code === 'APPOINTMENT_PAST' ? 'The appointment time has passed. Refresh its current state.' :
-    code === 'ACTIVE_VIEWING_EXISTS' ? 'This conversation already has an active appointment. Refresh your viewings.' :
+    code === 'ACTIVE_VIEWING_EXISTS' ? 'A current appointment or unresolved attendance dispute prevents another request. Refresh your viewings.' :
       status === 401 ? 'Sign in again to view your appointments.' :
   [403, 404].includes(status) ? 'This viewing is not available with your current account permissions.' :
     status === 409 ? 'This viewing changed. Refresh its current state before trying again.' :
@@ -155,7 +156,8 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
   const [busy, setBusy] = useState(true);
   const [sending, setSending] = useState(false);
   const [stale, setStale] = useState(false);
-  const [appointmentBusy,setAppointmentBusy]=useState(false);
+  const [appointmentBusy,setAppointmentBusy]=useState(true);
+  const [attendanceBusy,setAttendanceBusy]=useState(true);
   const [appointmentRefresh,setAppointmentRefresh]=useState(0);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -167,7 +169,7 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
 
   async function load() {
     const current = ++generation.current;
-    setBusy(true); setError('');
+    setBusy(true); setAppointmentBusy(true); setAttendanceBusy(true); setError('');
     try {
       const [response, sessionResponse] = await Promise.all([
         fetch(`/api/account/viewings/${encodeURIComponent(viewingId)}`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) }),
@@ -195,7 +197,7 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
     if (!viewing || !session?.csrfToken || sending) return;
     let attempt = pending;
     if (!attempt) {
-      if (!action || stale) return;
+      if (!action || stale || busy || appointmentBusy || attendanceBusy) return;
       if ((action === 'decline' || action === 'cancel') && !reason.trim()) { setError('Enter a reason for this change.'); return; }
       if (action === 'accept' && !instructions.trim()) { setError('Enter safe meeting guidance.'); return; }
       attempt = { path: `/api/account/viewings/${encodeURIComponent(viewing.id)}/${action}`, key: crypto.randomUUID(), body: {
@@ -220,11 +222,12 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
       }
       const result = await response.json() as ViewingCommandResponse;
       if (!alive.current || current !== generation.current) return;
+      setAppointmentBusy(true); setAttendanceBusy(true); setAppointmentRefresh(value=>value+1);
       setViewing(result.viewing); setPending(null); setInstructions(''); setReason(''); setFeedback('Viewing change saved.');
     } catch { if (alive.current && current === generation.current) { setError(safeError(503)); setFeedback(''); } }
     finally { if (alive.current && current === generation.current) setSending(false); }
   }
-  const actionable = !busy && !sending && !stale && !pending && !appointmentBusy && !!session?.csrfToken;
+  const actionable = !busy && !sending && !stale && !pending && !appointmentBusy && !attendanceBusy && !!session?.csrfToken;
   return <section className="viewingPanel" aria-label="Viewing details">
     <button disabled={busy || sending} onClick={() => void load()}>Refresh viewing</button>
     {busy && <p role="status">Loading viewing details…</p>}
@@ -236,7 +239,7 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
       {viewing.state === 'REQUESTED' && <p>Response deadline: {viewingTimeLabel(viewing.response_deadline, viewing.display_timezone)}</p>}
       {viewing.state === 'ACCEPTED' && <p>Acceptance reserves this proposed time. Both parties must confirm it before the appointment is scheduled.</p>}
       {['ACCEPTED', 'SCHEDULED'].includes(viewing.state) && <p>Seeker confirmation: {viewing.seeker_confirmed ? 'Confirmed' : 'Waiting'} · Provider confirmation: {viewing.provider_confirmed ? 'Confirmed' : 'Waiting'}</p>}
-      {viewing.state === 'SCHEDULED' && !stale && !busy && !pending && !sending && !appointmentBusy && viewing.private_instructions && <div className="viewingInstructions"><h2>Private meeting instructions</h2><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{viewing.private_instructions}</p></div>}
+      {viewing.state === 'SCHEDULED' && !stale && !busy && !pending && !sending && !appointmentBusy && !attendanceBusy && viewing.private_instructions && <div className="viewingInstructions"><h2>Private meeting instructions</h2><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{viewing.private_instructions}</p></div>}
       {viewing.reason && <p>Reason: {historyReasonLabels[viewing.reason] ?? 'Other'}</p>}
       {viewing.can_accept && !pending && !stale && <form onSubmit={event => { event.preventDefault(); void command('accept'); }}>
         <fieldset disabled={!actionable}><legend>Accept proposed time</legend>
@@ -256,9 +259,15 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
         </fieldset>
       </form>}
       {pending && <button disabled={sending} onClick={() => void command()}>{sending ? 'Saving…' : 'Retry pending change'}</button>}
-      <ViewingAppointmentControls viewing={viewing} csrfToken={session?.csrfToken} disabled={busy||sending||stale||!!pending} refreshVersion={appointmentRefresh}
+      <ViewingAppointmentControls viewing={viewing} csrfToken={session?.csrfToken} disabled={busy||sending||stale||!!pending||attendanceBusy} refreshVersion={appointmentRefresh}
         onBusyChange={setAppointmentBusy}
-        onChange={current=>{generation.current++;setViewing(current);setBusy(false);setStale(false);}}
+        onChange={current=>{generation.current++;setAppointmentBusy(true);setAttendanceBusy(true);setAppointmentRefresh(value=>value+1);setViewing(current);setBusy(false);setStale(false);}}
+        onDenied={status=>{generation.current++;setViewing(null);setSession(null);setInstructions('');setReason('');setBusy(false);setError(safeError(status));}}
+        onStale={()=>{generation.current++;setBusy(false);setStale(true);}}
+      />
+      <ViewingAttendanceControls viewing={viewing} csrfToken={session?.csrfToken} disabled={busy||sending||stale||!!pending||appointmentBusy} refreshVersion={appointmentRefresh}
+        onBusyChange={setAttendanceBusy}
+        onChange={current=>{generation.current++;setAppointmentBusy(true);setAttendanceBusy(true);setViewing(current);setBusy(false);setStale(false);setAppointmentRefresh(value=>value+1);}}
         onDenied={status=>{generation.current++;setViewing(null);setSession(null);setInstructions('');setReason('');setBusy(false);setError(safeError(status));}}
         onStale={()=>{generation.current++;setBusy(false);setStale(true);}}
       />

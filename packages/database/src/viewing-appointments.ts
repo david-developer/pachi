@@ -37,7 +37,7 @@ export class ViewingAppointmentStore extends ViewingStore {
     await super.closeAction(tx,id);
     await tx`UPDATE viewing_reschedule_proposals SET state='INVALIDATED',version=version+1,updated_at=statement_timestamp() WHERE viewing_id=${id} AND state='PENDING'`;
   }
-  private async authorizedViewing(tx:Tx,actor:OrganizationActor,id:string) {
+  protected async authorizedViewing(tx:Tx,actor:OrganizationActor,id:string) {
     const seed=(await tx<{interaction_id:string}[]>`SELECT interaction_id FROM viewings WHERE id=${id}`)[0];if(!seed)fail('RESOURCE_SCOPE_DENIED');
     const a=await this.authorize(tx,actor,seed.interaction_id),row=await this.row(tx,id);matches(row,a);
     await this.currentScope(tx,actor,a);return {a,row};
@@ -97,6 +97,7 @@ export class ViewingAppointmentStore extends ViewingStore {
     if(data.proposed_end<=data.proposed_start)fail('INVALID_INPUT');
     return this.rescheduleCommand(actor,id,null,'PROPOSE_RESCHEDULE',data,options,async(tx,current,a,row)=>{
       if(row.state!=='SCHEDULED')fail('INVALID_STATE');
+      if((await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0])fail('ATTENDANCE_PENDING');
       if(!(await this.eligible(tx,current,a)))fail('CAPABILITY_RESTRICTED');
       if(data.proposed_start===instant(row.scheduled_start)&&data.proposed_end===instant(row.scheduled_end))fail('INVALID_INPUT');
       if((await tx`SELECT id FROM viewing_reschedule_proposals WHERE viewing_id=${row.id} AND state='PENDING' LIMIT 1`)[0])fail('PENDING_PROPOSAL_EXISTS');
@@ -117,6 +118,7 @@ export class ViewingAppointmentStore extends ViewingStore {
       await this.currentScope(tx,current,a);
       if(p.version!==parsed.data.expected_proposal_version)fail('STALE_PROPOSAL_VERSION');
       if(p.base_schedule_version!==row.schedule_version)fail('STALE_SCHEDULE_VERSION');
+      if((await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0])fail('ATTENDANCE_PENDING');
       if(p.state!=='PENDING'||row.state!=='SCHEDULED')fail('INVALID_STATE');
       if(action==='withdraw'&&p.proposed_by_user_id!==current.userId)fail('RESOURCE_SCOPE_DENIED');
       if(action==='reject'&&p.proposed_by_side===a.side)fail('RESOURCE_SCOPE_DENIED');
@@ -156,7 +158,7 @@ export class ViewingAppointmentStore extends ViewingStore {
       const pending=(await tx<Proposal[]>`SELECT * FROM viewing_reschedule_proposals WHERE viewing_id=${id} AND state='PENDING' LIMIT 1`)[0];
       const current_proposal=pending?await this.proposalProjection(tx,actor,a,row,pending):null;
       const future=(await tx`SELECT 1 WHERE ${row.scheduled_start}::timestamptz>statement_timestamp()`)[0];
-      const can_propose=row.state==='SCHEDULED'&&!!future&&!pending&&await this.eligible(tx,actor,a);
+      const can_propose=row.state==='SCHEDULED'&&!!future&&!pending&&!(await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0]&&await this.eligible(tx,actor,a);
       await this.currentScope(tx,actor,a);
       const history=await tx<{schedule_version:number;scheduled_start:Date;scheduled_end:Date;display_timezone:string;superseded_at:Date}[]>`SELECT schedule_version,scheduled_start,scheduled_end,display_timezone,superseded_at FROM viewing_schedule_history WHERE viewing_id=${id} ORDER BY schedule_version DESC LIMIT 50`;
       return {items,current_proposal,next_cursor:proposals.length>limit?proposals[limit-1]!.id:null,can_propose,schedule_history:history.map(h=>({...h,scheduled_start:instant(h.scheduled_start)!,scheduled_end:instant(h.scheduled_end)!,superseded_at:instant(h.superseded_at)!}))};
@@ -226,7 +228,7 @@ export class ViewingAppointmentStore extends ViewingStore {
     }
     return {items,next_cursor:ids.length>limit?ids[limit-1]!.id:null};
   }
-  private async maintenanceViewing(tx:Tx,id:string) {
+  protected async maintenanceViewing(tx:Tx,id:string) {
     await tx`LOCK TABLE block_relationships IN SHARE MODE`;
     const seed=(await tx<{interaction_id:string}[]>`SELECT interaction_id FROM viewings WHERE id=${id}`)[0];if(!seed)fail('RESOURCE_SCOPE_DENIED');
     const initial=await this.context(tx,seed.interaction_id);
@@ -266,7 +268,7 @@ export class ViewingAppointmentStore extends ViewingStore {
     // Revalidate future work fairly as well as processing due jobs: loss of
     // participation invalidates intent, rather than reviving it on later recovery.
     const jobs=await this.client.begin(async tx=>tx<{id:string;viewing_id:string}[]>`UPDATE viewing_scheduled_actions SET state='LEASED',lease_token=${token},lease_until=statement_timestamp()+interval '1 minute',attempts=attempts+1
-      WHERE id IN (SELECT id FROM viewing_scheduled_actions WHERE action_type<>'EXPIRE_REQUEST' AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
+      WHERE id IN (SELECT id FROM viewing_scheduled_actions WHERE action_type IN ('EXPIRE_RESCHEDULE','REMINDER_24H','REMINDER_2H') AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
         ORDER BY (due_at<=statement_timestamp()) DESC,last_checked_at NULLS FIRST,due_at,id LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id,viewing_id`);
     let processed=0,skipped=0;
     for(const job of jobs) {

@@ -19,6 +19,7 @@ async function fixture(page:Page,side:'SEEKER'|'PROVIDER'='SEEKER'){
       if(path===`/api/account/viewings/${id}`){const snapshot=viewing(),hold=state.holdRead;state.holdRead=null;if(hold){hold.arrived();await hold.wait;}return route.fulfill({json:snapshot});}
       if(path.endsWith('/reschedules'))return route.fulfill({json:{items:state.proposal?[proposal()]:[],current_proposal:state.proposal?.state==='PENDING'?proposal():null,next_cursor:null,can_propose:!state.proposal||state.proposal.state!=='PENDING',schedule_history:state.history}});
       if(path.endsWith('/reminders'))return route.fulfill({json:{schedule_version:state.viewing.schedule_version,plan_status:'PLANNED',planned_at:now,items:[{id:nid,action_type:'REMINDER_24H',expected_schedule_version:state.viewing.schedule_version,due_at:'2031-01-11T13:00:00.000Z',state:'PENDING',reason_code:null}],external_state:'NOT_ENABLED'}});
+      if(path.endsWith('/attendance'))return route.fulfill({json:{viewing_id:id,schedule_version:state.viewing.schedule_version,version:state.viewing.version,state:'NONE',outcome:null,actor_side:state.side,can_claim_completion:false,can_claim_no_show:false,claims:[],next_cursor:null,case:null,response_window_hours:48,review_eligibility_created:false}});
       if(path==='/api/account/viewing-notices')return route.fulfill({json:{items:state.notices,next_cursor:null}});
     }
     if(request.method()==='POST'){

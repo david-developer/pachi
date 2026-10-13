@@ -28,7 +28,9 @@ export type ViewingReasonInput = ViewingVersionInput & {reason:string};
 export type Context = {id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:string;kind:string;organization_id:string|null;provider_user_id:string|null;provider_profile_id:string|null};
 export type Authority = {context:Context;side:Side;organization:OrganizationResourceActorContext|null};
 export type Row = {id:string;interaction_id:string;listing_id:string;provider_account_id:string;seeker_user_id:string;state:ViewingState;proposed_start:Date;proposed_end:Date;scheduled_start:Date|null;scheduled_end:Date|null;display_timezone:string;response_deadline:Date;version:number;schedule_version:number;seeker_confirmed:boolean;provider_confirmed:boolean;private_instructions:string|null;reason:string|null;created_at:Date;updated_at:Date};
-const active = ['REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED','DISPUTED'];
+// Historical disputes do not occupy the current appointment slot, but they
+// still block new requests until their case is resolved.
+const requestBlockingStates = ['REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED','DISPUTED'];
 const cancellable = ['REQUESTED','ACCEPTED','SCHEDULED','RESCHEDULED'];
 const reasons = ['UNAVAILABLE','TIME_UNSUITABLE','SAFETY','PLANS_CHANGED','OTHER'] as const;
 const iso = z.iso.datetime({offset:true});
@@ -155,7 +157,7 @@ export class ViewingStore {
       can_accept:a.side==='PROVIDER'&&row.state==='REQUESTED'&&eligible&&timely,
       can_decline:a.side==='PROVIDER'&&row.state==='REQUESTED'&&timely,
       can_confirm:row.state==='ACCEPTED'&&eligible&&future&&!ownConfirmed,
-      can_cancel:cancellable.includes(row.state)};
+      can_cancel:cancellable.includes(row.state)&&!(await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0]};
   }
   protected async row(tx:Tx,id:string):Promise<Row> {
     const row=(await tx<Row[]>`SELECT * FROM viewings WHERE id=${id} FOR UPDATE`)[0];if(!row)fail('RESOURCE_SCOPE_DENIED');return row;
@@ -213,7 +215,7 @@ export class ViewingStore {
     return this.command(actor,'CREATE',interactionId,normalized,options,async(tx,current,a)=>{
       if(!(await tx`SELECT name FROM pg_timezone_names WHERE name=${data.display_timezone}`)[0])fail('INVALID_INPUT');
       if(!(await this.eligible(tx,current,a)))fail('CAPABILITY_RESTRICTED');
-      if((await tx`SELECT id FROM viewings WHERE interaction_id=${a.context.id} AND state=ANY(${active}) LIMIT 1`)[0])fail('ACTIVE_VIEWING_EXISTS');
+      if((await tx`SELECT id FROM viewings WHERE interaction_id=${a.context.id} AND state=ANY(${requestBlockingStates}) LIMIT 1`)[0])fail('ACTIVE_VIEWING_EXISTS');
       const row=(await tx<Row[]>`INSERT INTO viewings(interaction_id,listing_id,provider_account_id,seeker_user_id,requested_by_user_id,proposed_start,proposed_end,display_timezone,response_deadline)
         SELECT ${a.context.id},${a.context.listing_id},${a.context.provider_account_id},${a.context.seeker_user_id},${current.userId},${normalized.proposed_start},${normalized.proposed_end},${data.display_timezone},LEAST(statement_timestamp()+interval '48 hours',${normalized.proposed_start}::timestamptz)
         WHERE ${normalized.proposed_start}::timestamptz>statement_timestamp() RETURNING *`)[0];
@@ -265,8 +267,7 @@ export class ViewingStore {
     const parsed=reasonSchema.safeParse(input);if(!parsed.success)fail('INVALID_INPUT');
     return this.command(actor,'CANCEL',id,parsed.data,options,async(tx,current,a,old)=>{
       const row=old!;if(!cancellable.includes(row.state))fail('INVALID_STATE');
-      // Attendance commands/claims are deliberately absent in F1. Future claim
-      // introduction must guard this transition before allowing cancellation.
+      if((await tx`SELECT id FROM viewing_attendance_claims WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} LIMIT 1`)[0])fail('ATTENDANCE_PENDING');
       const updated=(await tx<Row[]>`UPDATE viewings SET state=${a.side==='SEEKER'?'CANCELLED_BY_SEEKER':'CANCELLED_BY_PROVIDER'},reason=${parsed.data.reason},cancelled_at=statement_timestamp(),version=version+1,updated_at=statement_timestamp() WHERE id=${row.id} RETURNING *`)[0]!;
       await this.closeAction(tx,row.id);await this.record(tx,updated,a,current,'viewing_cancelled',row.state,options.requestId);return updated;
     });
@@ -289,7 +290,7 @@ export class ViewingStore {
     if(input.interaction_id)can_request=await this.client.begin(async tx=>{
       await tx`LOCK TABLE block_relationships IN SHARE MODE`;
       const a=await this.authorize(tx,actor,input.interaction_id!.toLowerCase());
-      return a.side==='SEEKER' && await this.eligible(tx,actor,a) && !(await tx`SELECT id FROM viewings WHERE interaction_id=${a.context.id} AND state=ANY(${active}) LIMIT 1`)[0];
+      return a.side==='SEEKER' && await this.eligible(tx,actor,a) && !(await tx`SELECT id FROM viewings WHERE interaction_id=${a.context.id} AND state=ANY(${requestBlockingStates}) LIMIT 1`)[0];
     });
     // Filter CURRENT scope before pagination; historical participants/receipts
     // do not provide an inbox grant. get() rechecks every selected resource.

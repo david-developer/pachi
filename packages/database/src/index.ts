@@ -55,3 +55,5 @@ export { ViewingStore } from './viewing.js';
 export type { ViewingResponse, ViewingState, ViewingCommandOptions, ViewingCreateInput, ViewingVersionInput, ViewingAcceptInput, ViewingReasonInput } from './viewing.js';
 
 export { ViewingAppointmentStore } from './viewing-appointments.js';
+export { ViewingAttendanceStore } from './viewing-attendance.js';
+export type { AttendanceOutcome, AttendanceClaimInput, AttendanceResponseInput, AttendanceClaimRead, AttendanceRead, AttendanceCommandRead } from './viewing-attendance.js';

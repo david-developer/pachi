@@ -48,6 +48,12 @@ Authors may edit rating/text while SUBMITTED_HELD before reveal, with immutable 
 
 An attendance dispute holds unused eligibility and suppresses any related published review from public aggregates while evaluated. If completion is upheld, restore lawful publication or reopen unused eligibility with at least 7 days remaining; keep the original record and update the deadline with a policy event. If invalidated, revoke eligibility and remove its contribution through a linked decision. Later successful appeals do not produce duplicate records.
 
+A historical dispute remains effective even if a newer appointment exists in the
+same Interaction: hold the original eligibility without cancelling that current
+appointment. The accepted 2026-10-13 amendment blocks further viewing requests
+until resolution. A later completed appointment cannot bypass the hold by
+creating another first-completion boundary or replacement review slots.
+
 Late safety reports remain possible after the ordinary review/edit window. Expiry of an edit window does not prevent reporting abuse.
 
 ## Moderation and reports

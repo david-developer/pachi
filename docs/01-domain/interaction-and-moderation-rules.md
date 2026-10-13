@@ -25,7 +25,15 @@ Offline clients may retain an unsent draft or clearly marked pending attempt; th
 
 Request requires an OPEN eligible Interaction, discoverable/available listing, permitted seeker and provider context, no block or relevant restriction. Store a proposed future time range and timezone; default display timezone Africa/Douala, store UTC. Request expires after 48 hours or the proposed start, whichever comes first. Provider acceptance before deadline enters ACCEPTED. Both parties confirming the actual time and safe meeting instructions enters SCHEDULED.
 
-At most one active appointment (REQUESTED/ACCEPTED/SCHEDULED/RESCHEDULED/DISPUTED) per interaction. A declined/expired/cancelled appointment permits a new request if current policy permits. Prevent overlapping claims by checking schedule_version.
+At most one current appointment (REQUESTED/ACCEPTED/SCHEDULED/RESCHEDULED or a dispute of an unvalidated schedule) per interaction. A declined/expired/cancelled appointment permits a new request if current policy permits. Prevent overlapping claims by checking schedule_version.
+
+Under the accepted 2026-10-13 amendment, a dispute of a previously validated
+completed or no-show viewing is historical and does not occupy this slot. Retain
+the existing current appointment and its ordinary guarded operations; do not
+cancel or replace it as a side effect of the older dispute. Hold the older
+outcome's review eligibility and no-show effects atomically with its private case.
+Any unresolved attendance dispute, including a historical one, blocks further
+viewing requests in the same Interaction until resolution.
 
 Exact private meeting instructions are visible only after SCHEDULED to currently authorized participants; they are never in public listing responses, push previews, product analytics or offline public cache. Providers should offer safe meeting guidance. Cancellation/removal ends future instruction access when it is no longer necessary; retain protected case access.
 

@@ -27,3 +27,4 @@ export * from './listing-lifecycle.js';
 export * from './viewing.js';
 
 export type * from './viewing-appointments.js';
+export type * from './viewing-attendance.js';

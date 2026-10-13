@@ -94,7 +94,7 @@ Physical measurements have numeric values and units; distinguish unknown from ze
 | Conversation | interaction_id | One conversation per interaction; only scoped participants or purpose-authorized safety access. |
 | Message | conversation_id, sender_id, client_message_id, body, sent_at, delivered_at/read receipts, visibility_state | Unique sender/client ID prevents retry duplicates. Safety retention may preserve removed-from-view content. |
 | ContactIntent | interaction_id, actor_id, channel, occurred_at | Native call/contact tap is intent only, never evidence of call connection or viewing. |
-| Viewing | interaction_id, state, proposed_start/end, scheduled_start/end, display_timezone, schedule_version, private_instructions, response_deadline | Child of Interaction, not an alternative Interaction type. One active appointment per interaction at a time. |
+| Viewing | interaction_id, state, proposed_start/end, scheduled_start/end, display_timezone, schedule_version, private_instructions, response_deadline, attendance_validated_at | Child of Interaction, not an alternative Interaction type. One current appointment per interaction at a time; immutable validation provenance distinguishes historical disputes. |
 | ViewingEvent | viewing_id, sequence, type, actor_id, timestamp, prior/new state, schedule_version, reason | Append-only event history; includes rescheduling proposals, claims, confirmations and disputes. |
 | AttendanceClaim | viewing_id, schedule_version, claim_type, claimant_side, claimed_at, notified_at, response_deadline, state | No unilateral immediate completion. A response deadline starts only when durable notice is available; external SMS/push delivery is not required. |
 | Dispute | viewing_id or moderation_action_id, opener_id, reason, state, resolution_id | Open attendance dispute holds review eligibility and disputed trust counters. |
@@ -102,6 +102,14 @@ Physical measurements have numeric values and units; distinguish unknown from ze
 | BlockRelationship | blocker_user_id, blocked_user_id/provider_account_id, created_at, revoked_at | Enforced server-side on contact, new viewing and messages; reports, appeals and safe cancellation remain available. |
 
 Inquiry creates/reuses Interaction and Conversation. Viewing is a separate repeatable appointment history within that business context. Do not implement older `Interaction.type = INQUIRY/CONTACT_REQUEST/VIEWING` as three unrelated completion models.
+
+The accepted 2026-10-13 amendment permits a dispute of a previously validated
+completion/no-show to coexist with the one current appointment. Server-derived
+validation provenance is retained through the dispute; callers cannot fabricate
+or clear it to release an unvalidated appointment slot. The historical dispute
+holds only its related trust effects, retains its private case and blocks further
+Viewing requests in the Interaction until resolution. Existing current appointment
+operations keep their ordinary guards.
 
 ## Reviews and trust
 
