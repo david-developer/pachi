@@ -1,3 +1,31 @@
+-- Adopt the seven-day default without rewriting v1 records or migration 0035.
+ALTER TABLE viewing_review_boundaries DROP CONSTRAINT viewing_review_boundaries_policy_version_check;
+ALTER TABLE viewing_review_boundaries ALTER COLUMN policy_version SET DEFAULT 'bilateral-review-v2';
+ALTER TABLE viewing_review_boundaries ADD CONSTRAINT viewing_review_boundaries_policy_version_check
+ CHECK(policy_version IN ('bilateral-review-v1','bilateral-review-v2'));
+ALTER TABLE viewing_review_eligibilities DROP CONSTRAINT viewing_review_eligibilities_policy_version_check;
+ALTER TABLE viewing_review_eligibilities DROP CONSTRAINT viewing_review_eligibilities_check;
+ALTER TABLE viewing_review_eligibilities ALTER COLUMN policy_version SET DEFAULT 'bilateral-review-v2';
+ALTER TABLE viewing_review_eligibilities ADD CONSTRAINT viewing_review_eligibilities_policy_version_check
+ CHECK(policy_version IN ('bilateral-review-v1','bilateral-review-v2'));
+ALTER TABLE viewing_review_eligibilities ADD CONSTRAINT review_policy_duration CHECK(
+ closes_at=((opens_at AT TIME ZONE 'UTC')+CASE policy_version
+  WHEN 'bilateral-review-v1' THEN interval '14 days' WHEN 'bilateral-review-v2' THEN interval '7 days' END) AT TIME ZONE 'UTC');
+CREATE FUNCTION review_utc_days_before(deadline timestamptz,day_count integer) RETURNS timestamptz LANGUAGE sql IMMUTABLE AS $$
+ SELECT ((deadline AT TIME ZONE 'UTC')-day_count*interval '1 day') AT TIME ZONE 'UTC'
+$$;
+-- New boundaries use the exact persisted validation instant, without a JS Date round trip.
+CREATE OR REPLACE FUNCTION viewing_review_boundary_context() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM viewing_attendance_outcomes a JOIN viewings v ON v.id=a.viewing_id JOIN interactions i ON i.id=v.interaction_id JOIN provider_accounts pa ON pa.id=v.provider_account_id
+  WHERE a.id=NEW.attendance_outcome_id AND a.state='COMPLETED' AND v.state='COMPLETED' AND a.schedule_version=v.schedule_version
+   AND v.id=NEW.viewing_id AND i.id=NEW.interaction_id AND v.seeker_user_id=NEW.seeker_user_id AND v.provider_account_id=NEW.provider_account_id
+   AND i.seeker_user_id=v.seeker_user_id AND i.listing_id=v.listing_id AND i.provider_account_id=v.provider_account_id
+   AND pa.organization_id IS NOT DISTINCT FROM NEW.organization_id
+   AND (NEW.policy_version='bilateral-review-v1' OR NEW.opened_at=a.finalized_at))
+  THEN RAISE EXCEPTION 'invalid review boundary context'; END IF;
+ RETURN NEW;
+END $$;
 -- Expand the first validated attendance boundary. Prior SQL remains immutable.
 ALTER TABLE viewing_review_eligibilities ADD COLUMN version integer NOT NULL DEFAULT 1 CHECK(version>0);
 CREATE TABLE reviews (
@@ -22,7 +50,7 @@ CREATE TABLE reviews (
  updated_at timestamptz NOT NULL DEFAULT statement_timestamp(),
  published_at timestamptz,
  withdrawn_at timestamptz,
- policy_version text NOT NULL DEFAULT 'bilateral-review-v1' CHECK(policy_version='bilateral-review-v1'),
+ policy_version text NOT NULL DEFAULT 'bilateral-review-v2' CHECK(policy_version IN ('bilateral-review-v1','bilateral-review-v2')),
  CHECK((state='WITHDRAWN')=(withdrawn_at IS NOT NULL)),
  CHECK(state<>'PUBLISHED' OR published_at IS NOT NULL)
 );
@@ -49,10 +77,19 @@ CREATE TABLE review_events (
  version integer NOT NULL CHECK(version>0),
  actor_user_id uuid REFERENCES users(id),
  request_id uuid,
- policy_version text NOT NULL DEFAULT 'bilateral-review-v1' CHECK(policy_version='bilateral-review-v1'),
+ policy_version text NOT NULL DEFAULT 'bilateral-review-v2' CHECK(policy_version IN ('bilateral-review-v1','bilateral-review-v2')),
  created_at timestamptz NOT NULL DEFAULT statement_timestamp(),
  UNIQUE(eligibility_id,event_type,version)
 );
+CREATE FUNCTION review_event_context() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM viewing_review_eligibilities e WHERE e.id=NEW.eligibility_id
+  AND ROW(NEW.interaction_id,NEW.viewing_id,NEW.direction,NEW.policy_version)=ROW(e.interaction_id,e.viewing_id,e.direction,e.policy_version))
+  OR (NEW.review_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM reviews r WHERE r.id=NEW.review_id AND r.eligibility_id=NEW.eligibility_id))
+  THEN RAISE EXCEPTION 'invalid review event context'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER review_event_context BEFORE INSERT ON review_events FOR EACH ROW EXECUTE FUNCTION review_event_context();
 CREATE TRIGGER review_events_immutable BEFORE UPDATE OR DELETE ON review_events FOR EACH ROW EXECUTE FUNCTION viewing_history_immutable();
 CREATE TABLE review_outbox (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -153,7 +190,9 @@ $$;
 CREATE VIEW eligible_published_reviews AS
  SELECT r.* FROM reviews r JOIN viewing_review_eligibilities e ON e.id=r.eligibility_id
  JOIN users u ON u.id=r.author_user_id WHERE r.state='PUBLISHED' AND e.state='CONSUMED'
- AND e.consumed_at IS NOT NULL AND u.account_state='ACTIVE' AND review_context_valid(r.interaction_id);
+ AND e.consumed_at IS NOT NULL AND u.account_state='ACTIVE'
+ AND EXISTS(SELECT 1 FROM phone_contacts p WHERE p.user_id=r.author_user_id AND p.verified_at IS NOT NULL AND p.replaced_at IS NULL AND p.verification_version>0)
+ AND review_context_valid(r.interaction_id);
 
 CREATE FUNCTION review_author_current(review_id uuid) RETURNS boolean LANGUAGE sql VOLATILE AS $$
  SELECT EXISTS(SELECT 1 FROM reviews r JOIN users u ON u.id=r.author_user_id
@@ -187,7 +226,7 @@ BEGIN
  IF TG_OP='INSERT' THEN
   IF NEW.state<>'OPEN' OR NEW.version<>1 OR NEW.consumed_at IS NOT NULL OR NOT EXISTS(
     SELECT 1 FROM viewing_review_boundaries b JOIN viewing_attendance_outcomes a ON a.id=b.attendance_outcome_id
-    WHERE b.interaction_id=NEW.interaction_id AND b.viewing_id=NEW.viewing_id AND b.eligibility_state='OPEN' AND a.state='COMPLETED'
+    WHERE b.interaction_id=NEW.interaction_id AND b.viewing_id=NEW.viewing_id AND b.eligibility_state='OPEN' AND a.state='COMPLETED' AND NEW.policy_version=b.policy_version AND NEW.opens_at=b.opened_at
     AND ((NEW.direction='SEEKER_TO_PROVIDER' AND NEW.reviewer_subject_id=b.seeker_user_id AND NEW.target_id=b.provider_account_id)
       OR (NEW.direction='PROVIDER_TO_SEEKER' AND NEW.reviewer_subject_id=b.provider_account_id AND NEW.target_id=b.seeker_user_id)))
     THEN RAISE EXCEPTION 'invalid review eligibility context'; END IF;
@@ -211,8 +250,8 @@ BEGIN
  SELECT * INTO e FROM viewing_review_eligibilities WHERE id=NEW.eligibility_id;
  PERFORM id FROM interactions WHERE id=e.interaction_id FOR NO KEY UPDATE;
  SELECT * INTO b FROM viewing_review_boundaries WHERE interaction_id=e.interaction_id;
- IF e.id IS NULL OR ROW(NEW.interaction_id,NEW.viewing_id,NEW.direction,NEW.reviewer_subject_type,NEW.reviewer_subject_id,NEW.target_type,NEW.target_id)
-  IS DISTINCT FROM ROW(e.interaction_id,e.viewing_id,e.direction,e.reviewer_subject_type,e.reviewer_subject_id,e.target_type,e.target_id)
+ IF e.id IS NULL OR ROW(NEW.interaction_id,NEW.viewing_id,NEW.direction,NEW.reviewer_subject_type,NEW.reviewer_subject_id,NEW.target_type,NEW.target_id,NEW.policy_version)
+  IS DISTINCT FROM ROW(e.interaction_id,e.viewing_id,e.direction,e.reviewer_subject_type,e.reviewer_subject_id,e.target_type,e.target_id,e.policy_version)
   THEN RAISE EXCEPTION 'invalid review subject context'; END IF;
  FOR k,value IN SELECT * FROM jsonb_each(NEW.criteria) LOOP
   IF jsonb_typeof(value)<>'number' OR value::text !~ '^[1-5]$' OR
@@ -292,17 +331,17 @@ END $$;
 CREATE TRIGGER review_event_effects AFTER INSERT ON review_events FOR EACH ROW EXECUTE FUNCTION review_event_effects();
 CREATE FUNCTION review_prepare_eligibility() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- INSERT INTO review_events(eligibility_id,interaction_id,viewing_id,direction,event_type,version)
-  VALUES(NEW.id,NEW.interaction_id,NEW.viewing_id,NEW.direction,'review_eligibility_created',NEW.version) ON CONFLICT DO NOTHING;
+ INSERT INTO review_events(eligibility_id,interaction_id,viewing_id,direction,event_type,version,policy_version)
+  VALUES(NEW.id,NEW.interaction_id,NEW.viewing_id,NEW.direction,'review_eligibility_created',NEW.version,NEW.policy_version) ON CONFLICT DO NOTHING;
  INSERT INTO review_scheduled_actions(eligibility_id,action_type,expected_eligibility_version,due_at)
   VALUES(NEW.id,'REVEAL_DEADLINE',NEW.version,NEW.closes_at),
-   (NEW.id,'REMINDER_3D',NEW.version,NEW.closes_at-interval '3 days'),(NEW.id,'REMINDER_1D',NEW.version,NEW.closes_at-interval '1 day') ON CONFLICT DO NOTHING;
+   (NEW.id,'REMINDER_3D',NEW.version,review_utc_days_before(NEW.closes_at,3)),(NEW.id,'REMINDER_1D',NEW.version,review_utc_days_before(NEW.closes_at,1)) ON CONFLICT DO NOTHING;
  RETURN NEW;
 END $$;
 CREATE TRIGGER review_prepare_eligibility AFTER INSERT ON viewing_review_eligibilities FOR EACH ROW EXECUTE FUNCTION review_prepare_eligibility();
 -- Bounded by the existing eligibility set; replay-safe for pre-G1 boundaries.
-INSERT INTO review_events(eligibility_id,interaction_id,viewing_id,direction,event_type,version)
- SELECT id,interaction_id,viewing_id,direction,'review_eligibility_created',version FROM viewing_review_eligibilities ON CONFLICT DO NOTHING;
+INSERT INTO review_events(eligibility_id,interaction_id,viewing_id,direction,event_type,version,policy_version)
+ SELECT id,interaction_id,viewing_id,direction,'review_eligibility_created',version,policy_version FROM viewing_review_eligibilities ON CONFLICT DO NOTHING;
 INSERT INTO review_scheduled_actions(eligibility_id,action_type,expected_eligibility_version,due_at)
- SELECT e.id,s.kind,e.version,e.closes_at-s.delta FROM viewing_review_eligibilities e
- CROSS JOIN(VALUES('REVEAL_DEADLINE',interval '0 days'),('REMINDER_3D',interval '3 days'),('REMINDER_1D',interval '1 day')) s(kind,delta) ON CONFLICT DO NOTHING;
+ SELECT e.id,s.kind,e.version,review_utc_days_before(e.closes_at,s.days) FROM viewing_review_eligibilities e
+ CROSS JOIN(VALUES('REVEAL_DEADLINE',0),('REMINDER_3D',3),('REMINDER_1D',1)) s(kind,days) ON CONFLICT DO NOTHING;

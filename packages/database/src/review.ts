@@ -78,7 +78,7 @@ export class ReviewStore extends ViewingStore {
   }
   private async ownProjection(tx:Tx,actor:OrganizationActor,a:Authority,r:Review,e:Slot):Promise<ReviewOwn> {
     if(r.author_user_id!==actor.userId)fail('RESOURCE_SCOPE_DENIED');
-    const before=(await tx<{before:boolean}[]>`SELECT statement_timestamp()<${e.closes_at}::timestamptz AS before`)[0]!.before;
+    const before=(await tx<{before:boolean}[]>`SELECT statement_timestamp()<closes_at AS before FROM viewing_review_eligibilities WHERE id=${e.id}`)[0]!.before;
     const canEdit=r.state==='SUBMITTED_HELD'&&before&&await this.safe(tx,a.context)&&await this.participantEligible(tx,actor.userId);
     await this.currentScope(tx,actor,a);
     return {id:r.id,eligibility_id:r.eligibility_id,viewing_id:r.viewing_id,interaction_id:r.interaction_id,direction:r.direction,
@@ -94,7 +94,7 @@ export class ReviewStore extends ViewingStore {
       const e=(await tx<Slot[]>`SELECT * FROM viewing_review_eligibilities WHERE viewing_id=${id} AND direction=${directionFor(a)} FOR UPDATE`)[0]??null;
       const r=e?(await tx<Review[]>`SELECT * FROM reviews WHERE eligibility_id=${e.id} AND author_user_id=${actor.userId} FOR UPDATE`)[0]??null:null;
       const can=e?.state==='OPEN'&&await this.safe(tx,a.context)&&await this.participantEligible(tx,actor.userId)
-        &&!!(await tx`SELECT 1 WHERE ${e.opens_at}::timestamptz<=statement_timestamp() AND statement_timestamp()<${e.closes_at}::timestamptz`)[0];
+        &&!!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND opens_at<=statement_timestamp() AND statement_timestamp()<closes_at`)[0];
       await this.currentScope(tx,actor,a);
       return {viewing_id:id,interaction_id:a.context.id,actor_side:a.side,eligibility:e?{id:e.id,direction:e.direction,state:e.state,opens_at:instant(e.opens_at)!,closes_at:instant(e.closes_at)!,policy_version:e.policy_version,can_submit:!!can,version:e.version}:null,
         own_review:r?await this.ownProjection(tx,actor,a,r,e!):null};
@@ -105,8 +105,8 @@ export class ReviewStore extends ViewingStore {
     if(Object.keys(input.criteria??{}).some(k=>!allowed.includes(k)))fail('INVALID_INPUT');
   }
   private async event(tx:Tx,e:Slot,r:Review|null,eventType:string,actor:OrganizationActor|null,requestId?:string,eventVersion?:number) {
-    await tx`INSERT INTO review_events(eligibility_id,review_id,interaction_id,viewing_id,direction,event_type,version,actor_user_id,request_id)
-      VALUES(${e.id},${r?.id??null},${e.interaction_id},${e.viewing_id},${e.direction},${eventType},${eventVersion??r?.version??e.version},${actor?.userId??null},${requestId??null}) ON CONFLICT DO NOTHING`;
+    await tx`INSERT INTO review_events(eligibility_id,review_id,interaction_id,viewing_id,direction,event_type,version,actor_user_id,request_id,policy_version)
+      VALUES(${e.id},${r?.id??null},${e.interaction_id},${e.viewing_id},${e.direction},${eventType},${eventVersion??r?.version??e.version},${actor?.userId??null},${requestId??null},${e.policy_version}) ON CONFLICT DO NOTHING`;
   }
   private async reconcile(tx:Tx,c:Context) {
     // One stable lock per reputation subject serializes aggregate updates across
@@ -134,7 +134,7 @@ export class ReviewStore extends ViewingStore {
     if(!(await this.safe(tx,c)))return 0;
     for(const r of eligible){
       const e=slots.find(e=>e.id===r.eligibility_id)!;
-      if(!reciprocal&&!(await tx`SELECT 1 WHERE ${e.closes_at}::timestamptz<=statement_timestamp()`)[0])continue;
+      if(!reciprocal&&!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND closes_at<=statement_timestamp()`)[0])continue;
       const updated=(await tx<Review[]>`UPDATE reviews SET state='PUBLISHED',version=version+1,published_at=statement_timestamp(),updated_at=statement_timestamp() WHERE id=${r.id} AND state='SUBMITTED_HELD' RETURNING *`)[0]!;
       await this.event(tx,e,updated,'review_published',null);published++;
     }
@@ -169,14 +169,14 @@ export class ReviewStore extends ViewingStore {
         if(e.version!==input.expected_version)fail('STALE_VERSION');
         if(e.state!=='OPEN')fail('REVIEW_ELIGIBILITY_UNAVAILABLE');
         if(!(await this.safe(tx,a.context))||!(await this.participantEligible(tx,actor.userId)))fail('CAPABILITY_RESTRICTED');
-        if(!(await tx`SELECT 1 WHERE ${e.opens_at}::timestamptz<=statement_timestamp() AND statement_timestamp()<${e.closes_at}::timestamptz`)[0])fail('REVIEW_WINDOW_CLOSED');
+        if(!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND opens_at<=statement_timestamp() AND statement_timestamp()<closes_at`)[0])fail('REVIEW_WINDOW_CLOSED');
         const data=input as ReviewSubmitInput;this.checkCriteria(e.direction,data);
-        r=(await tx<Review[]>`INSERT INTO reviews(eligibility_id,interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,author_user_id,membership_id,assignment_id,target_type,target_id,rating,text,criteria)
-          VALUES(${e.id},${e.interaction_id},${e.viewing_id},${e.direction},${e.reviewer_subject_type},${e.reviewer_subject_id},${actor.userId},${a.organization?.membershipId??null},${a.organization?.assignmentId??null},${e.target_type},${e.target_id},${data.rating},${data.text??null},${JSON.stringify(data.criteria??{})}::text::jsonb) RETURNING *`)[0]!;
+        r=(await tx<Review[]>`INSERT INTO reviews(eligibility_id,interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,author_user_id,membership_id,assignment_id,target_type,target_id,rating,text,criteria,policy_version)
+          VALUES(${e.id},${e.interaction_id},${e.viewing_id},${e.direction},${e.reviewer_subject_type},${e.reviewer_subject_id},${actor.userId},${a.organization?.membershipId??null},${a.organization?.assignmentId??null},${e.target_type},${e.target_id},${data.rating},${data.text??null},${JSON.stringify(data.criteria??{})}::text::jsonb,${e.policy_version}) RETURNING *`)[0]!;
         e=(await tx<Slot[]>`UPDATE viewing_review_eligibilities SET state='CONSUMED',consumed_at=statement_timestamp(),version=version+1 WHERE id=${e.id} RETURNING *`)[0]!;
         await this.event(tx,e,r,'review_submitted',actor,options.requestId);await this.currentScope(tx,actor,a);
         if(!(await this.safe(tx,a.context))||!(await this.participantEligible(tx,actor.userId)))fail('CAPABILITY_RESTRICTED');
-        if(!(await tx`SELECT 1 WHERE statement_timestamp()<${e.closes_at}::timestamptz`)[0])fail('REVIEW_WINDOW_CLOSED');
+        if(!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND statement_timestamp()<closes_at`)[0])fail('REVIEW_WINDOW_CLOSED');
         await this.reveal(tx,a.context);r=await this.review(tx,r.id);
       }else{
         r=await this.review(tx,id);e=await this.slot(tx,r.eligibility_id);
@@ -185,12 +185,12 @@ export class ReviewStore extends ViewingStore {
         if(operation==='EDIT'){
           if(r.state!=='SUBMITTED_HELD')fail('REVIEW_LOCKED');
           if(!(await this.safe(tx,a.context))||!(await this.participantEligible(tx,actor.userId)))fail('CAPABILITY_RESTRICTED');
-          if(!(await tx`SELECT 1 WHERE statement_timestamp()<${e.closes_at}::timestamptz`)[0])fail('REVIEW_WINDOW_CLOSED');
+          if(!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND statement_timestamp()<closes_at`)[0])fail('REVIEW_WINDOW_CLOSED');
           const data=input as ReviewSubmitInput;this.checkCriteria(r.direction,data);
           r=(await tx<Review[]>`UPDATE reviews SET rating=${data.rating},text=${data.text??null},criteria=${JSON.stringify(data.criteria??{})}::text::jsonb,version=version+1,updated_at=statement_timestamp() WHERE id=${id} RETURNING *`)[0]!;
           await this.event(tx,e,r,'review_edited',actor,options.requestId);
           if(!(await this.safe(tx,a.context))||!(await this.participantEligible(tx,actor.userId)))fail('CAPABILITY_RESTRICTED');
-          if(!(await tx`SELECT 1 WHERE statement_timestamp()<${e.closes_at}::timestamptz`)[0])fail('REVIEW_WINDOW_CLOSED');
+          if(!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND statement_timestamp()<closes_at`)[0])fail('REVIEW_WINDOW_CLOSED');
         }else{
           if(r.state==='WITHDRAWN')fail('REVIEW_LOCKED');
           r=(await tx<Review[]>`UPDATE reviews SET state='WITHDRAWN',withdrawn_at=statement_timestamp(),version=version+1,updated_at=statement_timestamp() WHERE id=${id} RETURNING *`)[0]!;
@@ -335,7 +335,7 @@ export class ReviewStore extends ViewingStore {
           return {kind:kind.toLowerCase(),published:count};
         };
         if(action.action_type==='REVEAL_DEADLINE'){
-          if(!(await tx`SELECT 1 WHERE ${e.closes_at}::timestamptz<=statement_timestamp()`)[0])return finish('PENDING',null);
+          if(!(await tx`SELECT 1 FROM viewing_review_eligibilities WHERE id=${e.id} AND closes_at<=statement_timestamp()`)[0])return finish('PENDING',null);
           if(!(await this.safe(tx,c)))return finish('PENDING','SAFETY_HOLD');
           const n=await this.reveal(tx,c);
           if(e.state==='CONSUMED'&&(await tx`SELECT id FROM reviews WHERE eligibility_id=${e.id} AND state IN ('SUBMITTED_HELD','UNDER_REVIEW','HIDDEN')`)[0])return finish('PENDING','SAFETY_HOLD',n);
@@ -345,8 +345,8 @@ export class ReviewStore extends ViewingStore {
         }
         // Each reminder occupies a bounded future interval; the 3-day window
         // ends at the 1-day milestone, and the 1-day window at closure.
-        const inWindow=async()=>!!(await tx`SELECT 1 WHERE ${action.due_at}::timestamptz<=statement_timestamp()
-          AND statement_timestamp()<${e.closes_at}::timestamptz-${action.action_type==='REMINDER_3D'?tx`interval '1 day'`:tx`interval '0 days'`}`)[0];
+        const inWindow=async()=>!!(await tx`SELECT 1 FROM review_scheduled_actions a JOIN viewing_review_eligibilities slot ON slot.id=a.eligibility_id
+          WHERE a.id=${action.id} AND a.due_at<=statement_timestamp() AND statement_timestamp()<review_utc_days_before(slot.closes_at,${action.action_type==='REMINDER_3D'?1:0})`)[0];
         if(e.state!=='OPEN'||e.version!==action.expected_eligibility_version)return finish('SKIPPED','INELIGIBLE_SLOT');
         if(!(await inWindow()))return finish('SKIPPED','MISSED_WINDOW');
         if(!(await this.safe(tx,c)))return finish('SKIPPED','SAFETY_HOLD');

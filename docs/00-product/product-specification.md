@@ -672,16 +672,23 @@ double-blind publication window.
 
 Eligibility has its own lifecycle: OPEN, HELD, CONSUMED, EXPIRED, REVOKED. The user journey label ELIGIBLE is not an empty Review row. REPORTED is a report/event and does not by itself change public visibility.
 
+The approved 2026-10-13 policy amendment sets new eligibility to
+`bilateral-review-v2`: seven calendar days from the persisted validated-completion
+instant in UTC. Existing `bilateral-review-v1` records retain their original
+fourteen-day deadlines and audit attribution. Reminders remain three days and one
+day before the stored closing time. Resolved-dispute restoration still requires
+at least seven days available when required; withdrawal never reopens a slot.
+
 | Review state | Meaning |
 |---|---|
 | SUBMITTED_HELD | Author's submission is hidden from the counterparty until reveal. |
-| PUBLISHED | Both eligible directions submitted or the 14-day review window closed, and current eligibility/safety checks pass. |
+| PUBLISHED | Both eligible directions submitted or the stored review window (7 days for new eligibility) closed, and current eligibility/safety checks pass. |
 | UNDER_REVIEW | Scoped moderation investigation; excluded from public output and aggregate in this baseline. |
 | HIDDEN | Temporary authorized suppression; history retained. |
 | REMOVED | Final policy action; appeal may produce a new restoration decision. |
 | WITHDRAWN | Author withdrew; slot remains consumed and no new review may replace it. |
 
-Authors may edit only while held before reveal. Org reviews target/come from the ProviderAccount, with the acting member recorded. See [review system](../01-domain/review-system.md) for first-viewing eligibility, 14-day reveal, dispute holds, duplicate prevention and aggregates.
+Authors may edit only while held before reveal. Org reviews target/come from the ProviderAccount, with the acting member recorded. See [review system](../01-domain/review-system.md) for first-viewing eligibility, 7-day default reveal, dispute holds, duplicate prevention and aggregates.
 
 | **ID**      | **Requirement**                                                                                                  | **Acceptance evidence**                                                                                  |
 |-------------|------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
@@ -1072,7 +1079,7 @@ These decisions close the design questions identified during reconciliation. Tim
 | Viewing request expiry | 48 hours after request or the proposed appointment start, whichever is earlier; no retroactive appointment acceptance. |
 | Viewing completion | Both parties confirm after the scheduled end, or one confirms and the notified counterparty has 48 hours to contest. A claim remains pending until this rule is met. Silence without either party claiming completion never creates completion. |
 | No-show | Claim allowed 30 minutes after scheduled start, notified counterparty gets 48 hours to contest; contested claims remain private pending resolution. No-show is separate from star ratings. |
-| Reviews | Bilateral seeker/provider-account reviews after the first validated completed viewing per Interaction. Double-blind reveal when both submit or 14 days after eligibility opens. No property/agent-specific star aggregate in MVP. |
+| Reviews | Bilateral seeker/provider-account reviews after the first validated completed viewing per Interaction. Double-blind reveal when both submit or 7 calendar days after validated completion using stored UTC timestamps. No property/agent-specific star aggregate in MVP. |
 | Review edits | Author may edit during the held window until reveal. After reveal, rating/text are locked; author may withdraw, and moderation can hide/remove with history. Withdrawal does not permit a second review. |
 | Review aggregates | Published eligible reviews only. Show count; show aggregate after 3 published reviews per subject/direction. No composite blend of seeker and provider reputation. |
 | Appeals | Core MVP includes appeals of verification rejection/revocation and moderation actions; submit within 30 days of notice. A new decision preserves the original history. |

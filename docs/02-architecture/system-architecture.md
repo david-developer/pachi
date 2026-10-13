@@ -107,7 +107,7 @@ Attendance jobs recheck schedule, claim, current safety and authority after lock
 waits. Temporary restrictions preserve the original response deadline; disputes
 and obsolete schedules stop automatic effects. The first validated completion
 per Interaction atomically establishes the bilateral eligibility boundary and
-14-day slots; no-show creates only structured validated operational history.
+7-day default slots (existing version-1 slots retain 14 days); no-show creates only structured validated operational history.
 Late disputes hold unused eligibility and invalidate no-show effects while
 retaining their original records. Immutable `attendance_validated_at` provenance
 on the Viewing is derived from its validated exact-schedule outcome by the SQL

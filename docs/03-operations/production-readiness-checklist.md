@@ -113,7 +113,7 @@ On 2026-10-11, the project owner explicitly approved a temporary three-day exten
 - [ ] Native saved/offline listings with bounded cache, last-sync/staleness labels, logout purge and honest unsent actions.
 - [ ] Core text messaging/native call intent, block/report, assignment revocation and safe history when listing/provider disappears.
 - [ ] Viewing request/expiry/scheduling/rescheduling/cancellation, timezones, private instructions and attendance claims/disputes.
-- [ ] Bilateral first-completed-viewing eligibility; org-principal uniqueness; 14-day double-blind reveal; edit/withdraw rules and hidden-review aggregate repair.
+- [ ] Bilateral first-completed-viewing eligibility; org-principal uniqueness; 7-day default double-blind reveal; edit/withdraw rules and hidden-review aggregate repair.
 - [ ] Provider/business/authority verification, risk-based authority requirement, expiry/revocation, appeals and evidence privacy/retention controls.
 - [ ] Report/case queues, scoped moderation, immutable actions, sole-operator reconsideration/conflict policy and meaningful audit evidence.
 - [ ] Durable inbox, email/SMS/push adapters, preferences/quiet hours/localization, receipt distinctions, retries/DLQ and spend caps.

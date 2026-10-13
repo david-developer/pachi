@@ -2,13 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 import type { ReviewEligibilityResponse, ReviewOwn, ReviewPublished, ReviewPublishedListResponse, ViewingResponse } from '@pachi/contracts';
 
 const ids = { viewing: '00000000-0000-4000-8000-000000000901', interaction: '00000000-0000-4000-8000-000000000902', seeker: '00000000-0000-4000-8000-000000000903', provider: '00000000-0000-4000-8000-000000000904', listing: '00000000-0000-4000-8000-000000000905', eligibility: '00000000-0000-4000-8000-000000000906', review: '00000000-0000-4000-8000-000000000907' };
-const opened = '2026-10-13T12:00:00.000Z', closes = '2026-10-27T12:00:00.000Z', privateCanary = 'PRIVATE_REVIEW_BACKEND_SENTINEL';
+const opened = '2026-10-13T12:00:00.000Z', closes = '2026-10-20T12:00:00.000Z', privateCanary = 'PRIVATE_REVIEW_BACKEND_SENTINEL';
 const seed: ViewingResponse = { id: ids.viewing, interaction_id: ids.interaction, listing_id: ids.listing, seeker_user_id: ids.seeker, provider_account_id: ids.provider, state: 'COMPLETED', proposed_start: '2026-10-12T09:00:00.000Z', proposed_end: '2026-10-12T10:00:00.000Z', scheduled_start: '2026-10-12T09:00:00.000Z', scheduled_end: '2026-10-12T10:00:00.000Z', display_timezone: 'Africa/Douala', response_deadline: opened, version: 5, schedule_version: 2, seeker_confirmed: true, provider_confirmed: true, private_instructions: null, reason: null, created_at: opened, updated_at: opened, actor_side: 'SEEKER', can_accept: false, can_decline: false, can_confirm: false, can_cancel: false };
 const emptyPublished = (): ReviewPublishedListResponse => ({ items: [], next_cursor: null, reputation: { count: 0, average: null } });
 const published = (id = ids.review, text = 'Revealed synthetic feedback'): ReviewPublished => ({ id, direction: 'SEEKER_TO_PROVIDER', rating: 4, text, criteria: { communication: 5 }, date: '2026-10-13', author_display_name: 'Synthetic participant', author_role: 'SEEKER', event_label: 'VALIDATED_COMPLETED_VIEWING', provider_identity_verified: true });
 function hold() { let arrive!: () => void, release!: () => void; return { arrived: new Promise<void>(r => { arrive = r; }), wait: new Promise<void>(r => { release = r; }), notify: () => arrive(), release: () => release() }; }
 async function fixture(page: Page, side: 'SEEKER' | 'PROVIDER' = 'SEEKER') {
-  const state = { side, eligibility: { id: ids.eligibility, direction: side === 'SEEKER' ? 'SEEKER_TO_PROVIDER' : 'PROVIDER_TO_SEEKER', state: 'OPEN', opens_at: opened, closes_at: closes, policy_version: 'review-v1', can_submit: true, version: 1 } as NonNullable<ReviewEligibilityResponse['eligibility']>,
+  const state = { side, eligibility: { id: ids.eligibility, direction: side === 'SEEKER' ? 'SEEKER_TO_PROVIDER' : 'PROVIDER_TO_SEEKER', state: 'OPEN', opens_at: opened, closes_at: closes, policy_version: 'bilateral-review-v2', can_submit: true, version: 1 } as NonNullable<ReviewEligibilityResponse['eligibility']>,
     eligible: true, own: null as ReviewOwn | null, provider: emptyPublished(), seeker: emptyPublished(), readStatus: 200, publicStatus: 200, nextStatus: 0, abortNext: false, revealOnSubmit: false, effects: 0, reports: 0,
     authenticated: true, participationAllowed: true, sessionUserId: side === 'SEEKER' ? ids.seeker : ids.provider, commands: [] as Attempt[], holdRead: null as null | { arrived: () => void; wait: Promise<void>; snapshot: ReviewEligibilityResponse }, holdCommand: null as null | { arrived: () => void; wait: Promise<void> } };
   type Attempt = { path: string; body: Record<string, unknown>; key: string };
@@ -66,7 +66,7 @@ async function ready(page: Page) { await page.goto(`/viewings/${ids.viewing}`); 
 
 for (const side of ['SEEKER', 'PROVIDER'] as const) test(`G3-G1 ${side} submits the correct principal direction with an overall rating and canonical optional criteria`, async ({ page }) => {
   const { state } = await fixture(page, side); await ready(page);
-  await expect(panel(page)).toContainText('27 Oct 2026'); await expect(panel(page)).toContainText('12:00 UTC'); await expect(panel(page)).toContainText('14-day window'); await expect(panel(page)).not.toContainText(privateCanary);
+  await expect(panel(page)).toContainText('20 Oct 2026'); await expect(panel(page)).toContainText('12:00 UTC'); await expect(panel(page)).toContainText('7-day window'); await expect(panel(page)).not.toContainText(privateCanary);
   await panel(page).getByRole('combobox', { name: 'Overall rating', exact: true }).selectOption('4'); await panel(page).getByLabel('Optional review feedback').fill('Safe synthetic viewing experience');
   await panel(page).getByText('Optional structured criteria', { exact: true }).click(); await panel(page).getByRole('combobox', { name: side === 'SEEKER' ? 'Listing accuracy' : 'Appointment attendance', exact: true }).selectOption('5');
   await panel(page).getByRole('button', { name: 'Submit review', exact: true }).click();
@@ -161,4 +161,9 @@ test('G3-G1 public provider presentation shows eligible counts and ratings while
   });
   await page.goto(`/listings/${ids.listing}`); const reputation = page.getByRole('region', { name: 'Provider reputation', exact: true }); await expect(reputation).toContainText('2 published reviews'); await expect(reputation.getByLabel('Average review rating')).toHaveCount(0); await expect(reputation).toContainText('Validated completed viewing'); await expect(reputation).toContainText('Oct 2026'); await expect(reputation).not.toContainText('Revealed synthetic feedback'); await expect(reputation).toContainText('Public written feedback awaits moderation controls.');
   await reputation.getByRole('button', { name: 'Report this review' }).click(); await expect(reputation).toContainText('Sign in to report'); count = 3; await reputation.getByRole('button', { name: 'Refresh provider reputation' }).click(); await expect(reputation.getByLabel('Average review rating')).toContainText('4.00 / 5'); count = 0; await reputation.getByRole('button', { name: 'Refresh provider reputation' }).click(); await expect(reputation).toContainText('0 published reviews'); await expect(reputation.getByLabel('Average review rating')).toHaveCount(0); available = false; await reputation.getByRole('button', { name: 'Refresh provider reputation' }).click(); await expect(reputation.getByRole('alert')).toBeVisible(); await expect(reputation).not.toContainText('0 published reviews'); await expect(page.locator('main')).not.toContainText(privateCanary);
+});
+
+test('G3-G1 legacy review eligibility displays its preserved fourteen-day deadline', async ({ page }) => {
+  const { state } = await fixture(page); state.eligibility.policy_version = 'bilateral-review-v1'; state.eligibility.closes_at = '2026-10-27T12:00:00.000Z';
+  await page.goto(`/viewings/${ids.viewing}`); await expect(panel(page)).toContainText('27 Oct 2026'); await expect(panel(page)).toContainText('14-day window');
 });

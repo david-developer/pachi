@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import postgres from 'postgres';
 import { createDatabase } from './client.js';
 import { viewingFixture } from './viewing-fixture.js';
@@ -47,6 +48,86 @@ async function counts(f:Fixture){return(await f.client`SELECT (SELECT count(*)::
   (SELECT count(*)::int FROM review_outbox) AS outbox,(SELECT count(*)::int FROM review_command_receipts) AS receipts,(SELECT count(*)::int FROM viewing_notices) AS notices`)[0]!;}
 function dedicated(){return postgres(url!,{max:1,onnotice:()=>{},connection:{application_name:'pachi-g1-controlled-test'}});}
 async function waiting(client:postgres.Sql,pid:number){for(let i=0;i<5000;i++){const r=(await client<{waiting:boolean}[]>`SELECT wait_event_type='Lock' AS waiting FROM pg_stat_activity WHERE pid=${pid}`)[0];if(r?.waiting)return;}throw new Error('controlled lock wait not established');}
+
+void integration('G3-G1 v2 opens at exact persisted completion and stores seven UTC calendar days with immutable policy attribution',async()=>{
+  const f=await fixture();try{const done=await completed(f);
+    const slots=await f.client`SELECT e.policy_version,e.opens_at=a.finalized_at AS anchor,e.closes_at=e.opens_at+interval '7 days' AS duration
+      FROM viewing_review_eligibilities e JOIN viewing_attendance_outcomes a ON a.viewing_id=e.viewing_id`;
+    assert.equal(slots.length,2);assert.ok(slots.every(e=>e.policy_version==='bilateral-review-v2'&&e.anchor&&e.duration));
+    const r=await submit(f,done.viewing.id);assert.ok((await f.client`SELECT policy_version FROM review_events`).every(e=>e.policy_version==='bilateral-review-v2'));
+    assert.equal((await f.client`SELECT policy_version FROM reviews WHERE id=${r.review.id}`)[0]!.policy_version,'bilateral-review-v2');
+    await assert.rejects(f.client`UPDATE viewing_review_eligibilities SET closes_at=closes_at+interval '7 days' WHERE viewing_id=${done.viewing.id}`,/invalid review eligibility transition/);
+    await assert.rejects(f.client`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at,policy_version)
+      SELECT interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,opens_at+interval '14 days',policy_version
+      FROM viewing_review_eligibilities WHERE direction='PROVIDER_TO_SEEKER'`,/review_policy_duration/);
+    await assert.rejects(f.client`INSERT INTO review_events(eligibility_id,interaction_id,viewing_id,direction,event_type,version,policy_version)
+      SELECT id,interaction_id,viewing_id,direction,'review_reported',99,'bilateral-review-v1' FROM viewing_review_eligibilities LIMIT 1`,/invalid review event context/);
+  }finally{await f.close();}
+});
+void integration('G3-G1 UTC calendar duration and reminders remain exact across a session daylight-saving transition',async()=>{
+  const f=await fixture();try{await clock(f);await f.client`UPDATE g1_test_clock SET value='2026-10-22T12:00:00.123Z'::timestamptz`;await f.client`SET TIME ZONE 'Europe/Paris'`;await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');const done=await completed(f);
+    assert.ok((await f.client`SELECT extract(epoch FROM e.closes_at-e.opens_at)=604800 AS duration,e.opens_at=a.finalized_at AS anchor FROM viewing_review_eligibilities e JOIN viewing_attendance_outcomes a ON a.viewing_id=e.viewing_id WHERE e.viewing_id=${done.viewing.id}`).every(e=>e.duration&&e.anchor));
+    assert.ok((await f.client`SELECT extract(epoch FROM e.closes_at-j.due_at)=CASE j.action_type WHEN 'REMINDER_3D' THEN 259200 WHEN 'REMINDER_1D' THEN 86400 ELSE 0 END AS exact FROM review_scheduled_actions j JOIN viewing_review_eligibilities e ON e.id=j.eligibility_id`).every(j=>j.exact));
+    await f.client`UPDATE g1_test_clock SET value=review_utc_days_before((SELECT closes_at FROM viewing_review_eligibilities LIMIT 1),3)`;await f.reviews.reviewsOnce();assert.equal((await f.client`SELECT id FROM viewing_notices WHERE event_type='review_reminder_3d'`).length,2);
+  }finally{await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT pg_catalog.statement_timestamp()');await f.client`SET TIME ZONE 'UTC'`;await f.close();}
+});
+void integration('G3-G1 empty seven-day window expires once without publication',async()=>{
+  const f=await fixture();try{const done=await completed(f);await clock(f);await setTime(f,done.viewing.id,'-1 microsecond');await f.reviews.reviewsOnce();assert.ok((await f.client`SELECT state FROM viewing_review_eligibilities`).every(e=>e.state==='OPEN'));
+    await setTime(f,done.viewing.id,'0 seconds');await f.reviews.reviewsOnce();assert.ok((await f.client`SELECT state FROM viewing_review_eligibilities`).every(e=>e.state==='EXPIRED'));
+    assert.equal((await f.client`SELECT id FROM reviews`).length,0);assert.equal((await f.client`SELECT id FROM review_events WHERE event_type='review_window_closed'`).length,2);
+    const before=await counts(f);await f.reviews.reviewsOnce();assert.deepEqual(await counts(f),before);
+  }finally{await f.close();}
+});
+for(const state of ['UNDER_REVIEW','HIDDEN','REMOVED'] as const)void integration(`G3-G1 ${state} fixture excludes publication and reciprocal reveal without inventing moderation commands`,async()=>{
+  const f=await fixture();try{const done=await completed(f),r=await submit(f,done.viewing.id);
+    // TEST-only persisted-state fixture: adjudication/restoration has no application command.
+    await f.client.begin(async tx=>{await tx`ALTER TABLE reviews DISABLE TRIGGER review_guard`;await tx`UPDATE reviews SET state=${state},version=version+1 WHERE id=${r.review.id}`;await tx`ALTER TABLE reviews ENABLE TRIGGER review_guard`;});
+    const p=await submit(f,done.viewing.id,'provider');assert.equal(p.review.state,'SUBMITTED_HELD');assert.equal((await f.reviews.publishedProvider(done.viewing.provider_account_id)).reputation.count,0);
+    await clock(f);await setTime(f,done.viewing.id,'0 seconds');await f.reviews.reviewsOnce();assert.equal((await f.reviews.own(f.actors.seeker,r.review.id)).state,state);assert.equal((await f.reviews.own(f.actors.provider,p.review.id)).state,'PUBLISHED');
+    assert.equal((await f.client`SELECT id FROM review_events WHERE review_id=${r.review.id} AND event_type='review_published'`).length,0);
+    await assert.rejects(f.client`UPDATE reviews SET state='PUBLISHED',published_at=statement_timestamp(),version=version+1 WHERE id=${r.review.id}`,/review is locked/);
+  }finally{await f.close();}
+});
+// Replay the real pre-G1 schema inside a rolled-back guarded TEST transaction.
+// The merged F3 writer seed omits policy fields exactly as its v1 defaults did.
+void integration('G3-G1 migration 0036 retains complete v1 records, fourteen-day deadlines and versioned jobs while new defaults use v2',async()=>{
+  const {client}=createDatabase(url!);const rollback=new Error('TEST_REPLAY_ROLLBACK');
+  try{await assert.rejects(client.begin(async tx=>{
+    await tx`SET LOCAL client_min_messages TO warning`;await tx`DROP SCHEMA public CASCADE`;await tx`CREATE SCHEMA public`;
+    const journal=JSON.parse(await readFile(new URL('../migrations/meta/_journal.json',import.meta.url),'utf8')) as {entries:{tag:string}[]};
+    for(const entry of journal.entries.filter(e=>!e.tag.startsWith('0036')))await tx.unsafe(await readFile(new URL(`../migrations/${entry.tag}.sql`,import.meta.url),'utf8'));
+    const nested=Object.assign(tx,{begin:tx.savepoint.bind(tx)}) as unknown as postgres.Sql;
+    const base=await viewingFixture(nested),attendance=new ViewingAttendanceStore(nested,true),reviews=new ReviewStore(nested,true);
+    const f={...base,client:nested,attendance,reviews,close:async()=>{}};
+    const writer=async(inner:postgres.Sql,row:{interaction_id:string;id:string;seeker_user_id:string;provider_account_id:string},outcome:{id:string})=>{
+      const b=(await inner<{opened_at:Date}[]>`INSERT INTO viewing_review_boundaries(interaction_id,attendance_outcome_id,viewing_id,seeker_user_id,provider_account_id,membership_snapshot,eligibility_state,eligibility_reason)
+        VALUES(${row.interaction_id},${outcome.id},${row.id},${row.seeker_user_id},${row.provider_account_id},'[]','OPEN','FIRST_VALIDATED_COMPLETION') RETURNING opened_at`)[0]!;
+      await inner`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at)
+        VALUES(${row.interaction_id},${row.id},'SEEKER_TO_PROVIDER','User',${row.seeker_user_id},'ProviderAccount',${row.provider_account_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days'),
+        (${row.interaction_id},${row.id},'PROVIDER_TO_SEEKER','ProviderAccount',${row.provider_account_id},'User',${row.seeker_user_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days')`;
+    };
+    Object.defineProperty(attendance,'reviewBoundary',{value:writer,configurable:true});
+    await clock(f);await tx.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');const legacy=await completed(f);
+    const before=await tx`SELECT to_jsonb(e) AS row FROM viewing_review_eligibilities e ORDER BY id`,boundary=await tx`SELECT to_jsonb(b) AS row FROM viewing_review_boundaries b`;
+    await tx.unsafe(await readFile(new URL('../migrations/0036_bilateral_reviews.sql',import.meta.url),'utf8'));
+    assert.deepEqual(await tx`SELECT to_jsonb(e)-'version' AS row FROM viewing_review_eligibilities e ORDER BY id`,before);assert.deepEqual(await tx`SELECT to_jsonb(b) AS row FROM viewing_review_boundaries b`,boundary);
+    await assert.rejects(tx.savepoint(async inner=>inner`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at,policy_version)
+      SELECT e.interaction_id,e.viewing_id,e.direction,e.reviewer_subject_type,e.reviewer_subject_id,e.target_type,e.target_id,b.opened_at,b.opened_at+interval '7 days',e.policy_version
+      FROM viewing_review_eligibilities e JOIN viewing_review_boundaries b ON b.interaction_id=e.interaction_id WHERE e.direction='PROVIDER_TO_SEEKER'`),/review_policy_duration/);
+    assert.ok((await tx`SELECT policy_version FROM review_events`).every(e=>e.policy_version==='bilateral-review-v1'));
+    assert.ok((await tx`SELECT a.due_at=e.closes_at-CASE a.action_type WHEN 'REMINDER_3D' THEN interval '3 days' WHEN 'REMINDER_1D' THEN interval '1 day' ELSE interval '0 days' END AS correct FROM review_scheduled_actions a JOIN viewing_review_eligibilities e ON e.id=a.eligibility_id`).every(a=>a.correct));
+    await setTime(f,legacy.viewing.id,'-7 days');const held=await submit(f,legacy.viewing.id);assert.equal(held.review.state,'SUBMITTED_HELD');assert.equal((await reviews.reviewsOnce()).published,0);
+    await setTime(f,legacy.viewing.id,'-1 microsecond');assert.equal((await reviews.reviewsOnce()).published,0);await setTime(f,legacy.viewing.id,'0 seconds');assert.equal((await reviews.reviewsOnce()).published,1);
+    assert.ok((await tx`SELECT policy_version FROM review_events`).every(e=>e.policy_version==='bilateral-review-v1'));assert.equal((await tx`SELECT policy_version FROM reviews`)[0]!.policy_version,'bilateral-review-v1');
+    f.attendance=new ViewingAttendanceStore(nested,true);
+    const inquiry=await f.inquiries.createOrReuseInquiry(f.otherUserId,f.listingId,randomUUID()),fresh=await completed(f,inquiry.interaction_id,f.providerUserId,f.actors.other);
+    assert.ok((await tx`SELECT e.policy_version,e.opens_at=a.finalized_at AS anchor,e.closes_at=e.opens_at+interval '7 days' AS duration FROM viewing_review_eligibilities e JOIN viewing_attendance_outcomes a ON a.viewing_id=e.viewing_id WHERE e.viewing_id=${fresh.viewing.id}`).every(e=>e.policy_version==='bilateral-review-v2'&&e.anchor&&e.duration));
+    assert.deepEqual(await tx`SELECT to_jsonb(b) AS row FROM viewing_review_boundaries b WHERE viewing_id=${legacy.viewing.id}`,boundary);
+    assert.ok((await tx`SELECT closes_at=opens_at+interval '14 days' AS original FROM viewing_review_eligibilities WHERE viewing_id=${legacy.viewing.id}`).every(e=>e.original));
+    throw rollback;
+  }),error=>{if(error!==rollback)throw error;return true;});
+  }finally{await client.end();}
+});
 
 void integration('G3-G1 bilateral submission consumes one slot and atomically reveals both with safe projections',async()=>{
   const f=await fixture();try{const done=await completed(f),seeker=await submit(f,done.viewing.id);
@@ -227,6 +308,8 @@ void integration('G3-G1 organization principal slot, current assignment and succ
     await assert.rejects(f.client`UPDATE reviews SET text='ILLEGAL_REVOKED_AUTHOR_EDIT',version=version+1 WHERE id=${r.review.id}`,/invalid review transition/);
     const seekerSlot=(await f.reviews.eligibility(org.actors.unrelated,done.viewing.id)).eligibility!;await f.reviews.submit(org.actors.unrelated,seekerSlot.id,{expected_version:seekerSlot.version,rating:5},f.command());
     const persisted=(await f.client`SELECT state,reviewer_subject_id,author_user_id FROM reviews WHERE id=${r.review.id}`)[0]!;assert.equal(persisted.state,'PUBLISHED');assert.equal(persisted.reviewer_subject_id,org.org.provider_account_id);assert.equal(persisted.author_user_id,org.actors.agent.userId);
+    assert.equal((await f.reviews.publishedSeeker(org.actors.unrelated,org.actors.unrelated.userId)).reputation.count,1);
+    await f.client`UPDATE phone_contacts SET replaced_at=statement_timestamp() WHERE user_id=${org.actors.agent.userId}`;assert.equal((await f.reviews.publishedSeeker(org.actors.unrelated,org.actors.unrelated.userId)).reputation.count,0);
   }finally{await f.close();}
 });
 void integration('G3-G1 authorized organization successor can consume only an unused principal slot',async()=>{
@@ -299,5 +382,25 @@ for(const order of ['submit-first','worker-first'] as const)void integration(`G3
     first=Promise.allSettled([order==='submit-first'?submitLate(one):worker(one)]);await waiting(f.client,pidOne);second=Promise.allSettled([order==='submit-first'?worker(two):submitLate(two)]);await waiting(f.client,pidTwo);release();await holder;
     const results=[...(await first),...(await second)];assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(results.filter(r=>r.status==='rejected').length,1);assert.equal((await f.reviews.own(f.actors.seeker,r.review.id)).state,'PUBLISHED');
     assert.equal((await f.client`SELECT id FROM review_events WHERE event_type='review_published'`).length,1);assert.equal((await f.client`SELECT id FROM reviews`).length,1);
+  }finally{release?.();await holder?.catch(()=>{});await Promise.all([first,second]);await Promise.all([one.end(),two.end(),gate.end()]);await f.close();}
+});
+
+for(const order of ['withdraw-first','submit-first'] as const)void integration(`G3-G1 controlled ${order} withdrawal and reciprocal reveal race preserves blind publication history`,async()=>{
+  const f=await fixture(),one=dedicated(),two=dedicated(),gate=dedicated();let release!:()=>void;let holder:Promise<unknown>|undefined,first:Promise<PromiseSettledResult<unknown>[]>|undefined,second:Promise<PromiseSettledResult<unknown>[]>|undefined;
+  try{const done=await completed(f),r=await submit(f,done.viewing.id),p=await ownSlot(f,done.viewing.id,'provider');
+    let ready!:()=>void;const held=new Promise<void>(resolve=>{ready=resolve;}),free=new Promise<void>(resolve=>{release=resolve;});
+    holder=gate.begin(async tx=>{await tx`SELECT id FROM interactions WHERE id=${done.viewing.interaction_id} FOR UPDATE`;ready();await free;});await held;
+    const pidOne=(await one<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid,pidTwo=(await two<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+    const withdrawal=(client:postgres.Sql)=>new ReviewStore(client,true).withdraw(f.actors.seeker,r.review.id,{expected_version:1},f.command());
+    const counterpart=(client:postgres.Sql)=>new ReviewStore(client,true).submit(f.actors.provider,p.id,{expected_version:p.version,rating:5},f.command());
+    first=Promise.allSettled([order==='withdraw-first'?withdrawal(one):counterpart(one)]);await waiting(f.client,pidOne);
+    second=Promise.allSettled([order==='withdraw-first'?counterpart(two):withdrawal(two)]);await waiting(f.client,pidTwo);release();await holder;
+    const results=[...(await first),...(await second)];assert.equal(results.filter(r=>r.status==='fulfilled').length,order==='withdraw-first'?2:1);
+    if(order==='submit-first'){const rejected=results.find(r=>r.status==='rejected');assert.equal((rejected as PromiseRejectedResult).reason.code,'STALE_VERSION');const current=await f.reviews.own(f.actors.seeker,r.review.id);await f.reviews.withdraw(f.actors.seeker,current.id,{expected_version:current.version},f.command());}
+    assert.equal((await f.reviews.own(f.actors.seeker,r.review.id)).state,'WITHDRAWN');
+    assert.equal((await f.client`SELECT state FROM reviews WHERE author_user_id=${f.providerUserId}`)[0]!.state,order==='withdraw-first'?'SUBMITTED_HELD':'PUBLISHED');
+    assert.equal((await f.client`SELECT id FROM review_events WHERE event_type='review_published'`).length,order==='withdraw-first'?0:2);
+    assert.equal((await f.client`SELECT state FROM viewing_review_eligibilities WHERE id=${r.review.eligibility_id}`)[0]!.state,'CONSUMED');
+    assert.equal((await f.reviews.publishedProvider(done.viewing.provider_account_id)).reputation.count,0);
   }finally{release?.();await holder?.catch(()=>{});await Promise.all([first,second]);await Promise.all([one.end(),two.end(),gate.end()]);await f.close();}
 });

@@ -153,7 +153,7 @@ current assignment to the Interaction. Historical authorship never grants a
 successor access to another member's private feedback.
 
 Submissions remain private until both valid directions submit or the stored
-14-day deadline closes. Authors can edit held feedback and withdraw their review;
+7-day default deadline closes. Authors can edit held feedback and withdraw their review;
 published content is locked and withdrawal never creates a replacement slot.
 Current safety checks and historical attendance disputes hold reveal and immediately
 exclude disputed content from reads and reputation. Later appointments cannot

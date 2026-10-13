@@ -93,7 +93,7 @@ export function ViewingReviewControls({ viewing, csrfToken, disabled, refreshVer
     {eligibility && <>
       <p>Review deadline: <time dateTime={eligibility.closes_at}>{deadlineLabel(eligibility.closes_at)}</time></p>
       <p>Reviews describe this marketplace viewing experience. They do not confirm a rental, purchase, ownership or legal transaction.</p>
-      <p>Reviews stay private until both valid reviews can be revealed or the 14-day window closes. Safety checks may delay reveal. You can edit your held review until reveal; the other participant&apos;s submission status stays private.</p>
+      <p>Reviews stay private until both valid reviews can be revealed or the {eligibility.policy_version === 'bilateral-review-v1' ? '14-day' : eligibility.policy_version === 'bilateral-review-v2' ? '7-day' : 'stored'} window closes. Safety checks may delay reveal. You can edit your held review until reveal; the other participant&apos;s submission status stays private.</p>
       {eligibility.state === 'HELD' && <p role="status">Review eligibility is on hold while attendance or safety concerns are evaluated. A later appointment cannot replace this slot.</p>}
       {eligibility.state === 'EXPIRED' && <p>The review window has closed. This unused eligibility has expired.</p>}
       {eligibility.state === 'REVOKED' && <p>This review eligibility is no longer valid.</p>}

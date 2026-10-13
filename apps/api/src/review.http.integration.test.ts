@@ -120,6 +120,7 @@ async function completed(call: Call, f: Fixture, interactionId = f.interaction.i
   const seekerContext = await value<ReviewEligibilityResponse>(await call(seeker, `/account/viewings/${v.id}/reviews`), 200);
   const providerContext = await value<ReviewEligibilityResponse>(await call(provider, `/account/viewings/${v.id}/reviews`), 200);
   assert.ok(seekerContext.eligibility?.can_submit); assert.ok(providerContext.eligibility?.can_submit);
+  for (const context of [seekerContext, providerContext]) { assert.equal(context.eligibility!.policy_version, 'bilateral-review-v2'); assert.equal(Date.parse(context.eligibility!.closes_at)-Date.parse(context.eligibility!.opens_at), 7*86400000); }
   return { v: completion.viewing, completion, seekerContext, providerContext };
 }
 const submitPath = (r: ReviewEligibilityResponse) => `/account/review-eligibilities/${r.eligibility!.id}/submit`;

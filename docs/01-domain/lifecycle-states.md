@@ -138,7 +138,7 @@ Eligibility states OPEN, HELD, CONSUMED, EXPIRED, REVOKED. First validated compl
 
 Review states SUBMITTED_HELD, PUBLISHED, UNDER_REVIEW, HIDDEN, REMOVED, WITHDRAWN. ELIGIBLE is a product journey state represented by ReviewEligibility, not an empty Review row. REPORTED is a report/event, not an automatic visibility transition. Draft text may remain client-local.
 
-SUBMITTED_HELD → PUBLISHED when both eligible sides submit or the 14-day window closes, subject to safety eligibility checks. Author may edit only before reveal. SUBMITTED_HELD/PUBLISHED → UNDER_REVIEW on substantive case, → HIDDEN on interim restriction, → REMOVED on final action, → WITHDRAWN on author withdrawal. UNDER_REVIEW is excluded from public output/aggregates in this baseline. Resolution may restore SUBMITTED_HELD or PUBLISHED according to reveal eligibility; removal reversal requires a new decision. WITHDRAWN remains consumed and is not republished through a new submission.
+SUBMITTED_HELD → PUBLISHED when both eligible sides submit or the stored window closes (7 days for new eligibility), subject to safety eligibility checks. Author may edit only before reveal. SUBMITTED_HELD/PUBLISHED → UNDER_REVIEW on substantive case, → HIDDEN on interim restriction, → REMOVED on final action, → WITHDRAWN on author withdrawal. UNDER_REVIEW is excluded from public output/aggregates in this baseline. Resolution may restore SUBMITTED_HELD or PUBLISHED according to reveal eligibility; removal reversal requires a new decision. WITHDRAWN remains consumed and is not republished through a new submission.
 
 ## Reports, cases, appeals and media
 
