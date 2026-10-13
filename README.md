@@ -143,6 +143,38 @@ required and cannot be supplied by membership alone. The G3-F2 candidate below i
 Attendance/no-show/disputes, reviews, native screens and real-account/production
 acceptance remain deferred. **G3-wide acceptance remains NOT RUN.**
 
+## Bilateral reviews (G3-G1 candidate)
+
+After the first validated completed viewing, the viewing detail offers a required
+1–5 overall rating, optional feedback of at most 2,000 Unicode characters and
+optional direction-specific criteria. Each participant uses one durable slot;
+organization members share the organization's ProviderAccount slot and need a
+current assignment to the Interaction. Historical authorship never grants a
+successor access to another member's private feedback.
+
+Submissions remain private until both valid directions submit or the stored
+14-day deadline closes. Authors can edit held feedback and withdraw their review;
+published content is locked and withdrawal never creates a replacement slot.
+Current safety checks and historical attendance disputes hold reveal and immediately
+exclude disputed content from reads and reputation. Later appointments cannot
+replace the first review eligibility.
+
+Provider pages show eligible published ratings, criteria and counts; numerical
+averages appear at three reviews. Anonymous written feedback remains unavailable
+until scoped review moderation controls exist. Current participants can read
+revealed written feedback in their authorized Interaction; seeker reputation has
+subject/current-participant access rather than anonymous discovery. Private report
+intake retains an OPEN/PENDING_REVIEW case and never automatically hides content.
+Staff review adjudication, appeals and unrestricted overrides are not implemented.
+
+Additive migration `0036_bilateral_reviews.sql` stores reviews, immutable revisions,
+command receipts, safe events/outbox, persisted deadline/reminder work and repairable
+reputation. The local worker processes bounded leased work, with reminders three
+days and one day before closure; generic inbox notices contain no rating or text.
+Email, SMS and push remain inactive. Database/API/browser evidence and exact-head
+CI belong in [the engineering handoff](docs/engineering/current-state.md).
+This candidate requires separate merge review; **G3-wide acceptance remains NOT RUN**.
+
 ## Rescheduling and appointment notices (G3-F2 candidate)
 
 From a scheduled viewing, either current participant can propose a future

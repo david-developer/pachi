@@ -35,6 +35,7 @@ async function fixture(page: Page, side: 'SEEKER' | 'PROVIDER' = 'SEEKER') {
     if (path === '/api/session') return route.fulfill({ json: { authenticated: true, csrfToken: 'synthetic', participationAllowed: true } });
     if (request.method() === 'GET') {
       if (state.readStatus !== 200) return route.fulfill({ status: state.readStatus, json: { message: 'PRIVATE_ATTENDANCE_BACKEND_SENTINEL' } });
+      if (path.endsWith('/reviews')) return route.fulfill({ json: { viewing_id: id, interaction_id: seed.interaction_id, actor_side: state.side, eligibility: null, own_review: null } });
       if (path === `/api/account/viewings/${id}`) return route.fulfill({ json: viewing() });
       if (path.endsWith('/attendance')) {
         const snapshot = attendance(), hold = state.holdRead; state.holdRead = null;
@@ -219,6 +220,7 @@ test('G3-F3 historical dispute retains the current appointment controls and keep
         current = { ...current, state: 'CANCELLED_BY_SEEKER', private_instructions: null, reason: 'PLANS_CHANGED', version: current.version + 1, can_cancel: false };
         return route.fulfill({ status: 201, json: { viewing: current, replayed: false } });
       }
+      if (path.endsWith('/reviews')) return route.fulfill({ json: { viewing_id: currentId, interaction_id: seed.interaction_id, actor_side: 'SEEKER', eligibility: null, own_review: null } });
       if (path.endsWith('/attendance')) return route.fulfill({ json: { viewing_id: currentId, schedule_version: 1, version: current.version, state: 'NONE', outcome: null, actor_side: 'SEEKER', can_claim_completion: false, can_claim_no_show: false, claims: [], next_cursor: null, case: null, response_window_hours: 48, review_eligibility_created: false } });
       if (path.endsWith('/reschedules')) return route.fulfill({ json: { items: [], current_proposal: null, next_cursor: null, can_propose: current.state === 'SCHEDULED', schedule_history: [] } });
       if (path.endsWith('/reminders')) return route.fulfill({ json: { schedule_version: 1, plan_status: 'NO_FUTURE_WINDOW', planned_at: now, items: [], external_state: 'NOT_ENABLED' } });

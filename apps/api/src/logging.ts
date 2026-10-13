@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
-const sensitiveKey = /(authorization|cookie|password|secret|token|api[_-]?key|database[_-]?url|evidence|message)/i;
+const sensitiveKey = /(authorization|cookie|password|secret|token|api[_-]?key|database[_-]?url|evidence|message|review|rating|criteria|details|text)/i;
 const requestIdPattern = /^[A-Za-z0-9._:-]{1,100}$/;
 const organizationRequestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -21,6 +21,10 @@ export function isViewingPath(path: string): boolean {
   return /^\/(?:v1\/)?account\/(?:viewing-notices(?:\/|$)|viewings(?:\/|$)|interactions\/[^/]+\/viewings(?:\/|$))/i.test(path);
 }
 
+export function isReviewPath(path: string): boolean {
+  return /^\/(?:v1\/)?(?:account\/(?:review-eligibilities|reviews)(?:\/|$)|account\/viewings\/[^/]+\/reviews(?:\/|$)|account\/(?:seekers|providers)\/[^/]+\/reviews(?:\/|$)|providers\/[^/]+\/reviews(?:\/|$)|public\/listings\/[^/]+\/reviews(?:\/|$))/i.test(path);
+}
+
 /** Reuse the server-established correlation identity; never arbitrary header text. */
 export function organizationRequestId(request: Request): string {
   const current = request.res?.locals.requestId as unknown;
@@ -31,14 +35,14 @@ export function organizationRequestId(request: Request): string {
 
 export function requestIdMiddleware(request: Request, response: Response, next: NextFunction): void {
   const incoming = request.header('x-request-id');
-  const organizationRequest = isOrganizationRequestPath(request.path) || isContactSafetyPath(request.path) || isListingLifecyclePath(request.path) || isViewingPath(request.path);
+  const organizationRequest = isOrganizationRequestPath(request.path) || isContactSafetyPath(request.path) || isListingLifecyclePath(request.path) || isViewingPath(request.path) || isReviewPath(request.path);
   const requestId = incoming && (organizationRequest ? organizationRequestIdPattern : requestIdPattern).test(incoming) ? incoming : randomUUID();
-  if (organizationRequest) response.setHeader('Cache-Control', isListingLifecyclePath(request.path) || isViewingPath(request.path) ? 'private, no-store' : 'no-store');
+  if (organizationRequest) response.setHeader('Cache-Control', isListingLifecyclePath(request.path) || isViewingPath(request.path) || isReviewPath(request.path) ? 'private, no-store' : 'no-store');
   response.setHeader('x-request-id', requestId);
   response.locals.requestId = requestId;
   const startedAt = Date.now();
   response.on('finish', () => {
-    const path = organizationRequest ? (typeof request.route?.path === 'string' ? request.route.path : (isViewingPath(request.path) ? '/v1/account/viewings/*' : isListingLifecyclePath(request.path) ? '/v1/account/listings/*/lifecycle/*' : isContactSafetyPath(request.path) ? '/v1/account/contact-safety/*' : '/v1/account/organizations/*')) : request.path;
+    const path = organizationRequest ? (typeof request.route?.path === 'string' ? request.route.path : (isReviewPath(request.path) ? '/v1/reviews/*' : isViewingPath(request.path) ? '/v1/account/viewings/*' : isListingLifecyclePath(request.path) ? '/v1/account/listings/*/lifecycle/*' : isContactSafetyPath(request.path) ? '/v1/account/contact-safety/*' : '/v1/account/organizations/*')) : request.path;
     console.log(JSON.stringify({ event: 'http_request', request_id: requestId, method: request.method, path, status: response.statusCode, duration_ms: Date.now() - startedAt }));
   });
   next();

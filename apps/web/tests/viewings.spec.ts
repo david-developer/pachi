@@ -42,6 +42,7 @@ async function fixture(page: Page, initial: ViewingResponse | null = null) {
     const url = new URL(request.url());
     const path = url.pathname;
     if (path === '/api/session') return route.fulfill({ json: { authenticated: true, userId: state.side === 'SEEKER' ? ids.seeker : ids.provider, csrfToken: 'synthetic', participationAllowed: true } });
+    if (request.method() === 'GET' && path.endsWith('/reviews')) return route.fulfill({ json: { viewing_id: ids.viewing, interaction_id: ids.interaction, actor_side: state.side, eligibility: null, own_review: null } });
     if (path === `/api/account/interactions/${ids.interaction}`) return route.fulfill({ json: { interaction_id: ids.interaction, listing_id: ids.listing, conversation_id: ids.conversation, state: 'OPEN', title: 'Synthetic viewing flat', listing_visible: true, opened_at: seed.created_at } });
     if (path.endsWith('/contact-safety')) return route.fulfill({ json: { can_contact: true, can_block: true, own_block: null } });
     if (path.endsWith('/messages')) return route.fulfill({ json: { items: [], next_cursor: null, can_send: true, actor_side: state.side } });

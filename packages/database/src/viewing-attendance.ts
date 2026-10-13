@@ -109,7 +109,11 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     const canClaim=row.state==='SCHEDULED'&&eligible&&(!o||o.state==='AWAITING_VALIDATION');
     const own=claims.filter(c=>c.schedule_version===row.schedule_version&&c.claimant_side===a.side);
     const noShowOutcome=a.side==='SEEKER'?'PROVIDER_NO_SHOW':'SEEKER_NO_SHOW';
-    const review=(await tx`SELECT id FROM viewing_review_eligibilities WHERE viewing_id=${row.id} AND state='OPEN' LIMIT 1`)[0];
+    // Eligibility creation is historical event information. Consumption of
+    // either direction must never disclose the counterparty's blind submission.
+    const review=(await tx`SELECT b.interaction_id FROM viewing_review_boundaries b
+      JOIN viewing_attendance_outcomes o ON o.id=b.attendance_outcome_id
+      WHERE b.viewing_id=${row.id} AND b.eligibility_state='OPEN' AND o.state='COMPLETED'`)[0];
     await this.currentScope(tx,actor,a);
     return {viewing_id:row.id,schedule_version:row.schedule_version,version:row.version,state:o?.state??'NONE',
       outcome:o&&['COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW'].includes(o.state)?o.state as AttendanceOutcome:null,actor_side:a.side,
