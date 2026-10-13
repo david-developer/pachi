@@ -64,6 +64,23 @@ Prohibited content includes harassment, discrimination, threats, private address
 
 Only SUBMITTED_HELD and PUBLISHED reviews can return from a resolved temporary moderation state as permitted by their eligibility/reveal status. WITHDRAWN remains withdrawn. Removal reversal is a new decision with eligibility rechecked; no unconditional state restoration.
 
+G3-H1 applies these rules through assigned REVIEW_MODERATION cases. Separate
+case assignment and evidence grants do not imply unrestricted held-review access.
+Investigation records case history; explicit hold/hide/remove decisions restrict
+the target review without rewriting its rating, text or revisions. Restoration
+links the exact suppression decision, rechecks current safety and attendance
+eligibility, and follows the original legitimate reveal conditions. It never
+adjudicates an attendance dispute or resets either policy version's review window.
+New reports on resolved/closed cases retain their privacy and permit an authorized
+staff member to reopen investigation through a new reason-coded action. They do
+not automatically suppress content.
+
+Durable outcome notices are limited to the acting review author with current
+resource authority. They carry a safe outcome/reason and a 30-day appeal deadline
+from inbox availability, without report context, reporter identities or held
+content. Full appeal adjudication and external delivery remain separate gates;
+anonymous written feedback stays withheld pending exposure/abuse acceptance.
+
 ## Aggregates and presentation
 
 Only eligible PUBLISHED reviews contribute. Compute count and sum, derive average; exclude UNDER_REVIEW, HIDDEN, REMOVED, WITHDRAWN and invalidated events. Show the published review count at any size; display numeric aggregate only at 3 or more eligible published reviews. Individual published reviews may be visible below that threshold. Provider and seeker reputation are separate subjects/directions.

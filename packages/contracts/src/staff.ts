@@ -45,6 +45,7 @@ export type AuthorityRiskInternalSource = {
   finding: 'PRESENT' | 'ABSENT';
 };
 export type StaffSessionResponse = {
+  user_id?: string;
   display_name: string;
   grants: { role: StaffRole; scope: StaffScope; expires_at: string }[];
   absolute_expires_at: string;

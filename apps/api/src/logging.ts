@@ -22,7 +22,7 @@ export function isViewingPath(path: string): boolean {
 }
 
 export function isReviewPath(path: string): boolean {
-  return /^\/(?:v1\/)?(?:account\/(?:review-eligibilities|reviews)(?:\/|$)|account\/viewings\/[^/]+\/reviews(?:\/|$)|account\/(?:seekers|providers)\/[^/]+\/reviews(?:\/|$)|providers\/[^/]+\/reviews(?:\/|$)|public\/listings\/[^/]+\/reviews(?:\/|$))/i.test(path);
+  return /^\/(?:v1\/)?(?:staff\/review-cases(?:\/|$)|account\/(?:review-eligibilities|reviews)(?:\/|$)|account\/viewings\/[^/]+\/reviews(?:\/|$)|account\/(?:seekers|providers)\/[^/]+\/reviews(?:\/|$)|providers\/[^/]+\/reviews(?:\/|$)|public\/listings\/[^/]+\/reviews(?:\/|$))/i.test(path);
 }
 
 /** Reuse the server-established correlation identity; never arbitrary header text. */

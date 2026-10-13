@@ -59,3 +59,5 @@ export { ViewingAttendanceStore } from './viewing-attendance.js';
 export type { AttendanceOutcome, AttendanceClaimInput, AttendanceResponseInput, AttendanceClaimRead, AttendanceRead, AttendanceCommandRead } from './viewing-attendance.js';
 export { ReviewStore } from './review.js';
 export type { ReviewDirection, ReviewState, ReviewContent, ReviewSubmitInput, ReviewOwn, ReviewEligibilityRead, ReviewPublished, ReviewPublishedPage, ReviewReportInput, ReviewReportRead } from './review.js';
+export { ReviewModerationStore } from './review-moderation.js';
+export type { ReviewCaseState, ReviewModerationCommand, ReviewModerationReason, ReviewModerationQueueItem, ReviewModerationAction, ReviewModerationDetail, ReviewModerationAssignmentInput, ReviewModerationDecisionInput, ReviewModerationResult, ReviewModerationFilters } from './review-moderation.js';

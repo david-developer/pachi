@@ -12,7 +12,7 @@ export type ViewingRescheduleCommandResponse = {viewing:ViewingResponse;proposal
 export type ViewingRescheduleListResponse = {items:ViewingRescheduleResponse[];current_proposal:ViewingRescheduleResponse|null;next_cursor:string|null;can_propose:boolean;
   schedule_history:{schedule_version:number;scheduled_start:string;scheduled_end:string;display_timezone:string;superseded_at:string}[]};
 export type ViewingNoticeResponse = {id:string;viewing_id:string;recipient_side:'SEEKER'|'PROVIDER';event_type:string;schedule_version:number;
-  event_at:string;available_at:string;inbox_state:'AVAILABLE';external_state:'NOT_ENABLED';read_at:string|null};
+  event_at:string;available_at:string;inbox_state:'AVAILABLE';external_state:'NOT_ENABLED';read_at:string|null;moderation_reason_code?:string;moderation_command?:'HOLD'|'HIDE'|'REMOVE'|'RESTORE';appeal_deadline?:string};
 export type ViewingNoticeListResponse = {items:ViewingNoticeResponse[];next_cursor:string|null};
 export type ViewingReminderResponse = {schedule_version:number;plan_status:'PLANNED'|'SUPPRESSED'|'NOT_PREPARED';planned_at:string|null;
   items:{id:string;action_type:'REMINDER_24H'|'REMINDER_2H';expected_schedule_version:number;due_at:string;state:'PENDING'|'LEASED'|'PROCESSED'|'SKIPPED';reason_code:string|null}[];external_state:'NOT_ENABLED'};

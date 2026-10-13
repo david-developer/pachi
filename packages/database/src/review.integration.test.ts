@@ -95,7 +95,7 @@ void integration('G3-G1 migration 0036 retains complete v1 records, fourteen-day
   try{await assert.rejects(client.begin(async tx=>{
     await tx`SET LOCAL client_min_messages TO warning`;await tx`DROP SCHEMA public CASCADE`;await tx`CREATE SCHEMA public`;
     const journal=JSON.parse(await readFile(new URL('../migrations/meta/_journal.json',import.meta.url),'utf8')) as {entries:{tag:string}[]};
-    for(const entry of journal.entries.filter(e=>!e.tag.startsWith('0036')))await tx.unsafe(await readFile(new URL(`../migrations/${entry.tag}.sql`,import.meta.url),'utf8'));
+    for(const entry of journal.entries.filter(e=>Number(e.tag.slice(0,4))<36))await tx.unsafe(await readFile(new URL(`../migrations/${entry.tag}.sql`,import.meta.url),'utf8'));
     const nested=Object.assign(tx,{begin:tx.savepoint.bind(tx)}) as unknown as postgres.Sql;
     const base=await viewingFixture(nested),attendance=new ViewingAttendanceStore(nested,true),reviews=new ReviewStore(nested,true);
     const f={...base,client:nested,attendance,reviews,close:async()=>{}};

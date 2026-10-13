@@ -45,7 +45,7 @@ export class ReviewStore extends ViewingStore {
     }
     await this.currentScope(tx,actor,a);return a;
   }
-  private async safe(tx:Tx,c:Context):Promise<boolean> {
+  protected async safe(tx:Tx,c:Context):Promise<boolean> {
     // Publication status, market, region and expiry do not define the validity
     // of a completed experience. Safety, current principals and evidence do.
     await this.participantEligible(tx,c.seeker_user_id);
@@ -108,7 +108,7 @@ export class ReviewStore extends ViewingStore {
     await tx`INSERT INTO review_events(eligibility_id,review_id,interaction_id,viewing_id,direction,event_type,version,actor_user_id,request_id,policy_version)
       VALUES(${e.id},${r?.id??null},${e.interaction_id},${e.viewing_id},${e.direction},${eventType},${eventVersion??r?.version??e.version},${actor?.userId??null},${requestId??null},${e.policy_version}) ON CONFLICT DO NOTHING`;
   }
-  private async reconcile(tx:Tx,c:Context) {
+  protected async reconcile(tx:Tx,c:Context) {
     // One stable lock per reputation subject serializes aggregate updates across
     // distinct Interactions while each interaction keeps its parent-row lock.
     const subjects=[{type:'ProviderAccount',id:c.provider_account_id},{type:'User',id:c.seeker_user_id}].sort((a,b)=>`${a.type}:${a.id}`.localeCompare(`${b.type}:${b.id}`));
@@ -119,7 +119,7 @@ export class ReviewStore extends ViewingStore {
         ON CONFLICT(target_type,target_id) DO UPDATE SET published_count=EXCLUDED.published_count,rating_sum=EXCLUDED.rating_sum,reconciled_at=statement_timestamp()`;
     }
   }
-  private async reveal(tx:Tx,c:Context):Promise<number> {
+  protected async reveal(tx:Tx,c:Context):Promise<number> {
     const slots=await tx<Slot[]>`SELECT * FROM viewing_review_eligibilities WHERE interaction_id=${c.id} ORDER BY id FOR UPDATE`;
     const reviews=await tx<Review[]>`SELECT * FROM reviews WHERE interaction_id=${c.id} ORDER BY id FOR UPDATE`;
     for(const author of [...new Set(reviews.map(r=>r.author_user_id))].sort())await this.participantEligible(tx,author);
@@ -294,9 +294,9 @@ export class ReviewStore extends ViewingStore {
       let duplicate=false;
       if(prior){report=(await tx<{id:string;review_id:string;created_at:Date}[]>`SELECT id,review_id,created_at FROM review_reports WHERE id=${prior.report_id} AND reporter_user_id=${actor.userId}`)[0]!;if(!report)fail('RESOURCE_SCOPE_DENIED');}
       else{
-        const recent=(await tx<{id:string;review_id:string;created_at:Date}[]>`SELECT id,review_id,created_at FROM review_reports
-          WHERE review_id=${id} AND reporter_user_id=${actor.userId} AND reason=${parsed.data.reason} AND details IS NOT DISTINCT FROM ${parsed.data.details??null}
-            AND created_at>statement_timestamp()-interval '24 hours' ORDER BY created_at DESC,id DESC LIMIT 1`)[0];
+        const recent=(await tx<{id:string;review_id:string;created_at:Date}[]>`SELECT report.id,report.review_id,report.created_at FROM review_reports report JOIN review_moderation_cases c ON c.id=report.case_id
+          WHERE report.review_id=${id} AND report.reporter_user_id=${actor.userId} AND report.reason=${parsed.data.reason} AND report.details IS NOT DISTINCT FROM ${parsed.data.details??null}
+            AND c.state NOT IN ('RESOLVED','CLOSED') AND report.created_at>statement_timestamp()-interval '24 hours' ORDER BY report.created_at DESC,report.id DESC LIMIT 1`)[0];
         if(recent){report=recent;duplicate=true;}
         else{
           await tx`INSERT INTO review_moderation_cases(review_id) VALUES(${id}) ON CONFLICT(review_id) DO NOTHING`;
@@ -311,7 +311,7 @@ export class ReviewStore extends ViewingStore {
       return {report:{id:report.id,review_id:report.review_id,state:'OPEN',review_status:'PENDING_REVIEW',created_at:instant(report.created_at)!},replayed:!!prior||duplicate};
     });
   }
-  private async maintenanceContext(tx:Tx,id:string):Promise<Context>{
+  protected async maintenanceContext(tx:Tx,id:string):Promise<Context>{
     await tx`LOCK TABLE block_relationships IN SHARE MODE`;const initial=await this.context(tx,id);await lockListingRegion(tx,initial.listing_id);
     if(initial.organization_id)await tx`SELECT id FROM organizations WHERE id=${initial.organization_id} FOR UPDATE`;
     return this.lockContext(tx,initial);

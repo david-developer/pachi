@@ -161,6 +161,7 @@ export class StaffStore {
   }
   projection(p: StaffPrincipal) {
     return {
+      user_id: p.row.user_id,
       display_name: p.row.display_name ?? 'Staff member',
       grants: p.grants,
       absolute_expires_at: p.row.absolute_expires_at.toISOString(),

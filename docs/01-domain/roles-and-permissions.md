@@ -65,6 +65,25 @@ An agent may create a draft within the organization only through an operation th
 
 Platform staff use the separate staff application/client with MFA. Sensitive evidence access, verification decisions, owner recovery/transfer, permission grants, account suspension and destructive moderation require recent step-up (within 15 minutes), a reason and audit record. Routine staff session idle/absolute limits are in ADR 0002.
 
+### Review-case assignment and evidence scope
+
+For the G3-H1 review queue, a safety lead's assignment responsibility is an
+explicit `case:assign` permission delegated to TRUST_SAFETY_MODERATOR in an exact
+case grant. It is separate from `report:triage`, `review:moderate` and
+`moderation:act`; none implies assignment authority. This maps a responsibility
+to the existing staff role rather than creating a second identity system.
+Broader team/region assignment is deferred.
+
+Assignment and reassignment require a current staff MFA session, recent step-up,
+the exact case grant, a nonconflicted actor and a nonconflicted recipient with a
+current case triage or review-moderation grant. A safe queue summary can support
+authorized claiming without exposing review contents or reporter identities.
+Protected case contents, report context, retained review revisions and action
+history require current assignment, the explicit REVIEW_MODERATION purpose and
+a separate exact-case `evidence:read` grant. Decisions additionally require
+`review:moderate` and `moderation:act`. An expired grant, stale session or lost
+assignment ends access immediately; SUPER_ADMIN alone grants none of these rights.
+
 ### Authority risk action direction — owner approved 2026-09-29; no grants issued
 
 | Actor | Action and scope | Boundary |

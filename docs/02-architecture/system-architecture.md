@@ -143,12 +143,28 @@ feedback, report detail or counterpart held status. External delivery is inactiv
 Published reads and count/average come from the same live eligible-source snapshot,
 so pending projection repair cannot expose a disputed contribution. Reputation
 stores count/sum and supports idempotent reconciliation; averages are presented
-only at three reviews. Anonymous provider reads omit written feedback while scoped
-review moderation remains unavailable. Revealed text stays within authorized
-Interaction/subject reads. Review reports retain private OPEN/PENDING_REVIEW cases
-without automatic content sanctions; staff adjudication/restoration, appeals and
-anonymous seeker discovery remain deferred. Validation is recorded solely in the
-engineering handoff, with G3-wide acceptance still NOT RUN.
+only at three reviews. Anonymous provider reads omit written feedback while
+exposure and abuse-handling acceptance remains pending. Revealed text stays within authorized
+Interaction/subject reads. Review reports retain private OPEN/PENDING_REVIEW intake
+without automatic content sanctions. G3-H1 extends those same cases through
+additive migration 0037, with exact-case assignment/permissions and the explicit
+REVIEW_MODERATION purpose. Staff evidence access and decisions recheck the existing
+registered MFA session, security version, current grants/assignment, recent step-up
+and own-account/listing/provider/organization conflicts. The separate staff BFF
+preserves origin/CSRF protection; APIs and error responses are private/no-store.
+
+Review-case assignment, investigation, suppression, linked eligible restoration,
+resolution, closure and explicit investigation reopening append immutable actions.
+The SQL guards bind each content/case transition to a fresh action while preserving
+ordinary author/reveal checks and immutable rating/text. The existing Interaction
+lock and sorted reputation-subject locks serialize moderation, publication,
+withdrawal and source reconciliation. Live public reads/count/average continue to
+use eligible sources, so delayed repair cannot expose a suppressed contribution.
+Outcome notices reuse the durable inbox, bind to the acting review author and
+current resource access, and retain the safe reason/30-day appeal deadline without
+confidential reporters or evidence. Attendance adjudication, full sanctions/appeals,
+anonymous feedback exposure and external delivery remain deferred. Validation is
+recorded solely in the engineering handoff; G3-wide acceptance remains NOT RUN.
 
 ## Media and geospatial boundaries
 
