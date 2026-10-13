@@ -107,7 +107,7 @@ Attendance jobs recheck schedule, claim, current safety and authority after lock
 waits. Temporary restrictions preserve the original response deadline; disputes
 and obsolete schedules stop automatic effects. The first validated completion
 per Interaction atomically establishes the bilateral eligibility boundary and
-14-day slots; no-show creates only structured validated operational history.
+7-day default slots (existing version-1 slots retain 14 days); no-show creates only structured validated operational history.
 Late disputes hold unused eligibility and invalidate no-show effects while
 retaining their original records. Immutable `attendance_validated_at` provenance
 on the Viewing is derived from its validated exact-schedule outcome by the SQL
@@ -122,6 +122,33 @@ remain separate slices. This describes the candidate mechanism; validation and
 integration evidence belongs in the engineering handoff.
 
 External outage does not roll back a committed core message or review. In-app notification intent persists before external delivery. Stale projection repair uses source-of-truth events and no private payload in generic queues.
+
+The G3-G1 review candidate consumes the existing first-completion eligibility
+through additive migration 0036. The Interaction parent serializes submissions,
+edits, withdrawal, attendance disputes and worker reveal; one unique review per
+eligibility preserves the stable reviewer/target principals separately from its
+acting author. Provider-side organization review commands additionally require
+an exact current Interaction assignment for every operational role. Immutable
+revisions and reference-only command receipts preserve history without granting
+successors private authorship.
+
+Reciprocal/deadline reveal rechecks the validated original attendance boundary,
+all historical disputes and current safety restrictions. Withdrawal retains the
+consumed slot; a withdrawn or unavailable review cannot trigger reciprocal reveal.
+Persisted leased actions process closure and bounded three-day/one-day reminders
+using database time. Safe review events transactionally reuse Viewing inbox
+availability/read receipts; generic notices and outbox payloads contain no rating,
+feedback, report detail or counterpart held status. External delivery is inactive.
+
+Published reads and count/average come from the same live eligible-source snapshot,
+so pending projection repair cannot expose a disputed contribution. Reputation
+stores count/sum and supports idempotent reconciliation; averages are presented
+only at three reviews. Anonymous provider reads omit written feedback while scoped
+review moderation remains unavailable. Revealed text stays within authorized
+Interaction/subject reads. Review reports retain private OPEN/PENDING_REVIEW cases
+without automatic content sanctions; staff adjudication/restoration, appeals and
+anonymous seeker discovery remain deferred. Validation is recorded solely in the
+engineering handoff, with G3-wide acceptance still NOT RUN.
 
 ## Media and geospatial boundaries
 

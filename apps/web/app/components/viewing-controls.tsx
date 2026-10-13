@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ViewingCommandResponse, ViewingListResponse, ViewingResponse } from '@pachi/contracts';
 import { ViewingAppointmentControls } from './viewing-appointment-controls';
 import { ViewingAttendanceControls } from './viewing-attendance-controls';
+import { ViewingReviewControls } from './review-controls';
 import { DEFAULT_VIEWING_TIMEZONE, viewingTimeLabel, viewingTimeToUtc } from '@/lib/viewing-time';
 
-type Session = { authenticated: boolean; csrfToken?: string };
+type Session = { authenticated: boolean; userId?: string; csrfToken?: string };
 type Attempt = { path: string; body: Record<string, unknown>; key: string };
 const safeError = (status: number, code?: string) => code === 'REQUEST_EXPIRED' ? 'This request has expired. Refresh its current state.' :
   code === 'APPOINTMENT_PAST' ? 'The appointment time has passed. Refresh its current state.' :
@@ -271,6 +272,7 @@ export function ViewingDetail({ viewingId }: { viewingId: string }) {
         onDenied={status=>{generation.current++;setViewing(null);setSession(null);setInstructions('');setReason('');setBusy(false);setError(safeError(status));}}
         onStale={()=>{generation.current++;setBusy(false);setStale(true);}}
       />
+      <ViewingReviewControls key={session?.userId ?? session?.csrfToken ?? viewing.id} viewing={viewing} csrfToken={session?.csrfToken} disabled={busy||sending||stale||!!pending||appointmentBusy||attendanceBusy} refreshVersion={appointmentRefresh}/>
     </>}
   </section>;
 }

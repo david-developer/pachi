@@ -28,3 +28,4 @@ export * from './viewing.js';
 
 export type * from './viewing-appointments.js';
 export type * from './viewing-attendance.js';
+export type * from './review.js';

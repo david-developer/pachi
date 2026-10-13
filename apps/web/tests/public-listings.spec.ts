@@ -16,6 +16,7 @@ test('anonymous user filters, opens public detail, and sees no contact/private c
   await page.route('**/api/session', route => route.fulfill({json:{authenticated:false,participationAllowed:false}}));
   await page.route('**/api/public/listings**', async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/reviews')) return route.fulfill({ json: { items: [], next_cursor: null, reputation: { count: 0, average: null } } });
     if (url.pathname.endsWith(`/listings/${listing.id}`)) return route.fulfill({ json: visible ? listing : { message: 'Listing is not available' }, status: visible ? 200 : 404 });
     return route.fulfill({ json: { items: visible ? [listing] : [], filters: Object.fromEntries(url.searchParams), next_cursor: null, has_more: false } });
   });

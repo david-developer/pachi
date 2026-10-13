@@ -57,8 +57,8 @@ for(const side of ['seeker','provider'] as const)void integration(`G3-F3 ${side}
     const confirmed=await f.store.respondAttendance(f.actors[side==='seeker'?'provider':'seeker'],v.id,r.claim.id,'confirm',input,key);
     assert.equal(confirmed.viewing.state,'COMPLETED');assert.equal(confirmed.claim.state,'CONFIRMED');assert.equal(confirmed.attendance.outcome,'COMPLETED');assert.equal((await effects(f)).eligibilities,2);
     const before=await effects(f);assert.equal((await f.store.respondAttendance(f.actors[side==='seeker'?'provider':'seeker'],v.id,r.claim.id,'confirm',input,key)).replayed,true);assert.deepEqual(await effects(f),before);
-    const slots=await f.client`SELECT reviewer_subject_type,target_type,direction,closes_at=opens_at+interval '14 days' AS duration FROM viewing_review_eligibilities ORDER BY direction`;
-    assert.deepEqual(slots.map(s=>s.direction),['PROVIDER_TO_SEEKER','SEEKER_TO_PROVIDER']);assert.ok(slots.every(s=>s.duration));
+    const slots=await f.client`SELECT reviewer_subject_type,target_type,direction,policy_version,closes_at=opens_at+interval '7 days' AS duration FROM viewing_review_eligibilities ORDER BY direction`;
+    assert.deepEqual(slots.map(s=>s.direction),['PROVIDER_TO_SEEKER','SEEKER_TO_PROVIDER']);assert.ok(slots.every(s=>s.duration&&s.policy_version==='bilateral-review-v2'));
     const next=await scheduled(f),second=await f.store.claimAttendance(f.actors.seeker,next.id,{...expected(next),claim_type:'COMPLETION'},f.command());
     await f.store.respondAttendance(f.actors.provider,next.id,second.claim.id,'confirm',{...expected(second.viewing),expected_claim_version:1},f.command());assert.equal((await effects(f)).eligibilities,2);
   }finally{await f.close();}

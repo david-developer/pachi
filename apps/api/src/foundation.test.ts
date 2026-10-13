@@ -14,3 +14,11 @@ void test('redacts secret-like structured fields', () => {
     token: '[REDACTED]', nested: { password: '[REDACTED]' }, safe: 'visible'
   });
 });
+
+void test('redacts held review contents and private report details at any depth', () => {
+  assert.deepEqual(redact({ safe: 'visible', entries: [{ rating: 4, text: 'private feedback', criteria: { communication: 3 },
+    review: { author: 'private' }, details: 'private reporter statement' }] }), {
+    safe: 'visible', entries: [{ rating: '[REDACTED]', text: '[REDACTED]', criteria: '[REDACTED]',
+      review: '[REDACTED]', details: '[REDACTED]' }],
+  });
+});

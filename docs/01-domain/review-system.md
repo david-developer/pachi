@@ -34,7 +34,7 @@ Do not score protected traits, personal housing eligibility, legal identity or f
 
 ## Double-blind reveal
 
-1. Eligibility opens on validated completion and closes 14 days later, using server UTC time and stored policy version.
+1. Eligibility opens at the persisted validated-completion instant and closes 7 calendar days later in UTC under `bilateral-review-v2`. Existing `bilateral-review-v1` eligibility retains its original 14-day window, timestamps and audit attribution; the policy transition never shortens or rewrites it. Database constraints enforce the duration for each version, and reviews, events, reminders and expiry processing inherit the stored eligibility policy. If neither party submits, close without publishing.
 2. Submission creates SUBMITTED_HELD. Only its author and explicitly authorized safety staff can read its contents while held.
 3. Reveal both reviews when both eligible directions have a submitted review, or reveal the submitted eligible review(s) when the window closes.
 4. Before revealing, recheck event validity, disputes, restrictions and moderation holds. Reveal transaction and aggregate updates must be race-safe and idempotent.

@@ -10,6 +10,7 @@ async function fixture(page:Page,side='SEEKER',otherRestriction=false) {
   await page.route('**/api/**',async route=>{
     const path=new URL(route.request().url()).pathname;const method=route.request().method();
     if(path==='/api/session')return route.fulfill({json:{authenticated:true,participationAllowed:true,csrfToken:'synthetic'}});
+    if(path.startsWith('/api/public/listings/')&&path.endsWith('/reviews'))return route.fulfill({json:{items:[],next_cursor:null,reputation:{count:0,average:null}}});
     if(path.startsWith('/api/public/listings/'))return route.fulfill({json:listing});
     if(path.endsWith('/contact-safety'))return route.fulfill({json:{can_contact:state.canSend&&!state.own&&!otherRestriction,can_block:!state.own,own_block:state.own?{...block,subject_kind:side==='PROVIDER'?'USER':'PROVIDER_ACCOUNT'}:null}});
     if(path.endsWith('/block')||path.endsWith('/block-provider')){

@@ -57,3 +57,5 @@ export type { ViewingResponse, ViewingState, ViewingCommandOptions, ViewingCreat
 export { ViewingAppointmentStore } from './viewing-appointments.js';
 export { ViewingAttendanceStore } from './viewing-attendance.js';
 export type { AttendanceOutcome, AttendanceClaimInput, AttendanceResponseInput, AttendanceClaimRead, AttendanceRead, AttendanceCommandRead } from './viewing-attendance.js';
+export { ReviewStore } from './review.js';
+export type { ReviewDirection, ReviewState, ReviewContent, ReviewSubmitInput, ReviewOwn, ReviewEligibilityRead, ReviewPublished, ReviewPublishedPage, ReviewReportInput, ReviewReportRead } from './review.js';

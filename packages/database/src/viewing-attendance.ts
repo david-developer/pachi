@@ -109,7 +109,11 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     const canClaim=row.state==='SCHEDULED'&&eligible&&(!o||o.state==='AWAITING_VALIDATION');
     const own=claims.filter(c=>c.schedule_version===row.schedule_version&&c.claimant_side===a.side);
     const noShowOutcome=a.side==='SEEKER'?'PROVIDER_NO_SHOW':'SEEKER_NO_SHOW';
-    const review=(await tx`SELECT id FROM viewing_review_eligibilities WHERE viewing_id=${row.id} AND state='OPEN' LIMIT 1`)[0];
+    // Eligibility creation is historical event information. Consumption of
+    // either direction must never disclose the counterparty's blind submission.
+    const review=(await tx`SELECT b.interaction_id FROM viewing_review_boundaries b
+      JOIN viewing_attendance_outcomes o ON o.id=b.attendance_outcome_id
+      WHERE b.viewing_id=${row.id} AND b.eligibility_state='OPEN' AND o.state='COMPLETED'`)[0];
     await this.currentScope(tx,actor,a);
     return {viewing_id:row.id,schedule_version:row.schedule_version,version:row.version,state:o?.state??'NONE',
       outcome:o&&['COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW'].includes(o.state)?o.state as AttendanceOutcome:null,actor_side:a.side,
@@ -245,12 +249,16 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
       at_interaction:!!m.at_interaction,at_completion:m.at_completion,evidence_incomplete:m.ambiguous}));
     const ownOrganization=memberships.some(m=>m.at_interaction||m.at_completion),incomplete=memberships.some(m=>m.ambiguous);
     const held=ownOrganization||incomplete;
-    const b=(await tx<{opened_at:Date}[]>`INSERT INTO viewing_review_boundaries(interaction_id,attendance_outcome_id,viewing_id,seeker_user_id,provider_account_id,organization_id,membership_snapshot,eligibility_state,eligibility_reason)
-      VALUES(${row.interaction_id},${o.id},${row.id},${row.seeker_user_id},${row.provider_account_id},${context.organization_id},${JSON.stringify(snapshot)}::jsonb,${held?'HELD':'OPEN'},${ownOrganization?'OWN_ORGANIZATION':incomplete?'MEMBERSHIP_EVIDENCE_INCOMPLETE':'FIRST_VALIDATED_COMPLETION'}) ON CONFLICT DO NOTHING RETURNING opened_at`)[0];
+    const b=(await tx<{interaction_id:string}[]>`INSERT INTO viewing_review_boundaries(interaction_id,attendance_outcome_id,viewing_id,seeker_user_id,provider_account_id,organization_id,membership_snapshot,eligibility_state,eligibility_reason,opened_at,policy_version)
+      VALUES(${row.interaction_id},${o.id},${row.id},${row.seeker_user_id},${row.provider_account_id},${context.organization_id},${JSON.stringify(snapshot)}::jsonb,${held?'HELD':'OPEN'},${ownOrganization?'OWN_ORGANIZATION':incomplete?'MEMBERSHIP_EVIDENCE_INCOMPLETE':'FIRST_VALIDATED_COMPLETION'},(SELECT finalized_at FROM viewing_attendance_outcomes WHERE id=${o.id}),'bilateral-review-v2') ON CONFLICT DO NOTHING RETURNING interaction_id`)[0];
     if(!b||held)return;
-    await tx`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at)
-      VALUES(${row.interaction_id},${row.id},'SEEKER_TO_PROVIDER','User',${row.seeker_user_id},'ProviderAccount',${row.provider_account_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days'),
-      (${row.interaction_id},${row.id},'PROVIDER_TO_SEEKER','ProviderAccount',${row.provider_account_id},'User',${row.seeker_user_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days') ON CONFLICT DO NOTHING`;
+    await tx`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at,policy_version)
+      SELECT b.interaction_id,b.viewing_id,s.direction,s.reviewer_type,
+        CASE WHEN s.direction='SEEKER_TO_PROVIDER' THEN b.seeker_user_id ELSE b.provider_account_id END,s.target_type,
+        CASE WHEN s.direction='SEEKER_TO_PROVIDER' THEN b.provider_account_id ELSE b.seeker_user_id END,
+        b.opened_at,((b.opened_at AT TIME ZONE 'UTC')+interval '7 days') AT TIME ZONE 'UTC',b.policy_version
+      FROM viewing_review_boundaries b CROSS JOIN(VALUES('SEEKER_TO_PROVIDER','User','ProviderAccount'),('PROVIDER_TO_SEEKER','ProviderAccount','User')) s(direction,reviewer_type,target_type)
+      WHERE b.interaction_id=${b.interaction_id} ON CONFLICT DO NOTHING`;
   }
   private async finalize(tx:Tx,row:Row,o:Outcome,c:Claim,method:'COUNTERPARTY_CONFIRMED'|'UNCONTESTED_WINDOW',actor:OrganizationActor|null,a:Authority|null,requestId?:string) {
     const context=a?.context??await this.context(tx,row.interaction_id);

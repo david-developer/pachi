@@ -16,6 +16,7 @@ async function fixture(page:Page,side:'SEEKER'|'PROVIDER'='SEEKER'){
     if(path==='/api/session')return route.fulfill({json:{authenticated:true,csrfToken:'synthetic',participationAllowed:true}});
     if(request.method()==='GET'){
       if(state.readStatus!==200)return route.fulfill({status:state.readStatus,json:{message:'PRIVATE_BACKEND_SENTINEL'}});
+      if(path.endsWith('/reviews'))return route.fulfill({json:{viewing_id:id,interaction_id:seed.interaction_id,actor_side:state.side,eligibility:null,own_review:null}});
       if(path===`/api/account/viewings/${id}`){const snapshot=viewing(),hold=state.holdRead;state.holdRead=null;if(hold){hold.arrived();await hold.wait;}return route.fulfill({json:snapshot});}
       if(path.endsWith('/reschedules'))return route.fulfill({json:{items:state.proposal?[proposal()]:[],current_proposal:state.proposal?.state==='PENDING'?proposal():null,next_cursor:null,can_propose:!state.proposal||state.proposal.state!=='PENDING',schedule_history:state.history}});
       if(path.endsWith('/reminders'))return route.fulfill({json:{schedule_version:state.viewing.schedule_version,plan_status:'PLANNED',planned_at:now,items:[{id:nid,action_type:'REMINDER_24H',expected_schedule_version:state.viewing.schedule_version,due_at:'2031-01-11T13:00:00.000Z',state:'PENDING',reason_code:null}],external_state:'NOT_ENABLED'}});
