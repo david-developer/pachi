@@ -153,3 +153,9 @@ void integration('G3-H2 a dispute beyond the original deadline cannot reveal a h
  const slots=await one`SELECT state,closes_at=(((SELECT created_at FROM attendance_adjudication_actions WHERE id=${result.action.id}) AT TIME ZONE 'UTC')+interval '7 days') AT TIME ZONE 'UTC' AS shared FROM viewing_review_eligibilities`;assert.deepEqual(slots.map(e=>e.state).sort(),['CONSUMED','OPEN']);assert.ok(slots.every(e=>e.shared));
  }finally{await one.end();await f.client.unsafe('ALTER TABLE attendance_adjudication_actions ALTER COLUMN created_at SET DEFAULT pg_catalog.statement_timestamp()');await f.close();}
 });
+
+void integration('G3-H2 a new ordinary appointment cannot fabricate staff adjudication provenance from another episode',async()=>{
+ const f=await fixture();try{await f.start();const decision=await f.decide();await assert.rejects(f.client`INSERT INTO viewings(interaction_id,listing_id,provider_account_id,seeker_user_id,requested_by_user_id,proposed_start,proposed_end,display_timezone,response_deadline,adjudication_action_id)
+ SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.seeker_user_id,statement_timestamp()+interval '1 day',statement_timestamp()+interval '25 hours','Africa/Douala',statement_timestamp()+interval '1 day',${decision.action.id} FROM interactions i WHERE i.id=${f.interaction.interaction_id}`,/invalid viewing context/);assert.equal((await f.client`SELECT id FROM viewings`).length,1);assert.equal((await effects(f)).actions,3);
+ }finally{await f.close();}
+});

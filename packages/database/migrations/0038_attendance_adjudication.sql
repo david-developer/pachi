@@ -280,7 +280,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM interactions i WHERE i.id=NEW.interaction_id AND i.listing_id=NEW.listing_id
       AND i.provider_account_id=NEW.provider_account_id AND i.seeker_user_id=NEW.seeker_user_id)
       OR NEW.state<>'REQUESTED' OR NEW.version<>1 OR NEW.schedule_version<>1
-      OR NEW.accepted_at IS NOT NULL OR NEW.seeker_confirmed OR NEW.provider_confirmed OR NEW.attendance_validated_at IS NOT NULL
+      OR NEW.accepted_at IS NOT NULL OR NEW.seeker_confirmed OR NEW.provider_confirmed OR NEW.attendance_validated_at IS NOT NULL OR NEW.adjudication_action_id IS NOT NULL
       THEN RAISE EXCEPTION 'invalid viewing context'; END IF;
     IF EXISTS(SELECT 1 FROM viewings v WHERE v.interaction_id=NEW.interaction_id AND v.state='DISPUTED')
       THEN RAISE EXCEPTION 'attendance dispute prevents new appointment'; END IF;
