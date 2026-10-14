@@ -100,6 +100,8 @@ case-scoped `evidence:read` grant and fresh authorization; the new permission
 alone cannot read private documents or third-party reports. Denied and stale
 attempts retain the existing safe error and audit rules.
 
+Attendance adjudication uses the existing TRUST_SAFETY_MODERATOR ceiling with current exact case scope. Queue summaries require `case:assign` or `report:triage`, or an assigned `moderation:act` grant. Evidence and decisions require assignment, `evidence:read`, `moderation:act`, explicit ATTENDANCE_ADJUDICATION purpose, fresh MFA step-up and no personal/account/listing/property/organization conflict. Attendance appeal resolution adds `appeal:resolve`; a separate reviewer is preferred, with explicit sole-operator reconsideration only when no other eligible nonconflicted reviewer has current authority.
+
 Temporary capability restrictions up to 7 days can be applied by TRUST_SAFETY_MODERATOR within an assigned case. Longer/permanent restrictions, full account suspension and staff permission changes require explicit elevated permission and step-up. Emergency hiding of suspected dangerous public content is allowed to assigned listing/safety staff, with immediate audit and case follow-up. An appeal cannot automatically lift an active safety hold.
 
 ## Publication predicate

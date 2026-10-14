@@ -6,7 +6,7 @@ import { CognitoAccessTokenVerifier, TokenVerificationError } from './token-veri
 export class AuthService {
   public constructor(private readonly store: IdentityStore, private readonly verifier: CognitoAccessTokenVerifier | null) {}
 
-  public async authenticate(authorization: string | undefined, deviceLabel?: string): Promise<AuthenticatedPrincipal> {
+  public async authenticate(authorization: string | undefined, deviceLabel?: string, purpose?: 'ATTENDANCE_APPEAL'): Promise<AuthenticatedPrincipal> {
     const token = this.bearerToken(authorization);
     if (!this.verifier) throw new UnauthorizedException('Authentication is not configured');
     try {
@@ -14,7 +14,7 @@ export class AuthService {
       const claims = await this.verifier.verify(token);
       console.error(JSON.stringify({ event: 'api_auth_stage', stage: 'token_verification_complete', provider: claims.provider }));
       console.error(JSON.stringify({ event: 'api_auth_stage', stage: 'identity_bootstrap_start' }));
-      const principal = await this.store.bootstrap(claims, deviceLabel);
+      const principal = await this.store.bootstrap(claims, deviceLabel, purpose);
       console.error(JSON.stringify({ event: 'api_auth_stage', stage: 'identity_bootstrap_complete' }));
       return principal;
     } catch (error) {

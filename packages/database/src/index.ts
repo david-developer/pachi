@@ -61,3 +61,5 @@ export { ReviewStore } from './review.js';
 export type { ReviewDirection, ReviewState, ReviewContent, ReviewSubmitInput, ReviewOwn, ReviewEligibilityRead, ReviewPublished, ReviewPublishedPage, ReviewReportInput, ReviewReportRead } from './review.js';
 export { ReviewModerationStore } from './review-moderation.js';
 export type { ReviewCaseState, ReviewModerationCommand, ReviewModerationReason, ReviewModerationQueueItem, ReviewModerationAction, ReviewModerationDetail, ReviewModerationAssignmentInput, ReviewModerationDecisionInput, ReviewModerationResult, ReviewModerationFilters } from './review-moderation.js';
+export * from './attendance-adjudication.js';
+export * from './attendance-adjudication-types.js';

@@ -1,13 +1,13 @@
 import type { ViewingConfirmRequest, ViewingResponse } from './viewing.js';
 
 export type ViewingAttendanceOutcome = 'COMPLETED' | 'SEEKER_NO_SHOW' | 'PROVIDER_NO_SHOW';
-export type ViewingAttendanceState = 'NONE' | 'AWAITING_VALIDATION' | ViewingAttendanceOutcome | 'DISPUTED';
+export type ViewingAttendanceState = 'NONE' | 'AWAITING_VALIDATION' | ViewingAttendanceOutcome | 'DISPUTED' | 'ATTENDANCE_UNCONFIRMED';
 export type ViewingAttendanceClaimState = 'PENDING' | 'CONFIRMED' | 'FINALIZED' | 'DISPUTED';
 
 export type ViewingAttendanceCase = {
   id: string;
-  state: 'OPEN';
-  review_status: 'PENDING_REVIEW';
+  state: 'OPEN' | 'RESOLVED';
+  review_status: 'PENDING_REVIEW' | 'RESOLVED';
   opened_at: string;
 };
 

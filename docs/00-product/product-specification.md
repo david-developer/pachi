@@ -621,7 +621,10 @@ promotion.
 | **SEEKER_NO_SHOW**        | Provider claim, subject to dispute  | Counterparty may confirm or dispute.                               |
 | **PROVIDER_NO_SHOW**      | Seeker claim, subject to dispute    | Counterparty may confirm or dispute.                               |
 | **COMPLETED**             | Confirmation rule satisfied         | May create review eligibility.                                     |
+| **ATTENDANCE_UNCONFIRMED** | Assigned moderator                 | Resolved unsupported claim or insufficient evidence; no confirmed attendance/no-show and no rating eligibility. |
 | **DISPUTED**              | Either party or moderator           | Review eligibility is held until resolved.                         |
+
+G3-H2 records staff resolution separately from participant confirmation. A reasoned assigned-case decision validates completion/no-show, invalidates the claim, or records insufficient evidence. The additive terminal `ATTENDANCE_UNCONFIRMED` state records the latter two outcomes without inventing attendance or cancellation; claims and earlier validation remain historical evidence. A linked appeal preserves the current outcome while reviewed.
 
 DECLINED records a provider refusal before acceptance; EXPIRED records an unanswered request at its 48-hour-or-appointment deadline. These are terminal appointment episodes. The first validated completed viewing per Interaction creates review slots; later appointments do not create additional slots.
 
@@ -1140,7 +1143,7 @@ The [lifecycle document](../01-domain/lifecycle-states.md) specifies exact permi
 | Listing moderation | NOT_REVIEWED, IN_REVIEW, APPROVED, CHANGES_REQUIRED, REJECTED, ESCALATED, REMOVED |
 | Listing market | RENT: AVAILABLE, UNDER_OFFER, RENTED, TEMPORARILY_UNAVAILABLE; SALE: AVAILABLE, UNDER_OFFER, SOLD; SHORT_LET: AVAILABLE, PARTIALLY_BOOKED, UNAVAILABLE |
 | Interaction | OPEN, CLOSED, RESTRICTED |
-| Viewing | REQUESTED, ACCEPTED, SCHEDULED, RESCHEDULED, DECLINED, EXPIRED, CANCELLED_BY_SEEKER, CANCELLED_BY_PROVIDER, SEEKER_NO_SHOW, PROVIDER_NO_SHOW, COMPLETED, DISPUTED |
+| Viewing | REQUESTED, ACCEPTED, SCHEDULED, RESCHEDULED, DECLINED, EXPIRED, CANCELLED_BY_SEEKER, CANCELLED_BY_PROVIDER, SEEKER_NO_SHOW, PROVIDER_NO_SHOW, COMPLETED, DISPUTED, ATTENDANCE_UNCONFIRMED |
 | ReviewEligibility | OPEN, HELD, CONSUMED, EXPIRED, REVOKED |
 | Review | SUBMITTED_HELD, PUBLISHED, UNDER_REVIEW, HIDDEN, REMOVED, WITHDRAWN |
 | VerificationCase | NOT_STARTED, PENDING, NEEDS_RESUBMISSION, VERIFIED, REJECTED, EXPIRED, REVOKED |

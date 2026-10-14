@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { ViewingAttendanceClaimResponse, ViewingAttendanceCommandResponse, ViewingAttendanceResponse, ViewingResponse } from '@pachi/contracts';
 import { viewingTimeLabel } from '@/lib/viewing-time';
@@ -104,6 +105,8 @@ export function ViewingAttendanceControls({ viewing, csrfToken, disabled, refres
     {error && <p role="alert" className="error">{error}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {data && <>
+      {data.case && <Link href={`/viewings/${encodeURIComponent(viewing.id)}/attendance-resolution`}>Attendance decision and appeal</Link>}
+      {data.state === 'ATTENDANCE_UNCONFIRMED' && <p>No attendance or no-show outcome is confirmed. Open the attendance decision for the resolution and appeal status.</p>}
       {data.state === 'NONE' && <p>No attendance claim has been recorded for this schedule.</p>}
       {data.state === 'AWAITING_VALIDATION' && <p><strong>Awaiting validation</strong> · A claim is recorded; the outcome has not been verified.</p>}
       {data.outcome && data.state !== 'DISPUTED' && <p aria-label="Validated attendance outcome"><strong>Validated outcome: {outcomes[data.outcome]}</strong></p>}

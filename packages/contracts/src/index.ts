@@ -30,3 +30,4 @@ export type * from './viewing-appointments.js';
 export type * from './viewing-attendance.js';
 export type * from './review.js';
 export type * from './review-moderation.js';
+export * from './attendance-adjudication.js';

@@ -1,8 +1,9 @@
+import { StaffAttendanceAdjudicationController, AttendanceAppealController, AttendanceAppealAuthGuard } from './attendance-adjudication.controller.js';
 import { ListingLifecycleController } from './listing-lifecycle.controller.js';
 import { ListingLifecycleStore } from '@pachi/database';
 import { ViewingAttendanceStore } from '@pachi/database';
 import { ViewingController } from './viewing.controller.js';
-import { ReviewStore, ReviewModerationStore } from '@pachi/database';
+import { ReviewStore, ReviewModerationStore, AttendanceAdjudicationStore } from '@pachi/database';
 import { StaffReviewModerationController } from './staff-review-moderation.controller.js';
 import { ReviewController, PublicProviderReviewController, PublicListingReviewController } from './review.controller.js';
 import { OrganizationOwnerController, OrganizationOwnerNoStoreGuard } from './organization-owner.controller.js';
@@ -63,11 +64,12 @@ const verifier = config.COGNITO_ISSUER && config.COGNITO_JWKS_URI && config.COGN
 
 const staffVerifier = config.STAFF_COGNITO_ISSUER && config.STAFF_COGNITO_CLIENT_ID ? new CognitoAccessTokenVerifier({issuer:config.STAFF_COGNITO_ISSUER,getKey:createRemoteJWKSet(new URL(`${config.STAFF_COGNITO_ISSUER}/.well-known/jwks.json`)),allowedClientIds:new Set([config.STAFF_COGNITO_CLIENT_ID]),requiredScopes:new Set(['pachi/staff']),provider:'COGNITO',strictStaff:true,...(config.STAFF_API_AUDIENCE ? {audience:config.STAFF_API_AUDIENCE} : {})}) : null;
 
-@Module({ controllers: [StaffReviewModerationController, ReviewController, PublicProviderReviewController, PublicListingReviewController, ViewingController, ListingLifecycleController,OrganizationOwnerController, OrganizationAssignmentsController, BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [
+@Module({ controllers: [StaffAttendanceAdjudicationController, AttendanceAppealController, StaffReviewModerationController, ReviewController, PublicProviderReviewController, PublicListingReviewController, ViewingController, ListingLifecycleController,OrganizationOwnerController, OrganizationAssignmentsController, BlockController, OrganizationController, StaffController, StaffVerificationController, StaffListingPhotoController, StaffListingModerationController, StaffAuthorityRiskController, PublicListingController, InteractionController, ConversationController, AuthController, AccountController, PhoneVerificationController, LocalSmsDevelopmentController, ProviderController, PropertyController], providers: [AttendanceAppealAuthGuard,
   { provide: 'STAFF_AUTH_SERVICE', useValue: new StaffAuthService(new StaffStore(client), staffVerifier) },
   { provide: 'LISTING_LIFECYCLE_STORE', useValue: new ListingLifecycleStore(client) },
   { provide: 'VIEWING_STORE', useValue: new ViewingAttendanceStore(client, false) },
   { provide: 'REVIEW_STORE', useValue: new ReviewStore(client, false) },
+  { provide: 'ATTENDANCE_ADJUDICATION_STORE', useValue: new AttendanceAdjudicationStore(client, false) },
   { provide: 'REVIEW_MODERATION_STORE', useValue: new ReviewModerationStore(client, false) },
   { provide: 'IDENTITY_STORE', useValue: store },
   { provide: IdentityStore, useExisting: 'IDENTITY_STORE' },

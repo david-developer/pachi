@@ -16,7 +16,7 @@ type Claim = {
   claim_type:'COMPLETION'|'NO_SHOW';claimed_outcome:AttendanceOutcome;state:'PENDING'|'CONFIRMED'|'FINALIZED'|'DISPUTED';version:number;
   claimed_at:Date;counterparty_notice_id:string;notice_available_at:Date;response_deadline:Date;responded_at:Date|null;finalized_at:Date|null;
 };
-type Outcome = {id:string;viewing_id:string;schedule_version:number;state:'AWAITING_VALIDATION'|AttendanceOutcome|'DISPUTED';claimed_outcome:AttendanceOutcome;primary_claim_id:string;version:number;finalized_at:Date|null};
+type Outcome = {id:string;viewing_id:string;schedule_version:number;state:'AWAITING_VALIDATION'|AttendanceOutcome|'DISPUTED'|'ATTENDANCE_UNCONFIRMED';claimed_outcome:AttendanceOutcome;primary_claim_id:string;version:number;finalized_at:Date|null};
 export type AttendanceClaimRead = {
   id:string;viewing_id:string;schedule_version:number;claimant_user_id:string;claimant_side:Side;claim_type:'COMPLETION'|'NO_SHOW';claimed_outcome:AttendanceOutcome;
   state:Claim['state'];version:number;claimed_at:string;notice_available_at:string;response_deadline:string;responded_at:string|null;finalized_at:string|null;can_confirm:boolean;can_dispute:boolean;
@@ -24,7 +24,7 @@ export type AttendanceClaimRead = {
 export type AttendanceRead = {
   viewing_id:string;schedule_version:number;version:number;state:'NONE'|Outcome['state'];outcome:AttendanceOutcome|null;actor_side:Side;
   can_claim_completion:boolean;can_claim_no_show:boolean;claims:AttendanceClaimRead[];next_cursor:string|null;
-  case:{id:string;state:'OPEN';review_status:'PENDING_REVIEW';opened_at:string}|null;response_window_hours:48;review_eligibility_created:boolean;
+  case:{id:string;state:'OPEN'|'RESOLVED';review_status:'PENDING_REVIEW'|'RESOLVED';opened_at:string}|null;response_window_hours:48;review_eligibility_created:boolean;
 };
 export type AttendanceCommandRead = {viewing:ViewingResponse;attendance:AttendanceRead;claim:AttendanceClaimRead;replayed:boolean};
 const versions={expected_version:z.number().int().positive(),expected_schedule_version:z.number().int().positive()};
@@ -86,7 +86,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     return {row,context,eligible:await this.contextEligible(tx,context)};
   }
   private async outcome(tx:Tx,row:Row):Promise<Outcome|null> {
-    return (await tx<Outcome[]>`SELECT * FROM viewing_attendance_outcomes WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} FOR UPDATE`)[0]??null;
+    return (await tx<Outcome[]>`SELECT o.*,attendance_effective_state(o.id) AS state FROM viewing_attendance_outcomes o WHERE viewing_id=${row.id} AND schedule_version=${row.schedule_version} FOR UPDATE`)[0]??null;
   }
   private async claim(tx:Tx,id:string,viewingId:string):Promise<Claim> {
     const c=(await tx<Claim[]>`SELECT * FROM viewing_attendance_claims WHERE id=${id} AND viewing_id=${viewingId} FOR UPDATE`)[0];
@@ -102,7 +102,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
   private async attendanceProjection(tx:Tx,actor:OrganizationActor,a:Authority,row:Row,input:{cursor?:string;limit?:number}={}):Promise<AttendanceRead> {
     const o=await this.outcome(tx,row),eligible=await this.attendanceEligible(tx,actor,a),limit=input.limit??20;
     const claims=await tx<Claim[]>`SELECT * FROM viewing_attendance_claims WHERE viewing_id=${row.id} ${input.cursor?tx`AND id<${input.cursor}`:tx``} ORDER BY id DESC LIMIT ${limit+1}`;
-    const c=o?(await tx<{id:string;state:'OPEN';review_status:'PENDING_REVIEW';opened_at:Date}[]>`SELECT id,state,review_status,opened_at FROM viewing_attendance_cases WHERE attendance_outcome_id=${o.id}`)[0]:undefined;
+    const c=o?(await tx<{id:string;state:'OPEN'|'RESOLVED';review_status:'PENDING_REVIEW'|'RESOLVED';opened_at:Date}[]>`SELECT c.id,CASE WHEN w.decision_id IS NULL THEN 'OPEN' ELSE 'RESOLVED' END AS state,CASE WHEN w.decision_id IS NULL THEN 'PENDING_REVIEW' ELSE 'RESOLVED' END AS review_status,c.opened_at FROM viewing_attendance_cases c JOIN attendance_case_workflows w ON w.case_id=c.id WHERE c.attendance_outcome_id=${o.id}`)[0]:undefined;
     const timing=(await tx<{completed:boolean;no_show:boolean}[]>`SELECT ${row.scheduled_end}::timestamptz<=statement_timestamp() AS completed,${row.scheduled_start}::timestamptz+interval '30 minutes'<=statement_timestamp() AS no_show`)[0]!;
     // A fresh incompatible claim may establish a dispute. Matching claims must
     // use exact counterparty confirmation, never manufacture another outcome.
@@ -113,7 +113,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     // either direction must never disclose the counterparty's blind submission.
     const review=(await tx`SELECT b.interaction_id FROM viewing_review_boundaries b
       JOIN viewing_attendance_outcomes o ON o.id=b.attendance_outcome_id
-      WHERE b.viewing_id=${row.id} AND b.eligibility_state='OPEN' AND o.state='COMPLETED'`)[0];
+      WHERE b.viewing_id=${row.id} AND b.eligibility_state='OPEN' AND attendance_effective_state(o.id)='COMPLETED'`)[0];
     await this.currentScope(tx,actor,a);
     return {viewing_id:row.id,schedule_version:row.schedule_version,version:row.version,state:o?.state??'NONE',
       outcome:o&&['COMPLETED','SEEKER_NO_SHOW','PROVIDER_NO_SHOW'].includes(o.state)?o.state as AttendanceOutcome:null,actor_side:a.side,
@@ -218,7 +218,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
   private async dispute(tx:Tx,actor:OrganizationActor,a:Authority,row:Row,o:Outcome,c:Claim,reason:string,evidence:{reference:string;kind:'MESSAGE'}[],requestId?:string) {
     const support=(await tx<{id:string}[]>`INSERT INTO viewing_attendance_cases(attendance_outcome_id,viewing_id,schedule_version) VALUES(${o.id},${row.id},${row.schedule_version}) RETURNING id`)[0]!;
     await tx`INSERT INTO viewing_attendance_reports(case_id,claim_id,reporter_user_id,reporter_side,reason_code,evidence_metadata)
-      VALUES(${support.id},${c.id},${actor.userId},${a.side},${reason},${JSON.stringify(evidence)}::jsonb)`;
+      VALUES(${support.id},${c.id},${actor.userId},${a.side},${reason},${JSON.stringify(evidence)}::text::jsonb)`;
     await tx`UPDATE viewing_attendance_claims SET state='DISPUTED',version=version+1,
       responded_by_user_id=CASE WHEN responded_at IS NULL AND id=${c.id} THEN ${actor.userId}::uuid ELSE responded_by_user_id END,
       responded_by_side=CASE WHEN responded_at IS NULL AND id=${c.id} THEN ${a.side} ELSE responded_by_side END,
@@ -231,7 +231,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     await this.record(tx,updated,a,actor,'viewing_attendance_disputed',row.state,requestId);
     await this.closeAction(tx,row.id);
   }
-  private async reviewBoundary(tx:Tx,row:Row,o:Outcome,context:Context) {
+  protected async reviewBoundary(tx:Tx,row:Row,o:{id:string},context:Context) {
     // Retain only the seeker's relevant membership episodes. Immutable member
     // actions qualify state at Interaction creation; activation/revocation times
     // qualify older episodes when a current action is unavailable.
@@ -250,7 +250,7 @@ export class ViewingAttendanceStore extends ViewingAppointmentStore {
     const ownOrganization=memberships.some(m=>m.at_interaction||m.at_completion),incomplete=memberships.some(m=>m.ambiguous);
     const held=ownOrganization||incomplete;
     const b=(await tx<{interaction_id:string}[]>`INSERT INTO viewing_review_boundaries(interaction_id,attendance_outcome_id,viewing_id,seeker_user_id,provider_account_id,organization_id,membership_snapshot,eligibility_state,eligibility_reason,opened_at,policy_version)
-      VALUES(${row.interaction_id},${o.id},${row.id},${row.seeker_user_id},${row.provider_account_id},${context.organization_id},${JSON.stringify(snapshot)}::jsonb,${held?'HELD':'OPEN'},${ownOrganization?'OWN_ORGANIZATION':incomplete?'MEMBERSHIP_EVIDENCE_INCOMPLETE':'FIRST_VALIDATED_COMPLETION'},(SELECT finalized_at FROM viewing_attendance_outcomes WHERE id=${o.id}),'bilateral-review-v2') ON CONFLICT DO NOTHING RETURNING interaction_id`)[0];
+      VALUES(${row.interaction_id},${o.id},${row.id},${row.seeker_user_id},${row.provider_account_id},${context.organization_id},${JSON.stringify(snapshot)}::text::jsonb,${held?'HELD':'OPEN'},${ownOrganization?'OWN_ORGANIZATION':incomplete?'MEMBERSHIP_EVIDENCE_INCOMPLETE':'FIRST_VALIDATED_COMPLETION'},attendance_completion_time(${o.id}),'bilateral-review-v2') ON CONFLICT DO NOTHING RETURNING interaction_id`)[0];
     if(!b||held)return;
     await tx`INSERT INTO viewing_review_eligibilities(interaction_id,viewing_id,direction,reviewer_subject_type,reviewer_subject_id,target_type,target_id,opens_at,closes_at,policy_version)
       SELECT b.interaction_id,b.viewing_id,s.direction,s.reviewer_type,

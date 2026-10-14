@@ -100,7 +100,7 @@ export function ViewingReviewControls({ viewing, csrfToken, disabled, refreshVer
       {eligibility.state === 'OPEN' && !eligibility.can_submit && !own && <p>Submission is unavailable with your current eligibility or permissions.</p>}
       {eligibility.state === 'CONSUMED' && !own && <p>This principal&apos;s review slot has been used. Private authorship is available only to its author.</p>}
       {own && <article aria-label="Your saved review"><h3>Your saved review · {stateLabels[own.state]}</h3><p>Overall rating: {own.rating} / 5</p>{own.text && <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{own.text}</p>}<CriterionScores scores={own.criteria}/>
-        {own.state === 'PUBLISHED' && <p>Published rating and feedback are locked. You can still withdraw your review.</p>}
+        {own.state === 'PUBLISHED' && <p>{eligibility.state === 'REVOKED' ? 'This previously published review is excluded from reputation by the attendance resolution. Its original rating and feedback remain locked.' : 'Published rating and feedback are locked.'} You can still withdraw your review.</p>}
         {own.state === 'WITHDRAWN' && <p>This slot remains consumed; withdrawal does not permit a replacement review.</p>}
       </article>}
       {(eligibility.can_submit || own?.can_edit) && !pending && <form onSubmit={event => void command(own ? 'edit' : 'submit', event)}><fieldset disabled={!actionable}>

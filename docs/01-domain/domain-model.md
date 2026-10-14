@@ -111,6 +111,8 @@ holds only its related trust effects, retains its private case and blocks furthe
 Viewing requests in the Interaction until resolution. Existing current appointment
 operations keep their ordinary guards.
 
+Attendance adjudication adds a case workflow and immutable attributed decisions linked to the original F3 case, claims and reports. A current decision derives the effective attendance outcome; original participant validation stays historical. `ATTENDANCE_UNCONFIRMED` is the terminal outcome when no completion/no-show is supported. Attendance appeals link the initial decision and preserve their submission and outcome history. Exact per-eligibility restoration/revocation effects preserve initial deadlines and consumed identities; private decision notices remain distinct from external delivery.
+
 ## Reviews and trust
 
 | Entity | Fields and relationships | Invariants |

@@ -188,7 +188,7 @@ export default function Page() {
   async function claimLegacyRiskCase() { if(!riskCaseId.trim()) return; setRiskStatus('Assigning legacy review…'); setRiskSource(null); try { const result=await riskRequest(`/${encodeURIComponent(riskCaseId.trim())}/claim-legacy`,'POST',{expected_version:1}); setRiskCase(result); setRiskStatus('Legacy review assigned under the current scoped grant.'); } catch(issue) { setRiskStatus(issue instanceof Error?issue.message:'Legacy assignment denied.'); } }
   return (
     <main style={{ maxWidth: 720, margin: '3rem auto', padding: '1rem', fontFamily: 'sans-serif' }}>
-      <Link href="/review-cases">Review moderation cases</Link>
+      <Link href="/attendance-cases">Attendance dispute cases</Link> · <Link href="/review-cases">Review moderation cases</Link>
       <h1>Pachi staff access</h1>
       <p role="status">{status}</p>
       <AuthError />
