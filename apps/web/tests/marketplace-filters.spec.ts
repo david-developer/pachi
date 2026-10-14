@@ -89,6 +89,47 @@ test('invalid numeric filters and reversed price ranges never send a search requ
   expect(searches).toBe(baseline + 1);
 });
 
+test('validation focus cannot steal a subsequent field edit when animation frames are released', async ({ page }) => {
+  await marketplaceFixture(page);
+  await page.goto('/listings');
+  await expect(page.getByRole('heading', { name: testListing.title })).toBeVisible();
+  const details = page.locator('details.searchFilters');
+  if (!(await details.evaluate((element: HTMLDetailsElement) => element.open))) await details.locator('summary').click();
+  const minimum = page.locator('[name="min_price"]');
+  const maximum = page.locator('[name="max_price"]');
+  await minimum.fill('300000');
+  await maximum.fill('200000');
+
+  // Hold only main-world scheduling after hydration. Playwright's own isolated
+  // action world remains untouched; release is an explicit deterministic seam.
+  await page.evaluate(() => {
+    const nativeRequest = window.requestAnimationFrame.bind(window);
+    const nativeCancel = window.cancelAnimationFrame.bind(window);
+    const queued = new Map<number, FrameRequestCallback>();
+    let sequence = 0;
+    window.requestAnimationFrame = (callback) => { const id = --sequence; queued.set(id, callback); return id; };
+    window.cancelAnimationFrame = (id) => { if (id < 0) queued.delete(id); else nativeCancel(id); };
+    (window as typeof window & { releaseValidationFrames: () => void }).releaseValidationFrames = () => {
+      window.requestAnimationFrame = nativeRequest;
+      window.cancelAnimationFrame = nativeCancel;
+      for (const callback of queued.values()) callback(performance.now());
+      queued.clear();
+    };
+  });
+  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(maximum).toHaveAttribute('aria-invalid', 'true');
+  await minimum.fill('125000');
+  const edited = await page.evaluate(() => {
+    (window as typeof window & { releaseValidationFrames: () => void }).releaseValidationFrames();
+    return {
+      focusedField: document.activeElement?.getAttribute('name'),
+      minimum: document.querySelector<HTMLInputElement>('[name="min_price"]')?.value,
+      maximum: document.querySelector<HTMLInputElement>('[name="max_price"]')?.value,
+    };
+  });
+  expect(edited).toEqual({ focusedField: 'min_price', minimum: '125000', maximum: '200000' });
+});
+
 test('mobile secondary filters expand by keyboard and apply through their own controls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await marketplaceFixture(page);

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicListingSearchResponse } from '@pachi/contracts';
 import { emptyListingSearch, listingSearchParams, readListingSearch, validateListingSearch } from '../../lib/listing-search';
@@ -29,6 +29,15 @@ function ListingSearch() {
   const requestSequence = useRef(0);
   const appliedRef = useRef(emptyListingSearch);
   const form = useRef<HTMLFormElement | null>(null);
+  const validationFocus = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    const key = validationFocus.current;
+    validationFocus.current = null;
+    if (!key) return;
+    const input = form.current?.elements.namedItem(key);
+    if (input instanceof HTMLElement) input.focus();
+  }, [fieldErrors, filtersOpen]);
 
   const load = useCallback(async (filters: ListingSearchFilters, cursor?: string) => {
     controller.current?.abort();
@@ -94,12 +103,10 @@ function ListingSearch() {
 
   function apply(next: ListingSearchFilters) {
     const validated = validateListingSearch(next);
+    validationFocus.current = Object.keys(validated.errors)[0] ?? null;
     setFieldErrors(validated.errors);
     if (Object.keys(validated.errors).length) {
       setFiltersOpen(true);
-      const first = Object.keys(validated.errors)[0];
-      const input = form.current?.elements.namedItem(first ?? '');
-      if (input instanceof HTMLElement) window.requestAnimationFrame(() => input.focus());
       return;
     }
     setDraft(validated.filters);
