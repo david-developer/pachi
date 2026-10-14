@@ -4,7 +4,7 @@ import { webSession } from '@/lib/session';
 import { oidcConfigured, oidcConfiguration, redirectUri, safeReturnTo, WEB_AUTH_SCOPE } from '@/lib/oidc';
 
 export async function GET(request: Request) {
-  if (!oidcConfigured()) return NextResponse.redirect(new URL('/?auth_error=configuration', request.url));
+  if (!oidcConfigured()) return NextResponse.redirect(new URL('/account?auth_error=configuration', request.url));
   const session = await webSession();
   const state = oidc.randomState();
   const nonce = oidc.randomNonce();

@@ -1,0 +1,82 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import { MarketplaceHeader, MarketplaceFooter } from '../components/marketplace';
+
+type SessionState = { authenticated: boolean; expired?: boolean; userId?: string; accountState?: string; participationAllowed?: boolean; csrfToken?: string };
+type ProviderState = { provider: null } | { profile_id: string; account_id: string; provider_types: string[]; state: string; verification_status: string; display_name: string; bio: string | null; service_area: string | null };
+
+const copy = { title: 'Pachi marketplace', signedOut: 'Sign in to continue', signIn: 'Continue with Pachi', pending: 'Confirm your phone to unlock marketplace participation.', active: 'Your account is ready for marketplace participation.', phoneLabel: 'Cameroon phone number', phoneHint: '+237 690 000 001', request: 'Send verification code', confirm: 'Confirm phone', codeLabel: 'Six-digit code', logout: 'Sign out', logoutAll: 'Sign out everywhere' } as const;
+
+function AccountFrame({ children }: { children: ReactNode }) {
+  return <div className="marketplace-root"><MarketplaceHeader /><main id="main-content" className="shell accountShell">{children}</main><MarketplaceFooter /></div>;
+}
+
+export default function AccountPage() {
+  const [state, setState] = useState<SessionState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState<ProviderState | null>(null);
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [serviceArea, setServiceArea] = useState('');
+  const [editingProvider, setEditingProvider] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/session', { cache: 'no-store' }).then(async (response) => { if (!response.ok) throw new Error('session_failed'); return response.json() as Promise<SessionState>; }).then((nextState) => { setState(nextState); if (nextState.authenticated) fetch('/api/account/provider', { cache: 'no-store' }).then(async (response) => { if (response.status === 401) throw new Error('session_expired'); if (!response.ok) throw new Error('provider_failed'); return response.json() as Promise<ProviderState>; }).then(setProvider).catch((providerError: unknown) => setError(providerError instanceof Error && providerError.message === 'session_expired' ? 'Your sign-in session has expired. Sign in again.' : 'The provider profile could not be loaded. Refresh and try again.')); }).catch(() => setError('The session could not be checked. Refresh and try again.'));
+    const authError = new URLSearchParams(window.location.search).get('auth_error');
+    if (authError) setError(authError === 'configuration' ? 'Web authentication is not configured for this environment.' : 'Authentication could not be completed. Try again.');
+  }, []);
+
+  async function submitPhone(event: FormEvent) {
+    event.preventDefault();
+    if (!state?.csrfToken) return;
+    setBusy(true); setError(null);
+    try {
+      const path = challengeId ? '/api/account/phone/confirm' : '/api/account/phone/request';
+      const body = challengeId ? { phone, challenge_id: challengeId, code } : { phone };
+      const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': state.csrfToken }, body: JSON.stringify(body) });
+      const result = await response.json() as { challengeId?: string };
+      if (!response.ok) throw new Error('phone_failed');
+      if (challengeId) { setState({ ...state, accountState: 'ACTIVE', participationAllowed: true }); setChallengeId(''); setCode(''); }
+      else if (result.challengeId) setChallengeId(result.challengeId);
+    } catch { setError(challengeId ? 'That code is invalid, expired, or no longer usable. Request a new code and try again.' : 'We could not send a verification code. Check the number or wait before trying again.'); }
+    finally { setBusy(false); }
+  }
+
+  async function onboardProvider(event: FormEvent) { event.preventDefault(); if (!state?.csrfToken || !providerTypes.length) return; setBusy(true); setError(null); try { const response = await fetch('/api/account/provider', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': state.csrfToken }, body: JSON.stringify({ provider_types: providerTypes, display_name: displayName, bio, service_area: serviceArea }) }); const result = await response.json() as ProviderState & { error?: string }; if (!response.ok) throw new Error(result.error ?? 'provider_failed'); setProvider(result); setEditingProvider(false); } catch { setError('Provider profile could not be saved. Check the fields and your account status, then try again.'); } finally { setBusy(false); } }
+
+  function editProvider(profile: Exclude<ProviderState, { provider: null }>) {
+    setProviderTypes(profile.provider_types);
+    setDisplayName(profile.display_name);
+    setBio(profile.bio ?? '');
+    setServiceArea(profile.service_area ?? '');
+    setEditingProvider(true);
+    setError(null);
+  }
+
+  async function logout(all: boolean) {
+    const csrfToken = state?.csrfToken;
+    if (!csrfToken) return;
+    setBusy(true); setError(null);
+    try {
+      const response = await fetch(`/api/auth/logout${all ? '?all=true' : ''}`, { method: 'POST', headers: { origin: window.location.origin, 'x-csrf-token': csrfToken } });
+      if (!response.ok) throw new Error('logout_failed');
+      const result = await response.json() as { logout_url?: string };
+      window.location.href = result.logout_url ?? '/';
+    } catch { setError('Sign out could not be confirmed. Please try again.'); }
+    finally { setBusy(false); }
+  }
+
+  if (!state) return <AccountFrame><section className="panel"><p className="eyebrow">PACHI / MARKETPLACE</p><h1>Checking your session</h1><p className="muted">Authentication status is loading.</p>{error && <p className="error" role="alert">{error}</p>}</section></AccountFrame>;
+  if (!state.authenticated) return <AccountFrame><section className="panel"><p className="eyebrow">PACHI / MARKETPLACE</p><h1>{copy.title}</h1><p className="muted">{copy.signedOut} to manage your account, phone verification and provider profile.</p>{error && <p className="error" role="alert">{error}</p>}<button className="primary" onClick={() => { window.location.href = '/api/auth/login?returnTo=/account'; }}>{copy.signIn}</button></section></AccountFrame>;
+  const existingProvider = provider && 'provider_types' in provider ? provider : null;
+  const canEditProvider = existingProvider && ['DRAFT', 'PENDING_VERIFICATION', 'ACTIVE'].includes(existingProvider.state);
+  const providerTypesLocked = existingProvider && (existingProvider.state === 'PENDING_VERIFICATION' || existingProvider.verification_status === 'VERIFIED');
+  return <AccountFrame><section className="panel"><div className="topline"><p className="eyebrow">PACHI / MARKETPLACE</p><button className="linkButton" disabled={busy} onClick={() => { void logout(false); }}>{copy.logout}</button></div><h1>Welcome back</h1><nav className="accountNavigation" aria-label="Your workspace"><a href="/conversations">Your conversations</a><a href="/viewings">Your viewings</a><a href="/organizations">Your organizations</a></nav><p className="muted">Account state: <strong>{state.accountState}</strong></p>{error && <p className="error" role="alert">{error}</p>}{state.participationAllowed ? <div className="success"><h2>{copy.active}</h2><p>Participation permissions are checked by the backend on every request.</p><button className="secondary" disabled={busy} onClick={() => { void logout(true); }}>{copy.logoutAll}</button></div> : <div className="verification"><h2>{copy.pending}</h2><p className="muted">Phone ownership is a separate claim from sign-in identity.</p><form onSubmit={(event) => { void submitPhone(event); }}><label>{copy.phoneLabel}<input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder={copy.phoneHint} autoComplete="tel" required /></label>{challengeId && <label>{copy.codeLabel}<input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required /></label>}<button className="primary" disabled={busy}>{busy ? 'Working…' : challengeId ? copy.confirm : copy.request}</button></form><p className="fineprint">Codes expire after five minutes. Resends are limited and cooldown-protected.</p></div>}{state.participationAllowed && <div className="verification" id="provider-profile"><h2>Provider profile</h2>{existingProvider && <><p className="muted">{existingProvider.display_name} · {existingProvider.provider_types.join(', ')} · {existingProvider.verification_status}</p><p className="muted">Profile state: {existingProvider.state}. Saving profile details does not activate the provider account; identity verification is reviewed separately.</p><a className="primary workspaceLink" href="/provider">Open provider workspace</a>{canEditProvider && !editingProvider && <button className="secondary" type="button" onClick={() => editProvider(existingProvider)}>Edit provider profile</button>}</>}{(!existingProvider || editingProvider) && <form onSubmit={(event) => { void onboardProvider(event); }}><label>Provider types<select multiple value={providerTypes} disabled={!!providerTypesLocked} onChange={(event) => setProviderTypes(Array.from(event.target.selectedOptions, (option) => option.value))}><option value="OWNER">Owner</option><option value="INDEPENDENT_AGENT">Independent agent</option><option value="PROPERTY_MANAGER">Property manager</option></select></label><label>Public provider name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} minLength={2} maxLength={120} required /></label><label>Provider bio<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={1000} /></label><label>Service area<input value={serviceArea} onChange={(event) => setServiceArea(event.target.value)} maxLength={240} placeholder="City or region" /></label><button className="primary" disabled={busy || !providerTypes.length}>{busy ? 'Saving…' : existingProvider ? 'Save provider profile' : 'Start provider onboarding'}</button>{existingProvider && <button className="secondary" type="button" onClick={() => setEditingProvider(false)}>Cancel</button>}</form>}</div>}</section></AccountFrame>;
+}

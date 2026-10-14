@@ -12,8 +12,8 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
   const diagnostic = (stage: string, error?: unknown) => console.error(JSON.stringify({ event: 'web_auth_callback', request_id: callbackRequestId, stage, duration_ms: Date.now() - startedAt, error: error instanceof Error ? error.name : undefined, api_status: error instanceof ApiError ? error.status : undefined }));
   if (url.origin !== new URL(redirectUri()).origin || url.pathname !== new URL(redirectUri()).pathname) { diagnostic('callback_destination'); return NextResponse.json({ error: 'invalid_callback_destination' }, { status: 400 }); }
-  if (!session.oidcState || !session.oidcNonce || !session.pkceVerifier) { diagnostic('transaction_missing'); return NextResponse.redirect(new URL('/?auth_error=missing_transaction', request.url)); }
-  if (url.searchParams.get('error')) { diagnostic('provider_error'); return NextResponse.redirect(new URL('/?auth_error=provider', request.url)); }
+  if (!session.oidcState || !session.oidcNonce || !session.pkceVerifier) { diagnostic('transaction_missing'); return NextResponse.redirect(new URL('/account?auth_error=missing_transaction', request.url)); }
+  if (url.searchParams.get('error')) { diagnostic('provider_error'); return NextResponse.redirect(new URL('/account?auth_error=provider', request.url)); }
   try {
     diagnostic('authorization_code_exchange_start');
     const configuration = await oidcConfiguration();
@@ -40,6 +40,6 @@ export async function GET(request: Request) {
   } catch (error) {
     diagnostic('callback_failed', error);
     session.destroy();
-    return NextResponse.redirect(new URL('/?auth_error=callback', request.url));
+    return NextResponse.redirect(new URL('/account?auth_error=callback', request.url));
   }
 }

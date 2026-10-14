@@ -24,7 +24,7 @@ test('existing provider can edit and reload profile without claiming readiness',
     throw new Error(`Unexpected synthetic API route: ${path}`);
   });
 
-  await page.goto('/');
+  await page.goto('/account');
   await expect(page.getByText('Sample provider', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Edit provider profile' }).click();
   await expect(page.getByLabel('Public provider name')).toHaveValue('Sample provider');
@@ -51,7 +51,7 @@ test('pending capacity is locked and restricted profiles cannot open the edit fo
     if (path === '/api/account/provider') return route.fulfill({ json: { profile_id: 'synthetic-profile', account_id: 'synthetic-account', provider_types: ['OWNER'], state, verification_status: 'PENDING', display_name: 'Sample provider', bio: null, service_area: null } });
     throw new Error(`Unexpected synthetic API route: ${path}`);
   });
-  await page.goto('/');
+  await page.goto('/account');
   await page.getByRole('button', { name: 'Edit provider profile' }).click();
   await expect(page.getByLabel('Provider types')).toBeDisabled();
   state = 'RESTRICTED';
