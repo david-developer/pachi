@@ -17,7 +17,7 @@ export type ViewingProposalInput = ViewingVersionInput & {expected_proposal_vers
 const versions={expected_version:z.number().int().positive(),expected_schedule_version:z.number().int().positive()};
 const proposeSchema=z.object({...versions,proposed_start:z.iso.datetime({offset:true}),proposed_end:z.iso.datetime({offset:true})}).strict();
 const proposalSchema=z.object({...versions,expected_proposal_version:z.number().int().positive()}).strict();
-type Notice = {id:string;viewing_id:string;recipient_side:'SEEKER'|'PROVIDER';event_type:string;schedule_version:number;event_at:Date;available_at:Date;inbox_state:'AVAILABLE';external_state:'NOT_ENABLED';read_at:Date|null};
+type Notice = {id:string;viewing_id:string;recipient_side:'SEEKER'|'PROVIDER';event_type:string;schedule_version:number;event_at:Date;available_at:Date;inbox_state:'AVAILABLE';external_state:'NOT_ENABLED';read_at:Date|null;moderation_command:'HOLD'|'HIDE'|'REMOVE'|'RESTORE'|null;moderation_reason_code:string|null;moderation_recipient_user_id:string|null;appeal_deadline:Date|null};
 function page(input:{cursor?:string;limit?:number}) {
   const limit=input.limit??20;
   if(!Number.isSafeInteger(limit)||limit<1||limit>50)fail('INVALID_INPUT');
@@ -185,8 +185,8 @@ export class ViewingAppointmentStore extends ViewingStore {
     });
   }
   private async noticeForActor(tx:Tx,actor:OrganizationActor,id:string,markRead=false) {
-    const n=(await tx<Notice[]>`SELECT n.*,r.read_at FROM viewing_notices n LEFT JOIN viewing_notice_reads r ON r.notice_id=n.id AND r.user_id=${actor.userId} WHERE n.id=${id}`)[0];
-    if(!n)fail('RESOURCE_SCOPE_DENIED');
+    const n=(await tx<Notice[]>`SELECT n.*,a.command AS moderation_command,r.read_at FROM viewing_notices n LEFT JOIN review_moderation_actions a ON a.id=n.source_review_moderation_action_id LEFT JOIN viewing_notice_reads r ON r.notice_id=n.id AND r.user_id=${actor.userId} WHERE n.id=${id}`)[0];
+    if(!n||n.moderation_recipient_user_id&&n.moderation_recipient_user_id!==actor.userId)fail('RESOURCE_SCOPE_DENIED');
     const {a}=await this.authorizedViewing(tx,actor,n.viewing_id);
     if(a.side!==n.recipient_side)fail('RESOURCE_SCOPE_DENIED');
     if(markRead) {
@@ -195,7 +195,7 @@ export class ViewingAppointmentStore extends ViewingStore {
     }
     await this.currentScope(tx,actor,a);
     return {id:n.id,viewing_id:n.viewing_id,recipient_side:n.recipient_side,event_type:n.event_type,schedule_version:n.schedule_version,
-      event_at:instant(n.event_at)!,available_at:instant(n.available_at)!,inbox_state:n.inbox_state,external_state:n.external_state,read_at:instant(n.read_at)};
+      event_at:instant(n.event_at)!,available_at:instant(n.available_at)!,inbox_state:n.inbox_state,external_state:n.external_state,read_at:instant(n.read_at),...(n.moderation_reason_code?{moderation_reason_code:n.moderation_reason_code,moderation_command:n.moderation_command!,appeal_deadline:instant(n.appeal_deadline)!}:{})};
   }
   async readNotice(actorInput:OrganizationActor,idInput:string) {
     const actor=actorNormalized(actorInput),id=validId(idInput);
@@ -210,7 +210,7 @@ export class ViewingAppointmentStore extends ViewingStore {
       if(input.viewing_id){await tx`LOCK TABLE block_relationships IN SHARE MODE`;await this.authorizedViewing(tx,actor,input.viewing_id.toLowerCase());}
       return tx<{id:string}[]>`SELECT n.id FROM viewing_notices n JOIN viewings v ON v.id=n.viewing_id JOIN interactions i ON i.id=v.interaction_id
         JOIN listings l ON l.id=i.listing_id JOIN provider_accounts pa ON pa.id=i.provider_account_id LEFT JOIN provider_profiles pp ON pp.id=pa.provider_profile_id
-        WHERE v.provider_account_id=i.provider_account_id AND v.listing_id=i.listing_id AND v.seeker_user_id=i.seeker_user_id AND l.provider_account_id=i.provider_account_id
+        WHERE (n.moderation_recipient_user_id IS NULL OR n.moderation_recipient_user_id=${actor.userId}) AND v.provider_account_id=i.provider_account_id AND v.listing_id=i.listing_id AND v.seeker_user_id=i.seeker_user_id AND l.provider_account_id=i.provider_account_id
           AND ((n.recipient_side='SEEKER' AND n.seeker_user_id=i.seeker_user_id AND i.seeker_user_id=${actor.userId}) OR
             (n.recipient_side='PROVIDER' AND n.provider_account_id=i.provider_account_id AND ((pa.kind='INDIVIDUAL' AND pp.user_id=${actor.userId}) OR
               (pa.kind='ORGANIZATION' AND pa.state='ACTIVE' AND EXISTS(SELECT 1 FROM organizations o JOIN organization_memberships m ON m.organization_id=o.id

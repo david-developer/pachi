@@ -6,6 +6,7 @@ export const STAFF_PERMISSIONS = {
   LISTING_MODERATOR: ['listing:moderate', 'listing:hide', 'listing:remove'],
   TRUST_SAFETY_MODERATOR: [
     'report:triage',
+    'case:assign',
     'moderation:act',
     'review:moderate',
     'appeal:resolve',
@@ -56,6 +57,7 @@ export function validStaffScope(role: string, value: unknown): value is StaffSco
     s.permissions.some((p) =>
       [
         'evidence:read',
+        'case:assign',
         'provider:verify',
         'organization:verify',
         'user:read',

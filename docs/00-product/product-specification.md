@@ -1159,7 +1159,7 @@ Verification claims, account state and property relationship validity remain dis
 | **listing:moderate**          | Listing moderator               | Assigned queue or approved region scope.                                  |
 | **listing:hide**              | Listing or safety moderator     | Reason and case or policy action required.                                |
 | **report:triage**             | Safety moderator                | Queue scope.                                                              |
-| **case:assign**               | Safety lead                     | Team and region scope.                                                    |
+| **case:assign**               | Explicitly delegated safety lead | Team and region scope; G3-H1 uses a narrower exact-case TRUST_SAFETY_MODERATOR grant. |
 | **review:moderate**           | Safety moderator                | Report or case context.                                                   |
 | **user:restrict**             | Safety moderator                | Approved sanction band and reason.                                        |
 | **user:suspend**              | Safety lead or authorized admin | High-severity case and audit requirement.                                 |
