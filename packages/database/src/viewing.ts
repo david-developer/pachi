@@ -11,7 +11,7 @@ import { requireOrganizationResourceActor, requireOrganizationResourceSession, t
 import type { OrganizationActor } from './organization-lifecycle.js';
 
 export type Tx = postgres.TransactionSql;
-export type ViewingState = 'REQUESTED'|'ACCEPTED'|'SCHEDULED'|'RESCHEDULED'|'DECLINED'|'EXPIRED'|'CANCELLED_BY_SEEKER'|'CANCELLED_BY_PROVIDER'|'SEEKER_NO_SHOW'|'PROVIDER_NO_SHOW'|'COMPLETED'|'DISPUTED';
+export type ViewingState = 'REQUESTED'|'ACCEPTED'|'SCHEDULED'|'RESCHEDULED'|'DECLINED'|'EXPIRED'|'CANCELLED_BY_SEEKER'|'CANCELLED_BY_PROVIDER'|'SEEKER_NO_SHOW'|'PROVIDER_NO_SHOW'|'COMPLETED'|'DISPUTED'|'ATTENDANCE_UNCONFIRMED';
 export type Side = 'SEEKER'|'PROVIDER';
 export type ViewingResponse = {
   id:string; interaction_id:string; listing_id:string; provider_account_id:string; seeker_user_id:string;

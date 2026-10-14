@@ -121,7 +121,9 @@ Viewing states: REQUESTED, ACCEPTED, SCHEDULED, RESCHEDULED, DECLINED, EXPIRED, 
 | SCHEDULED | COMPLETED | Attendance confirmation rule in interaction policy satisfied; pending single claim is not this transition. |
 | SCHEDULED | SEEKER_NO_SHOW / PROVIDER_NO_SHOW | Validated no-show claim, not immediate accusation. |
 | SCHEDULED/COMPLETED/SEEKER_NO_SHOW/PROVIDER_NO_SHOW | DISPUTED | Timely dispute or staff case; freeze related review eligibility and trust effects. |
-| DISPUTED | COMPLETED / corresponding no-show / corresponding cancellation | Scoped resolution with evidence, reason and outcome; rebuild eligibility/trust effects idempotently. |
+| DISPUTED | COMPLETED / corresponding no-show / ATTENDANCE_UNCONFIRMED / corresponding cancellation | Scoped resolution with evidence, reason and outcome; rebuild eligibility/trust effects idempotently. |
+
+`ATTENDANCE_UNCONFIRMED` is a terminal resolved attendance episode for an invalidated claim or insufficient evidence; it asserts no confirmed completion/no-show. A linked attendance appeal may change any staff-resolved outcome through a new attributed decision, without rewriting the original claims or an unrelated current appointment.
 
 DECLINED, EXPIRED and cancellation are terminal appointment episodes; create a new Viewing for another attempt. A completed viewing cannot be rescheduled. Use the exact cancellation/no-show side, not ambiguous CANCELLED/NO_SHOW alone.
 

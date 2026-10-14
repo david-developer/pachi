@@ -54,6 +54,8 @@ appointment. The accepted 2026-10-13 amendment blocks further viewing requests
 until resolution. A later completed appointment cannot bypass the hold by
 creating another first-completion boundary or replacement review slots.
 
+G3-H2 restoration keeps the first boundary and original eligibility identities, opening times, policy versions and initial deadlines. Previously unused slots may reopen with the later of their current deadline and seven UTC days from the resolution; consumed slots retain consumption and never become replacement slots. A never-revealed consumed direction receives the same protected restoration deadline, independently of the other side's hidden submission state; a previously legitimate publication retains its historical reveal provenance. Invalidation revokes the affected boundary's eligibility and public contribution. A successful linked attendance appeal can restore those same lawful records, subject to current safety, authorship and double-blind checks; unrelated moderation/withdrawal states remain effective. Per-slot effects and reconsideration actions are immutable, and no-show decisions remain operational measures.
+
 Late safety reports remain possible after the ordinary review/edit window. Expiry of an edit window does not prevent reporting abuse.
 
 ## Moderation and reports

@@ -47,7 +47,7 @@ export type AuthenticatedPrincipal = {
 export class IdentityStore {
   public constructor(private readonly client: postgres.Sql) {}
 
-  public async bootstrap(claims: VerifiedTokenClaims, deviceLabel?: string): Promise<AuthenticatedPrincipal> {
+  public async bootstrap(claims: VerifiedTokenClaims, deviceLabel?: string, purpose?: 'ATTENDANCE_APPEAL'): Promise<AuthenticatedPrincipal> {
     return this.client.begin(async (transaction) => {
       // Serialize bootstrap for one external identity before the unique mapping is resolved.
       await transaction`SELECT pg_advisory_xact_lock(hashtextextended(${`${claims.issuer}:${claims.subject}`}, 0))`;
@@ -106,13 +106,13 @@ export class IdentityStore {
         sessionId = newSession.id;
       }
 
-      const principal = await this.readPrincipal(transaction, userId, sessionId);
+      const principal = await this.readPrincipal(transaction, userId, sessionId, purpose);
       if (!principal) throw new IdentityError('ACCOUNT_NOT_FOUND', 'Account not found');
       return principal;
     });
   }
 
-  public async readPrincipal(transaction: postgres.Sql, userId: string, sessionId: string): Promise<AuthenticatedPrincipal | null> {
+  public async readPrincipal(transaction: postgres.Sql, userId: string, sessionId: string, purpose?: 'ATTENDANCE_APPEAL'): Promise<AuthenticatedPrincipal | null> {
     const rows = await transaction<SessionRow[]>`
       SELECT s.id, s.user_id, u.account_state, u.security_version, s.issuer, s.app_client_id, s.origin_jti, s.current_jti,
              s.authenticated_at, s.last_seen_at, s.expires_at, s.revoked_at
@@ -120,7 +120,7 @@ export class IdentityStore {
       WHERE s.id = ${sessionId} AND s.user_id = ${userId}
     `;
     const row = rows[0];
-    if (!row || row.revoked_at || row.expires_at <= new Date() || ['SUSPENDED', 'DELETED'].includes(row.account_state)) return null;
+    if (!row || row.revoked_at || row.expires_at <= new Date() || (row.account_state === 'DELETED' || (row.account_state === 'SUSPENDED' && purpose !== 'ATTENDANCE_APPEAL'))) return null;
     return { userId: row.user_id, session: toSession(row) };
   }
 

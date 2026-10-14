@@ -106,8 +106,27 @@ void integration('G3-G1 migration 0036 retains complete v1 records, fourteen-day
         VALUES(${row.interaction_id},${row.id},'SEEKER_TO_PROVIDER','User',${row.seeker_user_id},'ProviderAccount',${row.provider_account_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days'),
         (${row.interaction_id},${row.id},'PROVIDER_TO_SEEKER','ProviderAccount',${row.provider_account_id},'User',${row.seeker_user_id},${b.opened_at},${b.opened_at}::timestamptz+interval '14 days')`;
     };
-    Object.defineProperty(attendance,'reviewBoundary',{value:writer,configurable:true});
-    await clock(f);await tx.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');const legacy=await completed(f);
+    // Seed a genuine migration-0035 completion using its retained SQL guards.
+    // Current application code requires migration0038 and must not be used to
+    // manufacture pre-upgrade rows by adding compatibility shims or bypasses.
+    await clock(f);await tx.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');
+    const lv=(await tx<{id:string}[]>`INSERT INTO viewings(interaction_id,listing_id,provider_account_id,seeker_user_id,requested_by_user_id,proposed_start,proposed_end,display_timezone,response_deadline,created_at,updated_at)
+      SELECT i.id,i.listing_id,i.provider_account_id,i.seeker_user_id,i.seeker_user_id,statement_timestamp()-interval '3 hours',statement_timestamp()-interval '2 hours','Africa/Douala',statement_timestamp()-interval '5 days',statement_timestamp()-interval '7 days',statement_timestamp()-interval '7 days' FROM interactions i WHERE i.id=${base.interaction.interaction_id} RETURNING id`)[0]!;
+    await tx`UPDATE viewings SET state='ACCEPTED',scheduled_start=proposed_start,scheduled_end=proposed_end,private_instructions='SYNTHETIC_LEGACY_GUIDANCE',accepted_by_user_id=${base.providerUserId},accepted_at=created_at+interval '1 hour',version=version+1 WHERE id=${lv.id}`;
+    await tx`UPDATE viewings SET state='SCHEDULED',seeker_confirmed=true,provider_confirmed=true,version=version+1 WHERE id=${lv.id}`;
+    const current=(await tx`UPDATE viewings SET version=version+1 WHERE id=${lv.id} RETURNING *`)[0]!;
+    const event=(await tx<{id:string}[]>`INSERT INTO viewing_events(viewing_id,interaction_id,sequence,event_type,actor_user_id,actor_side,prior_state,new_state,version,schedule_version)
+      VALUES(${lv.id},${current.interaction_id},${current.version},'viewing_completion_claimed',${base.seekerId},'SEEKER','SCHEDULED','SCHEDULED',${current.version},1) RETURNING id`)[0]!;
+    const outbox=(await tx<{id:string}[]>`INSERT INTO viewing_outbox(event_id,viewing_id,event_type,safe_payload,notification_intent) VALUES(${event.id},${lv.id},'viewing_completion_claimed','{}','{}') RETURNING id`)[0]!;
+    const notice=(await tx`SELECT id,available_at FROM viewing_notices WHERE source_outbox_id=${outbox.id} AND recipient_side='PROVIDER'`)[0]!;
+    const claim=(await tx<{id:string}[]>`INSERT INTO viewing_attendance_claims(viewing_id,schedule_version,claimant_user_id,claimant_side,claim_type,claimed_outcome,counterparty_notice_id,notice_available_at,response_deadline)
+      VALUES(${lv.id},1,${base.seekerId},'SEEKER','COMPLETION','COMPLETED',${notice.id},${notice.available_at},${notice.available_at}::timestamptz+interval '48 hours') RETURNING id`)[0]!;
+    const outcome=(await tx<{id:string}[]>`INSERT INTO viewing_attendance_outcomes(viewing_id,schedule_version,claimed_outcome,primary_claim_id) VALUES(${lv.id},1,'COMPLETED',${claim.id}) RETURNING id`)[0]!;
+    await tx`UPDATE viewing_attendance_claims SET state='CONFIRMED',version=version+1,finalized_at=statement_timestamp(),responded_at=statement_timestamp(),responded_by_user_id=${base.providerUserId},responded_by_side='PROVIDER' WHERE id=${claim.id}`;
+    await tx`UPDATE viewing_attendance_outcomes SET state='COMPLETED',version=version+1,finalized_at=statement_timestamp(),validation_method='COUNTERPARTY_CONFIRMED' WHERE id=${outcome.id}`;
+    const finalized=(await tx`UPDATE viewings SET state='COMPLETED',version=version+1 WHERE id=${lv.id} RETURNING *`)[0]!;
+    await writer(nested,finalized as {interaction_id:string;id:string;seeker_user_id:string;provider_account_id:string},outcome);
+    const legacy={viewing:await attendance.get(base.actors.seeker,lv.id)};
     const before=await tx`SELECT to_jsonb(e) AS row FROM viewing_review_eligibilities e ORDER BY id`,boundary=await tx`SELECT to_jsonb(b) AS row FROM viewing_review_boundaries b`;
     await tx.unsafe(await readFile(new URL('../migrations/0036_bilateral_reviews.sql',import.meta.url),'utf8'));
     assert.deepEqual(await tx`SELECT to_jsonb(e)-'version' AS row FROM viewing_review_eligibilities e ORDER BY id`,before);assert.deepEqual(await tx`SELECT to_jsonb(b) AS row FROM viewing_review_boundaries b`,boundary);
@@ -119,6 +138,9 @@ void integration('G3-G1 migration 0036 retains complete v1 records, fourteen-day
     await setTime(f,legacy.viewing.id,'-7 days');const held=await submit(f,legacy.viewing.id);assert.equal(held.review.state,'SUBMITTED_HELD');assert.equal((await reviews.reviewsOnce()).published,0);
     await setTime(f,legacy.viewing.id,'-1 microsecond');assert.equal((await reviews.reviewsOnce()).published,0);await setTime(f,legacy.viewing.id,'0 seconds');assert.equal((await reviews.reviewsOnce()).published,1);
     assert.ok((await tx`SELECT policy_version FROM review_events`).every(e=>e.policy_version==='bilateral-review-v1'));assert.equal((await tx`SELECT policy_version FROM reviews`)[0]!.policy_version,'bilateral-review-v1');
+    // Retain all v1 checks above, then upgrade to the current application schema.
+    for(const tag of ['0037_review_moderation','0038_attendance_adjudication'])await tx.unsafe(await readFile(new URL(`../migrations/${tag}.sql`,import.meta.url),'utf8'));
+    assert.ok((await tx`SELECT initial_closes_at=closes_at AND closes_at=opens_at+interval '14 days' AS retained FROM viewing_review_eligibilities WHERE viewing_id=${legacy.viewing.id}`).every(e=>e.retained));
     f.attendance=new ViewingAttendanceStore(nested,true);
     const inquiry=await f.inquiries.createOrReuseInquiry(f.otherUserId,f.listingId,randomUUID()),fresh=await completed(f,inquiry.interaction_id,f.providerUserId,f.actors.other);
     assert.ok((await tx`SELECT e.policy_version,e.opens_at=a.finalized_at AS anchor,e.closes_at=e.opens_at+interval '7 days' AS duration FROM viewing_review_eligibilities e JOIN viewing_attendance_outcomes a ON a.viewing_id=e.viewing_id WHERE e.viewing_id=${fresh.viewing.id}`).every(e=>e.policy_version==='bilateral-review-v2'&&e.anchor&&e.duration));

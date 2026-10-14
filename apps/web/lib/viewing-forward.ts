@@ -8,6 +8,12 @@ const version = (value: unknown) => typeof value === 'number' && Number.isSafeIn
 function attendanceBodyValid(path: string, value: unknown): boolean {
   if (!object(value)) return false;
   const action = path.split('/').at(-1);
+  if (action === 'appeals') {
+    return Object.keys(value).every(key => ['original_action_id', 'reason', 'evidence', 'idempotency_key'].includes(key)) &&
+      typeof value.original_action_id === 'string' && typeof value.idempotency_key === 'string' && typeof value.reason === 'string' &&
+      value.reason.trim().length >= 10 && value.reason.length <= 2000 && Array.isArray(value.evidence) && value.evidence.length <= 5 &&
+      value.evidence.every(item => object(item) && Object.keys(item).length === 2 && item.kind === 'MESSAGE' && typeof item.reference === 'string');
+  }
   const fields = ['expected_version', 'expected_schedule_version',
     ...(action === 'no-show' ? ['absent_side'] : []),
     ...(['confirm', 'dispute'].includes(action ?? '') ? ['expected_claim_version'] : []),

@@ -10,7 +10,8 @@ export type ViewingState =
   | 'SEEKER_NO_SHOW'
   | 'PROVIDER_NO_SHOW'
   | 'COMPLETED'
-  | 'DISPUTED';
+  | 'DISPUTED'
+  | 'ATTENDANCE_UNCONFIRMED';
 
 export type ViewingResponse = {
   id: string;

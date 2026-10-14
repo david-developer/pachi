@@ -53,6 +53,8 @@ Either side may propose rescheduling. Existing schedule stays authoritative unti
 
 Claims require one coherent outcome per viewing/schedule. A provider cannot claim seeker no-show and immediate completion to create ratings. No-show contributes only after validation and never automatically creates a star rating. Notify both sides of finalization and appeal/report routes.
 
+G3-H2 uses purpose `ATTENDANCE_ADJUDICATION` with an exact current case grant, explicit assignment, `moderation:act` and `evidence:read`, current staff TOTP session and strictly recent fifteen-minute step-up. Ordinary SUPER_ADMIN grants confer no attendance access. Explicit assignment records TRIAGED, an assigned investigation action enters UNDER_REVIEW, and the reasoned decision resolves the case. Original F3 claims/reports/outcomes remain historical records; staff actions carry actor, policy, reason, permitted message references and before/after states. Unsupported claims and insufficient evidence resolve to `ATTENDANCE_UNCONFIRMED`; a decision is never a counterparty confirmation. Private inbox notices expose a reason category and safe explanation, not staff rationale or another participant's evidence.
+
 First validated completed viewing per interaction creates bilateral review eligibility. Later completed appointments in the same interaction retain history without additional rating slots. Dispute invalidation reverses eligibility/aggregate effects through durable actions. Staff may resolve attendance exceptionally only within an assigned case; they cannot fabricate a normal user confirmation.
 
 ## Cancellation, closure and blocks
@@ -83,6 +85,8 @@ No automated permanent ban based only on report count or an opaque risk score. R
 ## Appeals and sole-operator review
 
 Appeals are core MVP for moderation sanctions and verification rejection/revocation. Filing window is 30 days after durable decision notice. Link the appeal to the original action, collect a reason/new evidence, preserve the sanction while reviewed, then record UPHELD, OVERTURNED or PARTIALLY_UPHELD and any compensating actions. Notify the appellant with safe rationale.
+
+Attendance appeals are bounded to one filing per participant principal/direction for the initial adjudication within the thirty UTC day notice window. Current participant authority is required even for receipt replay; safe suspended-account access exists only for this attendance appeal path. Filing preserves the underlying decision. Resolution also requires `appeal:resolve`, the current case assignment and a fresh evidence review, and links the original action. The appeal decision command records immutable SUBMITTED-to-UNDER_REVIEW initiation and terminal outcome together; the reviewer first inspects the permitted evidence. Appeal outcomes are terminal in this bounded slice; no recursive appeal chain is opened.
 
 Prefer a reviewer different from the original actor when one exists. With a sole operator, record `review_mode=SOLE_OPERATOR_RECONSIDERATION`, perform a fresh evidence review, and disclose that it is reconsideration rather than independent adjudication. The operator cannot decide a case about their own personal listing/account/organization; that case remains restricted until a nonconflicted reviewer exists or the affected participation is excluded. No invented second approver or shared staff credential.
 
