@@ -55,7 +55,7 @@ for (const width of [1440, 768, 390]) {
       const ratio = await logo.evaluate(image => (image as HTMLImageElement).naturalWidth / (image as HTMLImageElement).naturalHeight);
       expect(ratio).toBeGreaterThan(3.5);
       expect(ratio).toBeLessThan(3.8);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveCSS('color', forest);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCSS('color', name === 'homepage' && width <= 599 ? ivory : forest);
       const canvas = await page.getByRole('main').evaluate(element => {
         for (let current: Element | null = element; current; current = current.parentElement) {
           const background = getComputedStyle(current).backgroundColor;
@@ -64,7 +64,7 @@ for (const width of [1440, 768, 390]) {
         return null;
       });
       expect(canvas).toBe(ivory);
-      const action = page.getByRole('button', { name: name === 'homepage' ? 'Search properties' : name === 'results' ? 'Apply filters' : 'Contact provider', exact: true });
+      const action = page.getByRole('button', { name: name === 'homepage' ? width <= 599 ? 'Find a home' : 'Search properties' : name === 'results' ? 'Apply filters' : 'Contact provider', exact: true });
       await expect(action).toHaveCSS('background-color', forest);
       await assertReadableControl(action);
       await action.focus();

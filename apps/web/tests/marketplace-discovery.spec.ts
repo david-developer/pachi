@@ -85,7 +85,7 @@ for (const width of [1440, 768, 390]) test(`rendered discovery pages fit ${width
   if (evidence) mkdirSync(evidence, { recursive: true });
   for (const [name, route] of [['homepage', '/'], ['results', '/listings'], ['detail', `/listings/${testListing.id}`]] as const) {
     await page.goto(route);
-    await expect(page.getByRole('heading', { name: name === 'homepage' ? /Good places/ : name === 'detail' ? testListing.title : /Find/ }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: name === 'homepage' ? width <= 599 ? /A place for your next chapter/ : /Good places/ : name === 'detail' ? testListing.title : /Find/ }).first()).toBeVisible();
     if (name !== 'detail') await expect(page.locator('.listingCard').first()).toBeVisible();
     // Bring lazy images into view before capturing full-page evidence.
     const images = page.locator('img');

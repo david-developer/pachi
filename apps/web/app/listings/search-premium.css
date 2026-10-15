@@ -490,32 +490,32 @@
 
 @media (max-width: 599px) {
   .premiumSearchPage .searchIntro {
-    padding: 22px 0 22px;
+    padding: 16px 0 18px;
   }
 
   .premiumSearchPage .searchBreadcrumb {
-    margin-bottom: 22px;
+    margin-bottom: 14px;
     font-size: 11px;
   }
 
   .premiumSearchPage .searchEditorialHeading .eyebrow {
-    margin-bottom: 10px;
-    font-size: 9px;
+    display: none;
   }
 
   .premiumSearchPage .searchEditorialHeading h1 {
-    font-size: clamp(30px, 8.8vw, 36px);
+    font-size: clamp(28px, 8vw, 32px);
   }
 
   .premiumSearchPage .searchEditorialHeading > p {
     max-width: 40ch;
-    margin-top: 12px;
+    margin-top: 8px;
     font-size: 12px;
     line-height: 1.65;
   }
 
   .premiumSearchPage .searchPrimary {
     padding: 6px;
+    margin-bottom: 14px;
     border-radius: 10px;
   }
 
@@ -546,12 +546,17 @@
   }
 
   .premiumSearchPage .searchWorkspace {
-    gap: 24px;
+    gap: 18px;
     padding-bottom: 44px;
   }
 
   .premiumSearchPage .searchFilters {
     padding-inline: 14px;
+  }
+
+  .premiumSearchPage .searchFilters > summary {
+    min-height: 48px;
+    padding-block: 10px;
   }
 
   .premiumSearchPage .searchFilterBody {
@@ -577,8 +582,8 @@
   .premiumSearchPage .searchResultsHeader {
     align-items: start;
     gap: 10px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
   }
 
   .premiumSearchPage .searchResultsHeader > div {
@@ -612,7 +617,7 @@
 
   .premiumSearchPage .searchResults .listingGrid {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 22px;
   }
 
   .premiumSearchPage .searchResults .listingCardBody {
@@ -621,6 +626,18 @@
 
   .premiumSearchPage .searchResults .listingPrice {
     font-size: 24px;
+  }
+
+  .premiumSearchPage .searchAppliedFilters {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .premiumSearchPage .searchChip {
+    max-width: 100%;
+    border-radius: 6px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
   }
 
   .premiumSearchPage .searchFeedback {

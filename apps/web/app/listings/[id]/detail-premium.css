@@ -136,8 +136,8 @@
 }
 @media (max-width: 700px) {
   .lovableDetailPage:has(.detailMobileContact) { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
-  .lovableDetailPage .publicShell.detailShell { width: calc(100% - 40px); padding-top: 10px; }
-  .lovableDetailPage .detailShell .backLink { margin-bottom: 14px; font-size: 12px; }
+  .lovableDetailPage .publicShell.detailShell { width: calc(100% - 40px); padding-top: 4px; }
+  .lovableDetailPage .detailShell .backLink { margin-bottom: 8px; font-size: 12px; }
   .lovableDetailPage .galleryMosaic { height: auto; aspect-ratio: 4 / 3; border-radius: 10px; }
   .lovableDetailPage .galleryMosaic.hasNoPhotos { height: 210px; aspect-ratio: auto; }
   .lovableDetailPage .galleryMosaic:not(.hasSupportingPhotos) .galleryOpen { top: 12px; right: 12px; padding: 10px 12px; font-size: 12px; }
@@ -146,21 +146,24 @@
   .lovableDetailPage .galleryThumbnails { margin-top: 7px; }
   .lovableDetailPage .galleryThumbnail { width: 62px; height: 44px; }
   .lovableDetailPage .galleryPlaceholder p { font-size: 14px; }
-  .lovableDetailPage .detailLayout { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 23px; padding-bottom: 40px; }
-  .lovableDetailPage .detailShell .detailHeader { grid-column: 1; grid-row: 1; padding-bottom: 24px; }
-  .lovableDetailPage .detailHeader .detailTitleRow h1 { margin-bottom: 14px; font-size: 28px; line-height: 1.24; }
+  .lovableDetailPage .detailLayout { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 16px; padding-bottom: 40px; }
+  .lovableDetailPage .detailShell .detailHeader { grid-column: 1; grid-row: 1; padding-bottom: 18px; }
+  .lovableDetailPage .detailHeader .detailTitleRow h1 { margin-bottom: 12px; font-size: 28px; line-height: 1.2; }
   .lovableDetailPage .detailHeader > .listingLocation { align-items: start; gap: 7px; font-size: 13px; }
   .lovableDetailPage .detailHeader > .listingLocation svg { width: 16px; height: 16px; margin-top: 2px; }
-  .lovableDetailPage .detailEyebrow { margin-bottom: 12px; font-size: 11px; }
-  .lovableDetailPage .detailKeyFacts { justify-content: space-between; gap: 14px 12px; margin-top: 22px; }
+  .lovableDetailPage .detailEyebrow { margin-bottom: 10px; font-size: 11px; }
+  .lovableDetailPage .detailKeyFacts { justify-content: space-between; gap: 14px 12px; margin-top: 16px; }
   .lovableDetailPage .detailKeyFacts li { gap: 7px; font-size: 12px; }
   .lovableDetailPage .detailKeyFacts svg { width: 20px; height: 20px; }
-  .lovableDetailPage .detailContactCard { display: block; grid-column: 1; grid-row: 2; position: static; margin: 24px 0 0; padding: 26px; }
+  .lovableDetailPage .detailContactCard { display: block; grid-column: 1; grid-row: 2; position: static; margin: 18px 0 0; padding: 22px; }
   .lovableDetailPage .detailContactPriceGroup { display: block; }
   .lovableDetailPage .detailContactPrice { font-size: 32px; }
-  .lovableDetailPage .detailContactAction { margin-top: 24px; padding-top: 22px; }
-  .lovableDetailPage .detailContactAction h2 { font-size: 20px; }
-  .lovableDetailPage .detailContactHelp { display: block; }
+  .lovableDetailPage .detailMarketStatus { margin-top: 12px; }
+  .lovableDetailPage .detailContactAction { margin-top: 18px; padding-top: 18px; }
+  .lovableDetailPage .detailProviderLabel,
+  .lovableDetailPage .detailContactAction h2 { display: none; }
+  .lovableDetailPage .detailContactHelp { display: block; margin-bottom: 14px; }
+  .lovableDetailPage .detailContactPrivacy { margin-top: 14px; line-height: 1.7; }
   .lovableDetailPage .detailBody { grid-column: 1; grid-row: 3; margin-top: 4px; }
   .lovableDetailPage .detailBody > section { padding-block: 27px; }
   .lovableDetailPage .detailBody h2 { font-size: 23px; }

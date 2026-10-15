@@ -132,7 +132,7 @@ test('premium actions support longer labels and a 200 percent equivalent viewpor
       await page.goto(route);
       if (name === 'detail') await expect(page.getByRole('heading', { name: testListing.title, exact: true })).toBeVisible();
       else await expect(page.locator('.listingCard').first()).toBeVisible();
-      const action = page.getByRole('button', { name: name === 'homepage' ? 'Search properties' : name === 'results' ? 'Apply filters' : 'Contact provider', exact: true });
+      const action = page.getByRole('button', { name: name === 'homepage' ? width <= 599 ? 'Find a home' : 'Search properties' : name === 'results' ? 'Apply filters' : 'Contact provider', exact: true });
       await expect(action).toBeVisible();
       const expandedLabel = name === 'homepage' ? 'Search available homes' : name === 'results' ? 'Apply all filters' : 'Contact this provider';
       await action.evaluate((button, label) => { button.textContent = label; }, expandedLabel);
