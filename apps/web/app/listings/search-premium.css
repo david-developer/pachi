@@ -1,10 +1,10 @@
 /* Search composition stays scoped because App Router styles survive navigation. */
 .premiumSearchPage .searchIntro {
-  padding: 30px 0 28px;
+  padding: 24px 0;
 }
 
 .premiumSearchPage .searchBreadcrumb {
-  margin-bottom: 26px;
+  margin-bottom: 20px;
   color: var(--p-muted);
   font-size: 12px;
 }
@@ -22,7 +22,7 @@
 }
 
 .premiumSearchPage .searchEditorialHeading .eyebrow {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--p-teal);
   font-size: 10px;
   font-weight: 700;
@@ -33,7 +33,7 @@
   max-width: none;
   margin: 0;
   font-family: var(--font-heading), sans-serif;
-  font-size: clamp(34px, 3.8vw, 52px);
+  font-size: clamp(32px, 3vw, 42px);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -.05em;
@@ -52,7 +52,7 @@
   align-items: center;
   gap: 0;
   padding: 8px;
-  margin: 0 0 34px;
+  margin: 0 0 24px;
   border: 1px solid var(--p-border);
   border-radius: 12px;
   background: var(--p-surface);
@@ -62,7 +62,7 @@
 .premiumSearchPage .searchPrimary > .searchField {
   display: grid;
   gap: 2px;
-  padding: 8px 20px;
+  padding: 5px 18px;
   border-right: 1px solid var(--p-border);
   color: var(--p-muted);
   font-size: 11px;
@@ -119,15 +119,16 @@
 }
 
 .premiumSearchPage .searchWorkspace {
-  grid-template-columns: 234px minmax(0, 1fr);
-  gap: 34px;
-  padding-bottom: 72px;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 28px;
+  padding-bottom: 48px;
 }
 
 .premiumSearchPage .searchFilters {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 0 18px 18px;
+  border: 1px solid var(--p-border);
+  border-radius: 10px;
+  background: var(--p-surface);
 }
 
 .premiumSearchPage .searchFilters > summary {
@@ -135,12 +136,12 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  min-height: 62px;
-  padding: 0 0 20px;
+  min-height: 58px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--p-border);
   color: var(--p-ink);
   font-family: var(--font-heading), sans-serif;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -.025em;
   list-style: none;
@@ -162,8 +163,8 @@
 .premiumSearchPage .searchFilterBody {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 22px;
-  padding: 22px 0 0;
+  gap: 18px;
+  padding: 18px 0 0;
 }
 
 .premiumSearchPage .searchFilterSection {
@@ -192,7 +193,7 @@
 
 .premiumSearchPage .searchPriceRange {
   gap: 10px;
-  padding: 20px 0 22px;
+  padding: 16px 0 18px;
   border: 0;
   border-top: 1px solid var(--p-border);
   border-bottom: 1px solid var(--p-border);
@@ -249,7 +250,7 @@
   margin-bottom: 5px;
   color: var(--p-ink);
   font-family: var(--font-heading), sans-serif;
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -.035em;
@@ -286,11 +287,11 @@
 
 .premiumSearchPage .searchResults .listingGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 26px 20px;
+  gap: 24px 22px;
 }
 
 .premiumSearchPage .searchResults .listingCardBody {
-  padding: 16px 0 0;
+  padding: 18px 20px 20px;
 }
 
 .premiumSearchPage .searchResults .listingPrice {
@@ -606,7 +607,7 @@
   }
 
   .premiumSearchPage .searchResults .listingCardBody {
-    padding: 16px 0 0;
+    padding: 18px;
   }
 
   .premiumSearchPage .searchResults .listingPrice {

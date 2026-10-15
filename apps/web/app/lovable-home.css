@@ -1,0 +1,119 @@
+/* A property-led entry point. Scoped because route styles persist on navigation. */
+.premiumHomePage.lovableHomePage .homeHero { padding: 34px 0 24px; background: var(--p-surface); }
+.premiumHomePage.lovableHomePage .homeHeroGrid { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); grid-template-rows: auto auto auto; gap: 0 64px; }
+.premiumHomePage.lovableHomePage .homeHeroCopy { grid-column: 1; grid-row: 1; align-self: center; padding: 0 0 32px; }
+.premiumHomePage.lovableHomePage .homeEyebrow { margin: 0 0 18px; font-family: var(--font-body), sans-serif; font-size: 10px; letter-spacing: .12em; }
+.premiumHomePage.lovableHomePage .homeHero h1 { font-size: clamp(40px, 4.1vw, 58px); line-height: 1.12; letter-spacing: -.055em; }
+.premiumHomePage.lovableHomePage .homeHeroLead { max-width: 36ch; margin: 22px 0 0; font-size: 16px; line-height: 1.8; }
+.premiumHomePage.lovableHomePage .homeHeroRegion { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 24px 0 0; color: var(--p-muted); font-size: 12px; }
+.premiumHomePage.lovableHomePage .homeHeroRegion > span { color: var(--p-teal); }
+.premiumHomePage.lovableHomePage .homeHeroVisual { grid-column: 2; grid-row: 1; min-height: 440px; align-self: stretch; margin: 0 0 34px; border: 1px solid var(--p-border); border-radius: 12px; background: var(--p-surface); }
+.premiumHomePage.lovableHomePage .homeHeroPhoto { inset: 0 0 auto; width: 100%; height: calc(100% - 130px); object-position: center 60%; }
+.premiumHomePage.lovableHomePage .homeHeroVisual.hasPhoto::after { display: none; }
+.premiumHomePage.lovableHomePage .homePhotoEdge { display: none; }
+.premiumHomePage.lovableHomePage .homePhotoCaption { inset: auto 0 0; min-height: 130px; gap: 18px; align-items: center; padding: 18px 22px; color: var(--p-ink); background: var(--p-surface); }
+.premiumHomePage.lovableHomePage .homePhotoCaption > span { display: flex; flex-direction: column; gap: 5px; }
+.premiumHomePage.lovableHomePage .homePhotoCaption > span > span { order: 1; font-family: var(--font-heading), sans-serif; font-size: 24px; font-weight: 700; line-height: 1.25; letter-spacing: -.035em; }
+.premiumHomePage.lovableHomePage .homePhotoCaption strong { order: 2; max-width: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--p-ink); font-size: 14px; font-weight: 500; line-height: 1.5; }
+.premiumHomePage.lovableHomePage .homePhotoCaption > span > small { order: 3; color: var(--p-muted); font-size: 12px; }
+.premiumHomePage.lovableHomePage .homePhotoCaption > span > span small { margin-left: 5px; color: var(--p-muted); font-family: var(--font-body), sans-serif; font-size: 12px; font-weight: 400; letter-spacing: 0; }
+.premiumHomePage.lovableHomePage .homePhotoCaption b { display: grid; width: 44px; height: 44px; border-color: var(--p-border); color: var(--p-teal); font-size: 22px; }
+.premiumHomePage.lovableHomePage .homeArchitecture { background: var(--p-mist); }
+.premiumHomePage.lovableHomePage .homeSearch { grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 0 24px 20px; border-color: var(--p-border); border-radius: 12px; background: var(--p-surface); box-shadow: 0 8px 28px #142d3009; }
+.premiumHomePage.lovableHomePage .homePurpose { gap: 28px; }
+.premiumHomePage.lovableHomePage .homePurpose button { min-width: 44px; min-height: 48px; padding: 10px 6px; }
+.premiumHomePage.lovableHomePage .homeSearchFields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 24px; padding-top: 16px; }
+.premiumHomePage.lovableHomePage .homeSearchFields label { gap: 8px; font-size: 12px; font-weight: 500; }
+.premiumHomePage.lovableHomePage .homeSearchFields input, .premiumHomePage.lovableHomePage .homeSearchFields select { min-height: 46px; font-size: 14px; }
+.premiumHomePage.lovableHomePage .homeSearchSubmit { grid-column: auto; align-self: end; min-height: 48px; padding-inline: 28px; font-size: 14px; }
+.premiumHomePage.lovableHomePage .homeSearchSubmit > span { margin-left: 22px; }
+.premiumHomePage.lovableHomePage .homeSearchHint { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 20px; margin: 10px 0 0; font-size: 12px; line-height: 1.6; }
+.premiumHomePage.lovableHomePage .homeSearchHint a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.premiumHomePage.lovableHomePage .homeListings { padding-top: 34px; padding-bottom: 0; }
+.premiumHomePage.lovableHomePage .sectionHeading { align-items: end; gap: 20px; margin-bottom: 24px; }
+.premiumHomePage.lovableHomePage .sectionHeading .sectionEyebrow { margin-bottom: 10px; }
+.premiumHomePage.lovableHomePage .sectionHeading h2 { font-size: 30px; font-weight: 550; line-height: 1.3; letter-spacing: -.04em; }
+.premiumHomePage.lovableHomePage .sectionHeading p:not(.sectionEyebrow) { margin-top: 8px; font-size: 13px; }
+.premiumHomePage.lovableHomePage .homeListings .listingGrid { gap: 24px; }
+.premiumHomePage.lovableHomePage .homeProvider { margin-top: 42px; padding-bottom: 44px; }
+.premiumHomePage.lovableHomePage .homeProviderInner { display: flex; justify-content: space-between; gap: 32px; align-items: center; padding: 28px 32px; border: 1px solid var(--p-border); border-radius: 10px; background: var(--p-surface); }
+.premiumHomePage.lovableHomePage .homeProviderInner .sectionEyebrow { margin-bottom: 10px; color: var(--p-muted); }
+.premiumHomePage.lovableHomePage .homeProviderInner h2 { margin: 0; font-size: 25px; font-weight: 550; line-height: 1.3; letter-spacing: -.035em; }
+.premiumHomePage.lovableHomePage .homeProviderInner p:not(.sectionEyebrow) { max-width: none; margin: 8px 0 0; color: var(--p-muted); font-size: 13px; line-height: 1.7; }
+.premiumHomePage.lovableHomePage .providerCta { flex: 0 0 auto; min-height: 46px; gap: 28px; margin: 0; padding: 12px 20px; border-radius: 7px; font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .premiumHomePage.lovableHomePage .homeHeroGrid { column-gap: 36px; }
+  .premiumHomePage.lovableHomePage .homeHero h1 { font-size: 44px; }
+  .premiumHomePage.lovableHomePage .homeHeroLead { font-size: 14px; }
+  .premiumHomePage.lovableHomePage .homeHeroVisual { min-height: 400px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption { padding-inline: 18px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > span { font-size: 22px; }
+  .premiumHomePage.lovableHomePage .homeSearchFields { gap: 18px; }
+  .premiumHomePage.lovableHomePage .homeSearchSubmit { padding-inline: 22px; font-size: 13px; }
+}
+
+@media (max-width: 899px) {
+  .premiumHomePage.lovableHomePage .homeHero { padding-top: 28px; }
+  .premiumHomePage.lovableHomePage .homeHeroGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); column-gap: 28px; }
+  .premiumHomePage.lovableHomePage .homeHero h1 { font-size: 36px; }
+  .premiumHomePage.lovableHomePage .homeHeroCopy { padding-bottom: 28px; }
+  .premiumHomePage.lovableHomePage .homeHeroLead { margin-top: 18px; font-size: 14px; line-height: 1.7; }
+  .premiumHomePage.lovableHomePage .homeHeroRegion { margin-top: 20px; font-size: 11px; }
+  .premiumHomePage.lovableHomePage .homeHeroVisual { min-height: 370px; margin-bottom: 28px; }
+  .premiumHomePage.lovableHomePage .homeHeroPhoto { height: calc(100% - 138px); }
+  .premiumHomePage.lovableHomePage .homePhotoCaption { min-height: 138px; padding: 15px; gap: 12px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > span { font-size: 20px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > span small { display: block; margin: 3px 0 0; font-size: 11px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption strong { font-size: 13px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > small { font-size: 11px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption b { display: none; }
+  .premiumHomePage.lovableHomePage .homeSearch { padding-inline: 18px; }
+  .premiumHomePage.lovableHomePage .homeSearchFields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; }
+  .premiumHomePage.lovableHomePage .homeSearchSubmit { grid-column: 1 / -1; }
+  .premiumHomePage.lovableHomePage .homeSearchSubmit > span { margin-left: auto; }
+  .premiumHomePage.lovableHomePage .homeListings { padding-top: 30px; }
+  .premiumHomePage.lovableHomePage .sectionHeading h2 { font-size: 28px; }
+  .premiumHomePage.lovableHomePage .sectionHeading .textLink { font-size: 12px; }
+}
+
+@media (max-width: 599px) {
+  .premiumHomePage.lovableHomePage .homeHero { padding: 22px 0 18px; }
+  .premiumHomePage.lovableHomePage .homeHeroGrid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .premiumHomePage.lovableHomePage .homeHeroCopy { grid-column: 1; grid-row: 1; padding: 0 0 24px; }
+  .premiumHomePage.lovableHomePage .homeEyebrow { margin-bottom: 12px; font-size: 9px; }
+  .premiumHomePage.lovableHomePage .homeHero h1 { font-size: clamp(35px, 9.8vw, 43px); line-height: 1.12; }
+  .premiumHomePage.lovableHomePage .homeHeroLead { max-width: 39ch; margin-top: 14px; font-size: 13px; line-height: 1.7; }
+  .premiumHomePage.lovableHomePage .homeHeroRegion { display: none; }
+  .premiumHomePage.lovableHomePage .homeHeroVisual { grid-column: 1; grid-row: 2; min-height: 350px; margin-bottom: 24px; border-radius: 10px; }
+  .premiumHomePage.lovableHomePage .homeHeroPhoto { height: calc(100% - 120px); object-position: center 60%; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption { min-height: 120px; padding: 16px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > span { font-size: 23px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > span small { display: inline; margin-left: 5px; font-size: 11px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption strong { font-size: 14px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption > span > small { font-size: 12px; }
+  .premiumHomePage.lovableHomePage .homePhotoCaption b { display: grid; }
+  .premiumHomePage.lovableHomePage .homeSearch { grid-column: 1; grid-row: 3; padding: 0 14px 16px; border-radius: 10px; }
+  .premiumHomePage.lovableHomePage .homePurpose { gap: 24px; }
+  .premiumHomePage.lovableHomePage .homePurpose button { min-width: 44px; min-height: 44px; padding: 10px 3px; font-size: 13px; }
+  .premiumHomePage.lovableHomePage .homeSearchFields { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 14px; }
+  .premiumHomePage.lovableHomePage .homeSearchFields label { font-size: 12px; }
+  .premiumHomePage.lovableHomePage .homeSearchFields input, .premiumHomePage.lovableHomePage .homeSearchFields select { min-height: 44px; padding-inline: 11px; font-size: 14px; }
+  .premiumHomePage.lovableHomePage .homeSearchSubmit { min-height: 46px; padding: 12px 14px; font-size: 13px; }
+  .premiumHomePage.lovableHomePage .homeSearchHint { grid-column: 1; grid-row: 4; margin-top: 8px; font-size: 11px; }
+  .premiumHomePage.lovableHomePage .homeSearchHint > span { display: none; }
+  .premiumHomePage.lovableHomePage .homeSearchHint a { width: 100%; justify-content: center; }
+  .premiumHomePage.lovableHomePage .homeListings { padding-top: 26px; }
+  .premiumHomePage.lovableHomePage .sectionHeading { display: flex; align-items: start; gap: 14px; margin-bottom: 20px; }
+  .premiumHomePage.lovableHomePage .sectionHeading > div { min-width: 0; }
+  .premiumHomePage.lovableHomePage .sectionHeading .sectionEyebrow { margin-bottom: 8px; font-size: 9px; }
+  .premiumHomePage.lovableHomePage .sectionHeading h2 { font-size: 25px; line-height: 1.25; }
+  .premiumHomePage.lovableHomePage .sectionHeading p:not(.sectionEyebrow) { max-width: 25ch; font-size: 12px; }
+  .premiumHomePage.lovableHomePage .sectionHeading .textLink { flex: 0 0 76px; margin-top: 0; font-size: 11px; line-height: 1.6; }
+  .premiumHomePage.lovableHomePage .homeListings .listingGrid { gap: 22px; }
+  .premiumHomePage.lovableHomePage .homeProvider { margin-top: 28px; padding-bottom: 28px; }
+  .premiumHomePage.lovableHomePage .homeProviderInner { display: block; padding: 24px; }
+  .premiumHomePage.lovableHomePage .homeProviderInner h2 { font-size: 23px; }
+  .premiumHomePage.lovableHomePage .homeProviderInner p:not(.sectionEyebrow) { margin-bottom: 18px; font-size: 13px; }
+  .premiumHomePage.lovableHomePage .providerCta { display: flex; justify-content: space-between; }
+}

@@ -27,11 +27,21 @@ export function listingMediaUrl(listing: Pick<PublicListing, 'id'>, media: Publi
 }
 
 export function HomeMark({ className = '' }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m4 28 10-24h4l10 24h-6l-3-7h-6l-3 7H4Zm11-12h2l-1-4-1 4Z" fill="currentColor" fillRule="evenodd" /><path d="M15 28v-5h2v5" stroke="currentColor" strokeWidth="2" /></svg>;
+  return <svg className={className} viewBox="0 0 128 130" aria-hidden="true" fill="currentColor"><path d="M1 130 54 0h19l53 130h-28L63.3 42 29 130Z" /><path d="M40 76h48v13H40zM51 130V102L64 90 78 102v28Z" /></svg>;
 }
 
 export function PachiWordmark() {
-  return <img className="pachiWordmark" src="/brand/pachi-wordmark.svg" width="164" height="45" alt="Pachi" />;
+  return <img className="pachiWordmark" src="/brand/pachi-wordmark.svg" width="566" height="146" alt="Pachi" />;
+}
+
+export function PropertyFactIcon({ kind }: { kind: 'bed' | 'bath' | 'area' | 'location' }) {
+  const path = {
+    bed: <><path d="M3 17V7m18 10V7M3 13h18v6M6 13V6h12v7M3 9h18M3 19v2m18-2v2" /></>,
+    bath: <><path d="M3 12h18l-2 6H5l-2-6Zm3 6v3m12-3v3M6 12V5a2 2 0 0 1 4 0" /><path d="M9 6h3" /></>,
+    area: <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />,
+    location: <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.3" /></>,
+  }[kind];
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{path}</svg>;
 }
 
 export function HomeHeroMedia({ listing, loading }: { listing: PublicListing | undefined; loading: boolean }) {
@@ -41,7 +51,7 @@ export function HomeHeroMedia({ listing, loading }: { listing: PublicListing | u
   return <div className={`homeHeroVisual${source && source !== failedSource ? ' hasPhoto' : ''}`}>
     {source && source !== failedSource && listing ? <>
       <img className="homeHeroPhoto" src={source} srcSet={cover?.widths.map(width => `${listingMediaUrl(listing, cover, width)} ${width}w`).join(', ')} sizes="(max-width: 700px) calc(100vw - 36px), (max-width: 1000px) 50vw, 660px" alt={listing.title} width="1280" height="1100" fetchPriority="high" onError={() => setFailedSource(source)} />
-      <Link className="homePhotoCaption" href={`/listings/${encodeURIComponent(listing.id)}`}><span><small>{purposeLabel(listing.purpose)} · {listing.location.city}</small><strong>{listing.title}</strong><span>{formatPrice(listing.price)} <small>{pricePeriod(listing.price.pricing_period)}</small></span></span><b aria-hidden="true">↗</b></Link>
+      <Link className="homePhotoCaption" href={`/listings/${encodeURIComponent(listing.id)}`}><span><small>{purposeLabel(listing.purpose)} · {listing.location.city}</small><strong>{listing.title}</strong><span className="homeFeaturedPrice">{listing.price.amount_minor.toLocaleString('en-CM')} <span className="priceCurrency">{listing.price.currency}</span> <small>{pricePeriod(listing.price.pricing_period)}</small></span></span><b aria-hidden="true">↗</b></Link>
     </> : <div className="homeArchitecture" aria-busy={loading}><span className="architectureLines" aria-hidden="true" /><HomeMark /><p>{loading ? 'Finding the possibilities.' : 'Room for your next chapter.'}</p><span>HOMES · LAND · COMMERCIAL SPACES</span></div>}
     <span className="homePhotoEdge" aria-hidden="true">A NEW PERSPECTIVE</span>
   </div>;
@@ -64,12 +74,12 @@ export function ListingCard({ listing }: { listing: PublicListing }) {
   const source = cover ? listingMediaUrl(listing, cover) : '';
   const [failedSource, setFailedSource] = useState('');
   const facts = [
-    listing.property.bedrooms !== null ? `${listing.property.bedrooms} bed${listing.property.bedrooms === 1 ? '' : 's'}` : null,
-    listing.property.bathrooms !== null ? `${listing.property.bathrooms} bath${listing.property.bathrooms === 1 ? '' : 's'}` : null,
-    listing.property.size_sqm ? `${listing.property.size_sqm} m²` : null,
-  ].filter(Boolean);
+    ...(listing.property.bedrooms !== null ? [{ kind: 'bed' as const, label: `${listing.property.bedrooms} bed${listing.property.bedrooms === 1 ? '' : 's'}` }] : []),
+    ...(listing.property.bathrooms !== null ? [{ kind: 'bath' as const, label: `${listing.property.bathrooms} bath${listing.property.bathrooms === 1 ? '' : 's'}` }] : []),
+    ...(listing.property.size_sqm ? [{ kind: 'area' as const, label: `${listing.property.size_sqm} m²` }] : []),
+  ];
 
-  return <Link className="listingCard" href={`/listings/${encodeURIComponent(listing.id)}`}><div className="listingCardMedia">{source && source !== failedSource ? <img src={source} alt={listing.title} width="640" height="480" loading="lazy" decoding="async" onError={() => setFailedSource(source)} /> : <div className="listingNoPhoto"><span className="noPhotoFrame" aria-hidden="true"><HomeMark /></span><span>No photo available</span><small>Explore the property details</small></div>}<span className="listingPurpose">{purposeLabel(listing.purpose)}</span></div><div className="listingCardBody"><div className="listingPriceRow"><p className="listingPrice">{formatPrice(listing.price)}</p><span className="listingPricePeriod">{pricePeriod(listing.price.pricing_period)}</span></div><h2>{listing.title}</h2><p className="listingLocation">{listing.location.neighborhood ? `${listing.location.neighborhood}, ` : ''}{listing.location.city}</p><p className="listingFacts"><span>{propertyTypeLabel(listing.property.property_type)}</span>{facts.map((fact) => <span key={fact}>{fact}</span>)}</p></div></Link>;
+  return <Link className="listingCard" href={`/listings/${encodeURIComponent(listing.id)}`}><div className="listingCardMedia">{source && source !== failedSource ? <img src={source} alt={listing.title} width="640" height="480" loading="lazy" decoding="async" onError={() => setFailedSource(source)} /> : <div className="listingNoPhoto"><span className="noPhotoFrame" aria-hidden="true"><HomeMark /></span><span>No photo available</span><small>Explore the property details</small></div>}<span className="listingPurpose">{purposeLabel(listing.purpose)}</span></div><div className="listingCardBody"><div className="listingPriceRow"><p className="listingPrice">{listing.price.amount_minor.toLocaleString('en-CM')}{' '}<span className="priceCurrency">{listing.price.currency}</span></p><span className="listingPricePeriod">{pricePeriod(listing.price.pricing_period)}</span></div><h2>{listing.title}</h2><p className="listingLocation"><PropertyFactIcon kind="location" /><span>{listing.location.neighborhood ? `${listing.location.neighborhood}, ` : ''}{listing.location.city} · {propertyTypeLabel(listing.property.property_type)}</span></p>{facts.length > 0 && <p className="listingFacts">{facts.map(fact => <span key={fact.kind}><PropertyFactIcon kind={fact.kind} />{fact.label}</span>)}</p>}</div></Link>;
 }
 
 export function ListingSkeletons({ count = 6 }: { count?: number }) {

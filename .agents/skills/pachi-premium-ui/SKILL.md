@@ -23,6 +23,10 @@ Make Pachi look and work like a **distinctive, trusted Cameroon property marketp
 6. **Regression:** Confirm all existing authorization and privacy requirements, automated browser assertions, and current mandatory CI. If the screenshot tool/browser is unavailable, say so and stop before visual acceptance.
 7. **Handoff:** Deliver exact screenshot paths, before/after contrasts, 1–5 scores across all six visual criteria, real regressions, and remaining gaps. Human owner reviews visuals before a UI PR is merged.
 
+## Current G3-I1 reference refinement
+
+For the owner-supplied Lovable iteration, the listing-detail screenshots are the primary visual reference. Read DESIGN-BRIEF and view every supplied image before editing; compare against the latest rendered G3-I1 candidate, not just the original rejected version. Keep supplied archives and screenshot references in ignored evidence. Preserve public contract capabilities: the prototype is not a dataset or authority for identities, verification, amenities, saved state, ranking or confirmation dates. Deliver a direct element-by-element reference comparison, full-gallery/media-count and contact evidence, and a side-by-side of the original logo concept, arrival runtime and coherent concept-derived proposal. Do not replace that comparison with self-awarded rubric scores.
+
 ## Nonnegotiable UX rules
 
 - Prioritize **legibility and decision making**: photo, price, offering period, location, key facts, and next action; not decorative widgets.

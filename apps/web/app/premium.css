@@ -1,7 +1,7 @@
 /* Proposed architectural identity. Keep shared presentation separate from route behavior. */
 :root {
   --p-ink: #142d30; --p-teal: #08665b; --p-teal-hover: #064d45;
-  --p-copper: #be7651; --p-canvas: #f6f8f6; --p-surface: #fff;
+  --p-copper: #be7651; --p-canvas: #fafcfb; --p-surface: #fff;
   --p-mist: #e6eeea; --p-muted: #516560; --p-border: #d8e2dd; --p-error: #9d352d;
 }
 .marketplace-root, .marketplacePage {
@@ -35,20 +35,23 @@
 
 /* Comparison cards: photography first, then price and terms, then essential facts. */
 .listingGrid { gap: 32px 24px; }
-.listingCard { border: 0; border-radius: 0; background: transparent; overflow: visible; }
-.listingCard:hover, .listingCard:focus-visible { box-shadow: none; }
-.listingCardMedia { border-radius: 12px; aspect-ratio: 4 / 3; background: var(--p-mist); overflow: hidden; }
+.listingCard { border: 1px solid var(--p-border); border-radius: 8px; background: var(--p-surface); overflow: hidden; }
+.listingCard:hover, .listingCard:focus-visible { border-color: #9eb8ab; box-shadow: 0 6px 18px #142d3009; }
+.listingCardMedia { border-radius: 0; aspect-ratio: 3 / 2; background: var(--p-mist); overflow: hidden; }
 .listingCardMedia img { transition: transform 200ms ease; }
 .listingCard:hover .listingCardMedia img { transform: scale(1.025); }
 .listingPurpose { top: 14px; left: 14px; padding: 6px 10px; border-radius: 5px; color: var(--p-ink); background: #ffffffed; font-size: 11px; font-weight: 600; }
-.listingCardBody, .searchResults .listingCardBody { padding: 18px 0 0; }
+.listingCardBody, .searchResults .listingCardBody { padding: 19px 18px 18px; }
 .listingPriceRow { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 8px; }
-.listingPrice { font-size: clamp(20px, 1.7vw, 25px); line-height: 1.2; font-weight: 750; color: var(--p-ink); letter-spacing: -.045em; }
+.listingPrice { font-size: clamp(20px, 1.7vw, 25px); line-height: 1.2; font-weight: 700; color: var(--p-ink); letter-spacing: -.035em; }
+.priceCurrency { font-family: var(--font-body), Arial, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0; }
 .listingPricePeriod { color: var(--p-muted); font-size: 12px; }
 .listingCard h2 { margin: 11px 0 6px; font-size: 16px; line-height: 1.5; font-weight: 650; letter-spacing: -.02em; }
-.listingLocation { margin: 0; color: var(--p-muted); font-size: 13px; }
-.listingFacts { display: flex; flex-wrap: wrap; gap: 3px 0; margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--p-border); color: var(--p-muted); font-size: 12px; line-height: 1.6; }
-.listingFacts span + span::before { position: static; content: '·'; color: #6f867b; padding-inline: 7px; }
+.listingCard .listingLocation { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--p-muted); font-size: 13px; }
+.listingFacts { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--p-border); color: var(--p-muted); font-size: 12px; line-height: 1.6; }
+.listingFacts > span { display: inline-flex; align-items: center; gap: 6px; }
+.listingFacts span + span::before { content: none; }
+.listingCard .listingLocation svg, .listingFacts svg { flex-shrink: 0; width: 16px; height: 16px; color: #45685c; }
 .listingNoPhoto { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--p-muted); background: repeating-linear-gradient(90deg,transparent 0 47px,#142d3006 47px 48px), linear-gradient(140deg,#edf2ef,#dce6df); }
 .listingNoPhoto .noPhotoFrame { display: grid; place-items: center; width: 76px; height: 94px; margin-bottom: 9px; border: 1px solid #adbfb4; border-radius: 40px 40px 0 0; }
 .listingNoPhoto svg { width: 38px; height: 38px; margin: 0; color: #5f796d; }
@@ -187,8 +190,8 @@
   .listingGrid { grid-template-columns: 1fr; gap: 30px; }
   .listingPrice { font-size: 23px; }
   .listingCard h2 { font-size: 16px; }
-  .listingCardBody, .searchResults .listingCardBody { padding: 16px 0 0; }
-  .listingCardMedia { aspect-ratio: 4 / 3; }
+  .listingCardBody, .searchResults .listingCardBody { padding: 18px; }
+  .listingCardMedia { aspect-ratio: 3 / 2; }
   .listingFacts { margin-top: 13px; }
   .premiumHomePage .homeExplore { grid-template-columns: 1fr; margin-top: 42px; padding-block: 30px; gap: 28px; }
   .homeExploreIntro h2 { font-size: 29px; }
