@@ -6,6 +6,16 @@ import type { PublicListing } from '@pachi/contracts';
 // Generated TEST photograph. This directory is not served by Next.js and is
 // intercepted only in fresh automated browser contexts, never real inventory.
 export const testPhotograph = readFileSync(join(process.cwd(), 'tests/fixtures/synthetic-apartment.jpg'));
+const testBedroomPhotograph = readFileSync(join(process.cwd(), 'tests/fixtures/synthetic-bedroom.jpg'));
+const testKitchenPhotograph = readFileSync(join(process.cwd(), 'tests/fixtures/synthetic-kitchen.jpg'));
+const testMediaPhotographs: Record<string, Buffer> = {
+  '00000000-0000-4000-8000-000000000152': testPhotograph,
+  '00000000-0000-4000-8000-000000000153': testBedroomPhotograph,
+  '00000000-0000-4000-8000-000000000154': testKitchenPhotograph,
+  '00000000-0000-4000-8000-000000000162': testBedroomPhotograph,
+  '00000000-0000-4000-8000-000000000163': testKitchenPhotograph,
+  '00000000-0000-4000-8000-000000000164': testPhotograph,
+};
 export const privateAddressCanary = 'TEST_ONLY_PRIVATE_EXACT_ADDRESS';
 export const testListing: PublicListing = {
   id: '00000000-0000-4000-8000-000000000151', purpose: 'RENT', title: 'TEST · Bright apartment in Akwa',
@@ -18,7 +28,7 @@ export const testListing: PublicListing = {
 };
 export const testListings: PublicListing[] = [
   testListing,
-  { ...testListing, id: '00000000-0000-4000-8000-000000000161', title: 'TEST · Furnished short stay', purpose: 'SHORT_LET', price: { ...testListing.price, amount_minor: 35000, pricing_period: 'NIGHTLY' }, property: { ...testListing.property, bedrooms: 1, furnishing: 'FURNISHED' }, location: { region: 'Southwest', city: 'Buea', neighborhood: 'Molyko' } },
+  { ...testListing, id: '00000000-0000-4000-8000-000000000161', title: 'TEST · Furnished short stay', purpose: 'SHORT_LET', price: { ...testListing.price, amount_minor: 35000, pricing_period: 'NIGHTLY' }, property: { ...testListing.property, bedrooms: 1, furnishing: 'FURNISHED' }, location: { region: 'Southwest', city: 'Buea', neighborhood: 'Molyko' }, media: testListing.media.map((media, index) => ({ ...media, id: `00000000-0000-4000-8000-00000000016${index + 2}` })) },
   { ...testListing, id: '00000000-0000-4000-8000-000000000171', title: 'TEST · Family home for sale', purpose: 'SALE', price: { ...testListing.price, amount_minor: 65000000, pricing_period: 'TOTAL', negotiable: true }, property: { ...testListing.property, property_type: 'HOUSE', bedrooms: 4, bathrooms: 3 }, media: [] },
 ];
 
@@ -26,7 +36,10 @@ export async function marketplaceFixture(page: Page, items = testListings) {
   await page.route('**/api/session', route => route.fulfill({ json: { authenticated: false, participationAllowed: false } }));
   await page.route('**/api/public/listings**', route => {
     const url = new URL(route.request().url());
-    if (url.pathname.includes('/media/')) return route.fulfill({ contentType: 'image/jpeg', body: testPhotograph });
+    if (url.pathname.includes('/media/')) {
+      const photograph = testMediaPhotographs[url.pathname.split('/')[6] ?? ''];
+      return photograph ? route.fulfill({ contentType: 'image/jpeg', body: photograph }) : route.fulfill({ status: 404, body: '' });
+    }
     if (url.pathname.endsWith('/reviews')) return route.fulfill({ json: { items: [], next_cursor: null, reputation: { count: 0, average: null } } });
     const id = url.pathname.split('/')[4];
     if (id) {

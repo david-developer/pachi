@@ -7,6 +7,7 @@ import { BlockControls } from '../../components/block-controls';
 import { MarketplaceFooter, MarketplaceHeader, formatPrice, pricePeriod, propertyTypeLabel, purposeLabel } from '../../components/marketplace';
 import { PublishedReviews } from '../../components/review-controls';
 import { ListingGallery } from './listing-gallery';
+import './detail-premium.css';
 
 type DetailState = 'loading' | 'ready' | 'missing' | 'error';
 type ContactSession = { authenticated?: boolean; participationAllowed?: boolean; csrfToken?: string };
@@ -43,7 +44,7 @@ function offeringFacts(listing: PublicListing): Fact[] {
 }
 
 function Facts({ facts, className = '' }: { facts: Fact[]; className?: string }) {
-  return <dl className={`detailFacts ${className}`}>{facts.map(fact => <div className="factItem" key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>;
+  return <dl className={`detailFacts ${className}`}>{facts.filter(fact => fact.value !== notSpecified).map(fact => <div className="factItem" key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>;
 }
 
 export default function PublicListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -172,33 +173,36 @@ export default function PublicListingDetailPage({ params }: { params: Promise<{ 
   }
 
   const contactButton = (className: string, feedbackId: string) => <button className={`primary detailContact ${className}`} type="button" disabled={!contactAllowed || contactBusy} aria-busy={contactBusy} aria-describedby={contactState ? feedbackId : undefined} onClick={() => void contact()}>{contactBusy ? 'Opening contact…' : 'Contact provider'}<span aria-hidden="true">↗</span></button>;
+  const terms = listing ? offeringFacts(listing) : [];
+  const unspecifiedTerms = terms.filter(fact => fact.value === notSpecified).map(fact => fact.label.toLowerCase());
 
-  return <div className="marketplacePage"><MarketplaceHeader active="listings" /><main id="main-content" className="publicShell detailShell">
+  return <div className="marketplacePage premiumDetailPage"><MarketplaceHeader active="listings" /><main id="main-content" className="publicShell detailShell">
     <nav aria-label="Breadcrumb"><Link className="backLink" href="/listings">← Back to listings</Link></nav>
     {state === 'loading' && <section className="detailLoading" aria-busy="true"><p className="publicState" role="status">Loading listing…</p><div className="detailLoadingPhoto" aria-hidden="true" /></section>}
     {state === 'missing' && <section className="emptyResults"><p className="sectionEyebrow">Listing unavailable</p><h1>This listing is no longer available.</h1><p>It may have expired or changed status. Browse current listings to find another match.</p><Link className="primary" href="/listings">Browse current listings</Link></section>}
     {state === 'error' && <section className="emptyResults"><p className="sectionEyebrow">Connection interrupted</p><h1>We couldn’t load this listing.</h1><p>Listing details are temporarily unavailable. Try again to check this property.</p><button className="primary" type="button" onClick={() => setRetryVersion(value => value + 1)}>Try again</button></section>}
     {state === 'ready' && listing && <article className="detailPage">
-      <header className="detailHeader"><div className="detailEyebrow"><span>{purposeLabel(listing.purpose)}</span><span>{propertyTypeLabel(listing.property.property_type)}</span></div><div className="detailTitleRow"><h1>{listing.title}</h1></div><p className="listingLocation">{[listing.location.neighborhood, listing.location.city, listing.location.region].filter(Boolean).join(' · ')}</p></header>
-      <ListingGallery key={listing.id} listing={listing} />
-      <div className="detailLayout"><div className="detailBody">
-        <section className="detailSection"><p className="sectionEyebrow">The property</p><h2>A closer look</h2><Facts facts={[
+      <header className="detailHeader"><div className="detailEyebrow"><span>{purposeLabel(listing.purpose)}</span><span>{propertyTypeLabel(listing.property.property_type)}</span></div><div className="detailTitleRow"><h1>{listing.title}</h1></div><p className="listingLocation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.3" /></svg>{[listing.location.neighborhood, listing.location.city, listing.location.region].filter(Boolean).join(' · ')}</p></header>
+      <div className="detailLayout">
+        <ListingGallery key={listing.id} listing={listing} />
+        <div className="detailBody">
+        <section className="detailSection detailPropertySection"><div className="detailSectionHeading"><p className="sectionEyebrow">01 / The property</p><h2>A closer look</h2></div><Facts className="detailPropertyFacts" facts={[
           { label: 'Property type', value: propertyTypeLabel(listing.property.property_type) },
           { label: 'Bedrooms', value: listing.property.bedrooms ?? notSpecified },
           { label: 'Bathrooms', value: listing.property.bathrooms ?? notSpecified },
           { label: 'Size', value: listing.property.size_sqm == null ? notSpecified : `${listing.property.size_sqm} m²` },
           { label: 'Furnishing', value: listing.property.furnishing ? listing.property.furnishing.toLowerCase().replaceAll('_', ' ').replace(/^./, character => character.toUpperCase()) : notSpecified },
         ]} /></section>
-        <section className="detailSection"><h2>About this listing</h2><p className="detailDescription">{listing.description}</p></section>
-        <section className="detailSection"><h2>{listing.purpose === 'RENT' ? 'Rental terms' : listing.purpose === 'SHORT_LET' ? 'Stay details' : 'Offering details'}</h2><Facts className="detailTerms" facts={offeringFacts(listing)} />{listing.purpose === 'SHORT_LET' && <p className="detailNote">Availability is informational. Contact the provider to discuss your stay.</p>}</section>
-        <section className="detailSection"><h2>Availability</h2><Facts facts={[
+        <section className="detailSection detailDescriptionSection"><h2>About this listing</h2><p className="detailDescription">{listing.description}</p></section>
+        <section className="detailSection detailOfferingSection"><div className="detailSectionHeading"><p className="sectionEyebrow">02 / The details</p><h2>{listing.purpose === 'RENT' ? 'Rental terms' : listing.purpose === 'SHORT_LET' ? 'Stay details' : 'Offering details'}</h2></div>{terms.some(fact => fact.value !== notSpecified) && <Facts className="detailTerms" facts={terms} />}{unspecifiedTerms.length > 0 && <p className="detailNote">Confirm {unspecifiedTerms.join(', ')} with the provider.</p>}{listing.purpose === 'SHORT_LET' && <p className="detailNote">Availability is informational. Contact the provider to discuss your stay.</p>}
+        <div className="detailAvailability"><h3>Availability</h3><Facts facts={[
           ...(listing.market_status ? [{ label: 'Status', value: ({ AVAILABLE: 'Available', PARTIALLY_BOOKED: 'Partially booked', TEMPORARILY_UNAVAILABLE: 'Temporarily unavailable', UNDER_OFFER: 'Under offer', RESERVED: 'Reserved', RENTED: 'Rented', SOLD: 'Sold', UNAVAILABLE: 'Unavailable' } as Record<string, string>)[listing.market_status] ?? 'Contact provider to confirm' }] : []),
           { label: 'Available from', value: dateLabel(listing.available_from) },
-        ]} /></section>
-        <section className="detailSection detailLocation"><p className="sectionEyebrow">The neighborhood</p><h2>Location</h2><div className="detailLocationContent"><span className="detailLocationIcon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.3" /></svg></span><div>{listing.location.neighborhood && <p className="detailNeighborhood">{listing.location.neighborhood}</p>}<p>{listing.location.city} · {listing.location.region}</p><small>Structured neighborhood location. No exact address is shown.</small></div></div></section>
+        ]} /></div></section>
+        <section className="detailSection detailLocation"><div className="detailSectionHeading"><p className="sectionEyebrow">03 / The neighborhood</p><h2>Location</h2></div><div className="detailLocationContent"><span className="detailLocationIcon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.3" /></svg></span><div>{listing.location.neighborhood && <p className="detailNeighborhood">{listing.location.neighborhood}</p>}<p>{listing.location.city} · {listing.location.region}</p><small>Structured neighborhood location. No exact address is shown.</small></div></div></section>
         <PublishedReviews endpoint={`/api/public/listings/${encodeURIComponent(listing.id)}/reviews`} title="Provider reputation" />
-      </div><aside className="detailContactCard" aria-label="Contact this property's provider"><p className="sectionEyebrow">{purposeLabel(listing.purpose)}</p><p className="detailContactPrice">{formatPrice(listing.price)}<span>{pricePeriod(listing.price.pricing_period)}</span></p>{listing.price.negotiable === true && <p className="detailNegotiable">Price negotiable</p>}{contactButton('detailDesktopContact', 'desktop-contact-feedback')}<p className="detailContactHelp">Ask about this property and confirm availability.</p>{contactState && !mobileContact && <div className="detailDesktopFeedback"><p id="desktop-contact-feedback" className="error" role="status">{contactState}</p>{needsPhone && <Link className="detailAccountLink" href="/account">Go to your account</Link>}</div>}<div className="detailSafety"><BlockControls source="listings" id={listing.id} onCapability={capability} onStart={() => { allowed.current = false; setContactAllowed(false); invalidateContact(); }} onChange={() => invalidateContact()} /></div></aside></div>
-      <div className="detailMobileContact"><div><strong>{formatPrice(listing.price)}</strong><span>{pricePeriod(listing.price.pricing_period)}</span></div>{contactButton('detailMobileContactButton', 'mobile-contact-feedback')}{contactState && mobileContact && <div className="detailMobileFeedback"><p id="mobile-contact-feedback" className="error" role="status">{contactState}</p>{needsPhone && <Link className="detailAccountLink" href="/account">Go to your account</Link>}</div>}</div>
+      </div><aside className="detailContactCard" aria-label="Contact this property's provider"><div className="detailContactPriceGroup"><p className="sectionEyebrow">{purposeLabel(listing.purpose)}</p><p className="detailContactPrice">{formatPrice(listing.price)}<span>{pricePeriod(listing.price.pricing_period)}</span></p>{listing.price.negotiable === true && <p className="detailNegotiable">Price negotiable</p>}</div><div className="detailContactAction"><h2>Talk to the provider</h2><p className="detailContactHelp">Ask about this property and confirm availability.</p>{!mobileContact && contactButton('detailDesktopContact', 'desktop-contact-feedback')}{contactState && !mobileContact && <div className="detailDesktopFeedback"><p id="desktop-contact-feedback" className="error" role="status">{contactState}</p>{needsPhone && <Link className="detailAccountLink" href="/account">Go to your account</Link>}</div>}<p className="detailContactPrivacy">Your inquiry starts a conversation in Pachi. Sign-in and account eligibility are required.</p></div><div className="detailSafety"><BlockControls source="listings" id={listing.id} onCapability={capability} onStart={() => { allowed.current = false; setContactAllowed(false); invalidateContact(); }} onChange={() => invalidateContact()} /></div></aside></div>
+      {mobileContact && <div className="detailMobileContact"><div><strong>{formatPrice(listing.price)}</strong><span>{pricePeriod(listing.price.pricing_period)}</span></div>{contactButton('detailMobileContactButton', 'mobile-contact-feedback')}{contactState && <div className="detailMobileFeedback"><p id="mobile-contact-feedback" className="error" role="status">{contactState}</p>{needsPhone && <Link className="detailAccountLink" href="/account">Go to your account</Link>}</div>}</div>}
     </article>}
   </main><MarketplaceFooter /></div>;
 }

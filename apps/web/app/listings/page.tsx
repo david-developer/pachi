@@ -8,11 +8,12 @@ import type { PublicListingSearchResponse } from '@pachi/contracts';
 import { emptyListingSearch, listingSearchParams, readListingSearch, validateListingSearch } from '../../lib/listing-search';
 import type { ListingSearchErrors, ListingSearchFilters } from '../../lib/listing-search';
 import { ListingCard, ListingSkeletons, MarketplaceFooter, MarketplaceHeader, purposeLabel } from '../components/marketplace';
+import './search-premium.css';
 
 type SearchError = { message: string; pagination: boolean };
 
 export default function PublicListingsPage() {
-  return <div className="marketplacePage"><MarketplaceHeader active="listings" /><main className="marketplaceContainer" id="main-content"><header className="searchIntro"><p className="searchBreadcrumb"><Link href="/">Home</Link><span aria-hidden="true"> / </span>Property search</p><p className="eyebrow">EXPLORE CAMEROON</p><h1>Find your next place.</h1><p>Homes, rooms, land and commercial spaces in Southwest and Littoral.</p></header><Suspense fallback={<section className="searchResults" aria-label="Loading listings"><ListingSkeletons count={6} /></section>}><ListingSearch /></Suspense></main><MarketplaceFooter /></div>;
+  return <div className="marketplacePage premiumSearchPage"><MarketplaceHeader active="listings" /><main className="marketplaceContainer" id="main-content"><header className="searchIntro"><p className="searchBreadcrumb"><Link href="/">Home</Link><span aria-hidden="true"> / </span>Property search</p><div className="searchEditorialHeading"><div><p className="eyebrow">A PLACE FOR WHAT’S NEXT</p><h1>Find your next place.</h1></div><p>Homes, rooms, land and commercial spaces.<br className="searchDesktopBreak" /> Explore Southwest and Littoral.</p></div></header><Suspense fallback={<section className="searchResults" aria-label="Loading listings"><ListingSkeletons count={6} /></section>}><ListingSearch /></Suspense></main><MarketplaceFooter /></div>;
 }
 
 function ListingSearch() {
@@ -142,18 +143,22 @@ function ListingSearch() {
 
   return <>
     <form className="searchPrimary" id="listing-search" ref={form} onSubmit={submit} noValidate>
-      <label className="searchField">Purpose<select {...descriptors('purpose')} value={draft.purpose} onChange={(event) => change('purpose', event.target.value)}><option value="">Rent, buy or short let</option><option value="RENT">Rent</option><option value="SALE">Buy</option><option value="SHORT_LET">Short let</option></select>{fieldError('purpose')}</label>
+      <label className="searchField">Purpose<select {...descriptors('purpose')} value={draft.purpose} onChange={(event) => change('purpose', event.target.value)}><option value="">Any purpose</option><option value="RENT">Rent</option><option value="SALE">Buy</option><option value="SHORT_LET">Short let</option></select>{fieldError('purpose')}</label>
       <label className="searchField">Region<select {...descriptors('region')} value={draft.region} onChange={(event) => change('region', event.target.value)}><option value="">All launch regions</option><option value="Southwest">Southwest</option><option value="Littoral">Littoral</option></select>{fieldError('region')}</label>
       <label className="searchField">City<input {...descriptors('city')} autoComplete="off" maxLength={120} value={draft.city} onChange={(event) => change('city', event.target.value)} placeholder="Enter a city, e.g. Douala" />{fieldError('city')}</label>
-      <button className="primary searchSubmit" type="submit">Apply filters</button>
+      <button className="primary searchSubmit" type="submit"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /></svg>Apply filters</button>
     </form>
     <div className="searchWorkspace">
-      <aside className="searchSidebar" aria-label="Refine your search"><details className="searchFilters" open={filtersOpen} onToggle={(event) => setFiltersOpen(event.currentTarget.open)}><summary>More filters</summary><div className="searchFilterBody">
+      <aside className="searchSidebar" aria-label="Refine your search"><details className="searchFilters" open={filtersOpen} onToggle={(event) => setFiltersOpen(event.currentTarget.open)}><summary><span>More filters</span><svg className="searchFilterIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6m6 4v6" /></svg></summary><div className="searchFilterBody">
+        <div className="searchFilterSection">
         <label className="searchField">Neighborhood<input {...descriptors('neighborhood')} autoComplete="off" maxLength={160} value={draft.neighborhood} onChange={(event) => change('neighborhood', event.target.value)} placeholder="Enter a neighborhood" />{fieldError('neighborhood')}</label>
         <label className="searchField">Property type<select {...descriptors('property_type')} value={draft.property_type} onChange={(event) => change('property_type', event.target.value)}><option value="">Any type</option><option value="HOUSE">House</option><option value="APARTMENT">Apartment</option><option value="ROOM">Room</option><option value="LAND">Land</option><option value="COMMERCIAL">Commercial</option></select>{fieldError('property_type')}</label>
+        </div>
         <fieldset className="searchPriceRange"><legend>Price range (XAF)</legend><label className="searchField">Min price<input {...descriptors('min_price')} type="text" inputMode="numeric" value={draft.min_price} onChange={(event) => change('min_price', event.target.value)} placeholder="No minimum" />{fieldError('min_price')}</label><label className="searchField">Max price<input {...descriptors('max_price')} type="text" inputMode="numeric" value={draft.max_price} onChange={(event) => change('max_price', event.target.value)} placeholder="No maximum" />{fieldError('max_price')}</label></fieldset>
+        <div className="searchFilterSection">
         <label className="searchField">Bedrooms<input {...descriptors('min_bedrooms')} type="text" inputMode="numeric" value={draft.min_bedrooms} onChange={(event) => change('min_bedrooms', event.target.value)} placeholder="Any number" /><span className="searchNumericHelp">Minimum number of bedrooms</span>{fieldError('min_bedrooms')}</label>
         <label className="searchField">Furnishing<select {...descriptors('furnishing')} value={draft.furnishing} onChange={(event) => change('furnishing', event.target.value)}><option value="">Any furnishing</option><option value="FURNISHED">Furnished</option><option value="UNFURNISHED">Unfurnished</option><option value="PARTLY_FURNISHED">Partly furnished</option></select>{fieldError('furnishing')}</label>
+        </div>
         <div className="searchActions"><button className="primary" type="submit" form="listing-search">Update results</button><button className="secondary searchReset" type="button" onClick={() => apply({ ...emptyListingSearch })}>Reset filters</button></div>
       </div></details></aside>
       <section className="searchResults" aria-label="Search results" aria-busy={Boolean(loading)}>

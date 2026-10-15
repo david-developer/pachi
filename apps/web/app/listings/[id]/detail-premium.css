@@ -1,0 +1,844 @@
+/* Scoped to this route because App Router retains imported styles on navigation. */
+.premiumDetailPage .publicShell.detailShell {
+  width: min(calc(100% - 80px), 1320px);
+  padding: 24px 0 0;
+  color: var(--p-ink, #142d30);
+}
+
+.premiumDetailPage .detailShell .backLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0 22px;
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailShell .detailHeader {
+  margin: 0 0 28px;
+  max-width: 1050px;
+}
+
+.premiumDetailPage .detailEyebrow {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--p-teal, #08665b);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.premiumDetailPage .detailEyebrow span {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.premiumDetailPage .detailEyebrow span + span {
+  padding-left: 12px;
+  border-left: 1px solid var(--p-border, #d8e2dd);
+  color: var(--p-muted, #516560);
+  font-weight: 500;
+}
+
+.premiumDetailPage .detailHeader .detailTitleRow h1 {
+  max-width: 37ch;
+  margin: 0 0 16px;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: clamp(30px, 3.2vw, 46px);
+  font-weight: 650;
+  line-height: 1.18;
+  letter-spacing: -.045em;
+}
+
+.premiumDetailPage .detailHeader > .listingLocation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--p-muted, #516560);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.premiumDetailPage .detailHeader > .listingLocation svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--p-teal, #08665b);
+}
+
+.premiumDetailPage .detailLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 336px;
+  align-items: start;
+  gap: 0 40px;
+  padding-bottom: 80px;
+}
+
+.premiumDetailPage .detailGallery {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.premiumDetailPage .galleryStage {
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  background: var(--p-mist, #e6eeea);
+  isolation: isolate;
+}
+
+.premiumDetailPage .galleryStage .galleryMainImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--p-mist, #e6eeea);
+}
+
+.premiumDetailPage .galleryControls {
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+}
+
+.premiumDetailPage .galleryCounter {
+  padding: 9px 12px;
+  border: 1px solid #ffffff40;
+  border-radius: 7px;
+  background: #142d30e8;
+  color: #fff;
+  font-size: 12px;
+}
+
+.premiumDetailPage .galleryNav {
+  gap: 8px;
+}
+
+.premiumDetailPage .galleryNav button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid #ffffffa6;
+  background: #fff;
+  color: var(--p-ink, #142d30);
+}
+
+.premiumDetailPage .galleryNav button:hover {
+  background: var(--p-mist, #e6eeea);
+}
+
+.premiumDetailPage .galleryThumbnails {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 3px 3px 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.premiumDetailPage .galleryThumbnail {
+  flex-shrink: 0;
+  width: 128px;
+  height: 80px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  opacity: .72;
+}
+
+.premiumDetailPage .galleryThumbnail.isSelected,
+.premiumDetailPage .galleryThumbnail[aria-pressed='true'] {
+  border-color: var(--p-teal, #08665b);
+  opacity: 1;
+}
+
+.premiumDetailPage .galleryThumbnail:hover {
+  opacity: 1;
+}
+
+.premiumDetailPage .galleryThumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.premiumDetailPage .galleryPlaceholder {
+  gap: 16px;
+  min-height: 220px;
+  padding: 32px;
+  color: var(--p-muted, #516560);
+}
+
+.premiumDetailPage .galleryPlaceholder svg {
+  width: 48px;
+  height: 48px;
+  color: var(--p-teal, #08665b);
+}
+
+.premiumDetailPage .galleryPlaceholder p {
+  max-width: 28ch;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.premiumDetailPage .galleryPlaceholder > span,
+.premiumDetailPage .galleryThumbnailMissing {
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.premiumDetailPage .detailBody {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  padding-top: 30px;
+}
+
+.premiumDetailPage .detailBody > section {
+  margin: 0;
+  padding: 32px 0;
+  border: 0;
+  border-bottom: 1px solid var(--p-border, #d8e2dd);
+  background: transparent;
+}
+
+.premiumDetailPage .detailBody > .detailPropertySection {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.premiumDetailPage .detailBody > .detailDescriptionSection {
+  padding-top: 28px;
+}
+
+.premiumDetailPage .detailSectionHeading .sectionEyebrow {
+  margin: 0 0 10px;
+  color: var(--p-muted, #516560);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+}
+
+.premiumDetailPage .detailBody h2 {
+  margin: 0 0 24px;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 27px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+
+.premiumDetailPage .detailPropertyFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 0;
+}
+
+.premiumDetailPage .factItem {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.premiumDetailPage .detailPropertyFacts .factItem {
+  flex: 1 1 130px;
+  padding-right: 20px;
+}
+
+.premiumDetailPage .factItem dt {
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.premiumDetailPage .factItem dd {
+  margin: 7px 0 0;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.premiumDetailPage .detailBody .detailDescription {
+  max-width: 74ch;
+  margin: 0;
+  color: var(--p-muted, #516560);
+  font-size: 16px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.premiumDetailPage .detailBody .detailTerms {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 32px;
+}
+
+.premiumDetailPage .detailTerms .factItem {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--p-border, #d8e2dd);
+  border-radius: 0;
+  background: transparent;
+}
+
+.premiumDetailPage .detailTerms .factItem dd {
+  margin: 0;
+  font-size: 14px;
+  text-align: right;
+}
+
+.premiumDetailPage .detailTerms .factItem dt {
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailNote {
+  margin: 20px 0 0;
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.premiumDetailPage .detailAvailability {
+  margin-top: 30px;
+  padding: 24px;
+  border-radius: 10px;
+  background: var(--p-mist, #e6eeea);
+}
+
+.premiumDetailPage .detailAvailability h3 {
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.premiumDetailPage .detailAvailability .detailFacts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.premiumDetailPage .detailLocationContent {
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid var(--p-border, #d8e2dd);
+  border-radius: 10px;
+  background: var(--p-surface, #fff);
+}
+
+.premiumDetailPage .detailLocationIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--p-teal, #08665b);
+  background: var(--p-mist, #e6eeea);
+  border-radius: 8px;
+}
+
+.premiumDetailPage .detailLocation p {
+  margin: 3px 0;
+  color: var(--p-muted, #516560);
+  font-size: 14px;
+}
+
+.premiumDetailPage .detailLocation .detailNeighborhood {
+  color: var(--p-ink, #142d30);
+  font-size: 18px;
+}
+
+.premiumDetailPage .detailLocation small {
+  margin-top: 12px;
+  color: var(--p-muted, #516560);
+  font-size: 12px;
+}
+
+.premiumDetailPage .detailBody > .viewingPanel {
+  padding-top: 32px;
+  border-radius: 0;
+}
+
+.premiumDetailPage .detailBody > .viewingPanel h3 {
+  margin: 0 0 18px;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -.035em;
+}
+
+.premiumDetailPage .detailBody > .viewingPanel > p {
+  color: var(--p-muted, #516560);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.premiumDetailPage .detailBody > .viewingPanel button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailContactCard {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  position: sticky;
+  top: 24px;
+  padding: 28px;
+  border: 1px solid var(--p-border, #d8e2dd);
+  border-radius: 12px;
+  background: var(--p-surface, #fff);
+  box-shadow: 0 8px 30px #142d3005;
+}
+
+.premiumDetailPage .detailContactCard .sectionEyebrow {
+  margin: 0 0 16px;
+  color: var(--p-muted, #516560);
+  font-size: 11px;
+  letter-spacing: .09em;
+}
+
+.premiumDetailPage .detailContactPrice {
+  margin: 0 0 24px;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -.055em;
+}
+
+.premiumDetailPage .detailContactPrice span {
+  margin-top: 8px;
+  color: var(--p-muted, #516560);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.premiumDetailPage .detailNegotiable {
+  margin: -12px 0 24px;
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailContactAction {
+  padding-top: 24px;
+  border-top: 1px solid var(--p-border, #d8e2dd);
+}
+
+.premiumDetailPage .detailContactAction h2 {
+  margin: 0 0 10px;
+  color: var(--p-ink, #142d30);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -.025em;
+}
+
+.premiumDetailPage .detailContactHelp {
+  margin: 0 0 20px;
+  color: var(--p-muted, #516560);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.premiumDetailPage .detailContactCard .detailContact {
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.premiumDetailPage .detailContactPrivacy {
+  margin: 16px 0 0;
+  color: var(--p-muted, #516560);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.premiumDetailPage .detailSafety {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--p-border, #d8e2dd);
+}
+
+.premiumDetailPage .detailSafety:has(> div:empty) {
+  display: none;
+}
+
+.premiumDetailPage .detailSafety > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.premiumDetailPage .detailSafety a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--p-teal, #08665b);
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailSafety button {
+  min-height: 44px;
+  margin: 0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.premiumDetailPage .detailSafety p {
+  margin: 0;
+  color: var(--p-muted, #516560);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.premiumDetailPage .detailAccountLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 6px;
+  color: var(--p-teal, #08665b);
+}
+
+.premiumDetailPage .detailLoadingPhoto {
+  background: var(--p-mist, #e6eeea);
+}
+
+.premiumDetailPage .detailShell .emptyResults {
+  padding-block: 64px;
+  background: var(--p-surface, #fff);
+}
+
+@media (max-width: 1100px) {
+  .premiumDetailPage .detailLayout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 28px;
+  }
+
+  .premiumDetailPage .detailContactCard {
+    padding: 24px;
+  }
+
+  .premiumDetailPage .detailContactPrice {
+    font-size: 29px;
+  }
+
+  .premiumDetailPage .detailBody .detailTerms {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .premiumDetailPage .publicShell.detailShell {
+    width: calc(100% - 48px);
+  }
+
+  .premiumDetailPage .detailLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-bottom: 56px;
+  }
+
+  .premiumDetailPage .detailGallery {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .premiumDetailPage .detailContactCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-column: 1;
+    grid-row: 2;
+    position: static;
+    gap: 0 28px;
+    margin-top: 24px;
+    padding: 26px;
+  }
+
+  .premiumDetailPage .detailContactPrice {
+    margin-bottom: 0;
+    font-size: 32px;
+  }
+
+  .premiumDetailPage .detailNegotiable {
+    margin-top: 14px;
+  }
+
+  .premiumDetailPage .detailContactAction {
+    padding: 0;
+    border: 0;
+  }
+
+  .premiumDetailPage .detailContactPrivacy {
+    font-size: 12px;
+  }
+
+  .premiumDetailPage .detailSafety {
+    grid-column: 1 / -1;
+  }
+
+  .premiumDetailPage .detailBody {
+    grid-column: 1;
+    grid-row: 3;
+    padding-top: 36px;
+  }
+
+  .premiumDetailPage .detailBody .detailTerms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .premiumDetailPage:has(.detailMobileContact) {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .premiumDetailPage .publicShell.detailShell {
+    width: calc(100% - 40px);
+    padding-top: 12px;
+  }
+
+  .premiumDetailPage .detailShell .backLink {
+    margin-bottom: 18px;
+    font-size: 12px;
+  }
+
+  .premiumDetailPage .detailShell .detailHeader {
+    margin-bottom: 22px;
+  }
+
+  .premiumDetailPage .detailHeader .detailTitleRow h1 {
+    margin-bottom: 14px;
+    font-size: 30px;
+    line-height: 1.22;
+  }
+
+  .premiumDetailPage .detailHeader > .listingLocation {
+    gap: 6px;
+    align-items: start;
+    font-size: 13px;
+  }
+
+  .premiumDetailPage .detailHeader > .listingLocation svg {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .premiumDetailPage .galleryStage {
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+  }
+
+  .premiumDetailPage .galleryControls {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    gap: 8px;
+  }
+
+  .premiumDetailPage .galleryCounter {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+
+  .premiumDetailPage .galleryThumbnails {
+    margin-top: 10px;
+    gap: 7px;
+  }
+
+  .premiumDetailPage .galleryThumbnail {
+    width: 96px;
+    height: 66px;
+  }
+
+  .premiumDetailPage .galleryPlaceholder {
+    min-height: 180px;
+    padding: 24px;
+  }
+
+  .premiumDetailPage .galleryPlaceholder p {
+    font-size: 14px;
+  }
+
+  .premiumDetailPage .detailBody {
+    grid-row: 2;
+    padding-top: 26px;
+  }
+
+  .premiumDetailPage .detailBody > section {
+    padding-block: 28px;
+  }
+
+  .premiumDetailPage .detailBody > .detailPropertySection {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .premiumDetailPage .detailBody h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+  }
+
+  .premiumDetailPage .detailPropertyFacts {
+    gap: 22px 0;
+  }
+
+  .premiumDetailPage .detailPropertyFacts .factItem {
+    flex-basis: 45%;
+  }
+
+  .premiumDetailPage .factItem dd {
+    font-size: 16px;
+  }
+
+  .premiumDetailPage .detailBody .detailDescription {
+    font-size: 15px;
+    line-height: 1.85;
+  }
+
+  .premiumDetailPage .detailBody .detailTerms {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .premiumDetailPage .detailAvailability {
+    padding: 20px;
+  }
+
+  .premiumDetailPage .detailAvailability .detailFacts {
+    gap: 20px;
+  }
+
+  .premiumDetailPage .detailLocationContent {
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .premiumDetailPage .detailLocationIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .premiumDetailPage .detailContactCard {
+    display: block;
+    grid-row: 3;
+    margin-top: 28px;
+    padding: 20px;
+  }
+
+  .premiumDetailPage .detailContactPriceGroup {
+    display: none;
+  }
+
+  .premiumDetailPage .detailContactAction h2,
+  .premiumDetailPage .detailContactHelp {
+    display: none;
+  }
+
+  .premiumDetailPage .detailContactPrivacy {
+    margin-top: 0;
+  }
+
+  .premiumDetailPage .detailMobileContact {
+    position: fixed;
+    z-index: 25;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--p-border, #d8e2dd);
+    background: var(--p-surface, #fff);
+    box-shadow: 0 -5px 30px #142d3008;
+  }
+
+  .premiumDetailPage .detailMobileContact strong {
+    display: block;
+    color: var(--p-ink, #142d30);
+    font-family: var(--font-heading, sans-serif);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -.045em;
+  }
+
+  .premiumDetailPage .detailMobileContact > div > span {
+    color: var(--p-muted, #516560);
+    font-size: 12px;
+  }
+
+  .premiumDetailPage .detailMobileContact .detailContact {
+    min-width: 0;
+    min-height: 48px;
+    margin: 0;
+    padding: 12px 14px;
+    gap: 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .premiumDetailPage .detailMobileFeedback {
+    grid-column: 1 / -1;
+  }
+
+  .premiumDetailPage .detailMobileFeedback .error {
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .premiumDetailPage .detailMobileFeedback .detailAccountLink {
+    min-height: 44px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 350px) {
+  .premiumDetailPage .publicShell.detailShell {
+    width: calc(100% - 32px);
+  }
+
+  .premiumDetailPage .detailHeader .detailTitleRow h1 {
+    font-size: 27px;
+  }
+
+  .premiumDetailPage .detailMobileContact {
+    padding-inline: 16px;
+    column-gap: 8px;
+  }
+
+  .premiumDetailPage .detailMobileContact strong {
+    font-size: 17px;
+  }
+
+  .premiumDetailPage .detailMobileContact .detailContact {
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+}
