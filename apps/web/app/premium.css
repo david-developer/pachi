@@ -14,10 +14,10 @@
 .marketplaceContainer, .marketplace-container { width: min(100% - 80px, 1320px); }
 .marketplaceHeader { background: var(--p-surface); border-color: var(--p-border); }
 .marketplaceHeaderInner { min-height: 88px; gap: 64px; }
-.marketplaceBrand { min-width: 0; flex-shrink: 0; }
+.marketplaceBrand { min-width: 44px; min-height: 44px; flex-shrink: 0; }
 .pachiWordmark { display: block; width: 148px; height: auto; }
 .marketplaceDesktopNav { gap: 32px; }
-.marketplaceDesktopNav a, .accountLink { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 500; }
+.marketplaceDesktopNav a, .accountLink { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 500; }
 .marketplaceDesktopNav a:hover, .accountLink:hover { color: var(--p-teal); }
 .marketplaceHeaderActions { gap: 26px; }
 .providerLink { color: var(--p-ink); border-color: #aabeb5; border-radius: 7px; font-size: 13px; font-weight: 600; min-height: 44px; }
@@ -28,6 +28,7 @@
 .marketplace-root .sectionEyebrow, .marketplacePage .sectionEyebrow { color: var(--p-muted); font-size: 10px; letter-spacing: .16em; }
 .marketplaceFooter { padding: 48px 0; background: #edf2ee; border-top: 1px solid var(--p-border); }
 .marketplaceFooterInner { gap: 40px; }
+.footerBrand { min-height: 44px; }
 .footerBrand .pachiWordmark { width: 128px; }
 .marketplaceFooter nav a { display: inline-flex; align-items: center; min-height: 44px; }
 .marketplaceFooter p { font-size: 13px; }
@@ -85,7 +86,7 @@
 .homeArchitecture > span:last-child { z-index: 1; font-size: 9px; letter-spacing: .12em; }
 .premiumHomePage .homeSearch { grid-column: 1; grid-row: 2; margin: 28px 0 0; padding: 0 20px 20px; border: 1px solid #cfddd3; border-radius: 12px; box-shadow: 0 8px 24px #142d3006; background: #fff; }
 .premiumHomePage .homePurpose { padding: 0; gap: 24px; }
-.premiumHomePage .homePurpose button { min-width: 0; min-height: 51px; padding: 12px 3px; font-size: 14px; font-weight: 600; }
+.premiumHomePage .homePurpose button { min-width: 64px; min-height: 51px; padding: 12px 3px; font-size: 14px; font-weight: 600; }
 .premiumHomePage .homeSearchFields { grid-template-columns: 1fr 1.1fr; gap: 16px 14px; padding: 18px 0 0; }
 .premiumHomePage .homeSearchFields label { font-size: 11px; gap: 7px; }
 .premiumHomePage .homeSearchFields input, .premiumHomePage .homeSearchFields select { min-height: 46px; border-color: #7d9189; border-radius: 7px; padding-inline: 10px; font-size: 13px; }
@@ -168,7 +169,7 @@
   .homeHeroVisual { grid-column: 1; grid-row: 4; min-height: 250px; border-radius: 10px 10px 48px 10px; }
   .homeHeroPhoto { object-position: center 60%; }
   .premiumHomePage .homeSearch { grid-row: 2; padding: 0 15px 16px; }
-  .premiumHomePage .homePurpose { justify-content: start; gap: 30px; }
+  .premiumHomePage .homePurpose { justify-content: start; gap: 20px; }
   .premiumHomePage .homePurpose button { font-size: 13px; min-height: 48px; }
   .premiumHomePage .homeSearchFields { grid-template-columns: 1fr; gap: 13px; padding-top: 16px; }
   .premiumHomePage .homeSearchFields label { font-size: 11px; }

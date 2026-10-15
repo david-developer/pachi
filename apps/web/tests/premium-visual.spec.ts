@@ -45,6 +45,16 @@ for (const width of widths) {
         await expect(page.locator('.listingCard').first()).toBeVisible();
         await expect.poll(() => page.locator('.listingCard img').first().evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       }
+      if (name === 'homepage') {
+        const purposeButtons = page.getByRole('group', { name: 'Property purpose', exact: true }).getByRole('button');
+        const targets = [page.getByRole('link', { name: 'Pachi home', exact: true }), ...await purposeButtons.all()];
+        if (width === 1440) targets.push(...await page.getByRole('navigation', { name: 'Property search', exact: true }).getByRole('link').all());
+        for (const target of targets) {
+          const bounds = await target.boundingBox();
+          expect(bounds?.width).toBeGreaterThanOrEqual(44);
+          expect(bounds?.height).toBeGreaterThanOrEqual(44);
+        }
+      }
       await capture(page, testInfo, `${name}-${width}`);
       if (name === 'detail' && width === 390) {
         await expect(page.getByRole('button', { name: 'Contact provider', exact: true })).toBeInViewport();
