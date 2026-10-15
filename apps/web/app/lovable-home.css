@@ -6,7 +6,7 @@
 .premiumHomePage.lovableHomePage .homeHero h1 { font-size: clamp(40px, 4.1vw, 58px); line-height: 1.12; letter-spacing: -.055em; }
 .premiumHomePage.lovableHomePage .homeHeroLead { max-width: 36ch; margin: 22px 0 0; font-size: 16px; line-height: 1.8; }
 .premiumHomePage.lovableHomePage .homeHeroRegion { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 24px 0 0; color: var(--p-muted); font-size: 12px; }
-.premiumHomePage.lovableHomePage .homeHeroRegion > span { color: var(--p-teal); }
+.premiumHomePage.lovableHomePage .homeHeroRegion > span { color: var(--p-forest); }
 .premiumHomePage.lovableHomePage .homeHeroVisual { grid-column: 2; grid-row: 1; min-height: 440px; align-self: stretch; margin: 0 0 34px; border: 1px solid var(--p-border); border-radius: 12px; background: var(--p-surface); }
 .premiumHomePage.lovableHomePage .homeHeroPhoto { inset: 0 0 auto; width: 100%; height: calc(100% - 130px); object-position: center 60%; }
 .premiumHomePage.lovableHomePage .homeHeroVisual.hasPhoto::after { display: none; }
@@ -17,9 +17,9 @@
 .premiumHomePage.lovableHomePage .homePhotoCaption strong { order: 2; max-width: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--p-ink); font-size: 14px; font-weight: 500; line-height: 1.5; }
 .premiumHomePage.lovableHomePage .homePhotoCaption > span > small { order: 3; color: var(--p-muted); font-size: 12px; }
 .premiumHomePage.lovableHomePage .homePhotoCaption > span > span small { margin-left: 5px; color: var(--p-muted); font-family: var(--font-body), sans-serif; font-size: 12px; font-weight: 400; letter-spacing: 0; }
-.premiumHomePage.lovableHomePage .homePhotoCaption b { display: grid; width: 44px; height: 44px; border-color: var(--p-border); color: var(--p-teal); font-size: 22px; }
+.premiumHomePage.lovableHomePage .homePhotoCaption b { display: grid; width: 44px; height: 44px; border-color: var(--p-border); color: var(--p-forest); font-size: 22px; }
 .premiumHomePage.lovableHomePage .homeArchitecture { background: var(--p-mist); }
-.premiumHomePage.lovableHomePage .homeSearch { grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 0 24px 20px; border-color: var(--p-border); border-radius: 12px; background: var(--p-surface); box-shadow: 0 8px 28px #142d3009; }
+.premiumHomePage.lovableHomePage .homeSearch { grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 0 24px 20px; border-color: var(--p-border); border-radius: 12px; background: var(--p-surface); box-shadow: 0 8px 28px #0e3b2e09; }
 .premiumHomePage.lovableHomePage .homePurpose { gap: 28px; }
 .premiumHomePage.lovableHomePage .homePurpose button { min-width: 44px; min-height: 48px; padding: 10px 6px; }
 .premiumHomePage.lovableHomePage .homeSearchFields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 24px; padding-top: 16px; }

@@ -1,6 +1,6 @@
 # Pachi — Visual identity and marketplace UI direction
 
-**Status:** proposed visual direction, for owner review. **Product:** Pachi, a Cameroon housing marketplace for seekers and property providers. **Scope:** web first; principles also guide a later native Android/iOS design system. **Baseline:** G3-I1 PR #51 remains a draft and should not merge merely because CI passes.
+**Status:** owner-selected logo references and locked palette; vector implementation awaits final visual approval. Lovable-guided page composition is retained. **Product:** Pachi, a Cameroon housing marketplace for seekers and property providers. **Scope:** web first; principles also guide a later native Android/iOS design system. **Baseline:** G3-I1 PR #51 remains a draft and should not merge merely because CI passes.
 
 ## 1. The design thesis
 
@@ -10,40 +10,42 @@ Use an **editorial architectural composition**: distinctive large typography, di
 
 **Brand attributes:** clear · assured · welcoming · precise · locally grounded. **Not:** childish, flashy, generic SaaS, faux-luxury, monochrome developer prototype. The signature device is the architectural letter **A** in the wordmark and complementary architectural framing in photo crops—not repeated house clip art.
 
-## 2. Wordmark and logo direction
+## 2. Owner-selected wordmark and icon
 
-**Name:** `PACHI` (uppercase master mark; product copy may say `Pachi`). The **A** is an intentionally constructed architectural glyph that reads as an A first and suggests a pitched roof + structural columns/door second. The P, C, H and I are sturdy geometric letters with even optical weight. No detached generic roof icon above the whole name.
+The actual images in the supplied `pachi-approved-logo-references.zip`, not earlier concept SVGs or the exploration collage, are the visual authority. Their unchanged copies and BRAND-LOCK are retained only under ignored `.local-dev/pachi-approved-logo-references/`:
 
-- **Primary:** horizontal PACHI vector wordmark, dark architectural ink; subtle warm copper only in the A's inner vertical feature. Avoid gratuitous trailing punctuation in the primary lockup.
-- **Small-size mark:** the architectural A alone, optically corrected for 16–48 px usage; test it on light and dark surfaces.
-- **Alternates:** one-color ink, reversed white, and accessible app icon with a non-decorative boundary.
-- **Restrictions:** no unlicensed font files, raster-only logos as the sole asset, bevels, complex gradients, drop shadows, cartoon rooftops, or tiny windows that disappear when scaled. Ensure the letter is still legible without copper or color.
-- **Vector delivery:** final `pachi-wordmark.svg`, `pachi-mark.svg`, accessible favicon, and app-icon design source, reviewed at 24, 32, 48, 144 and 300 px. Any supplied concept board or SVG is **exploratory**, not automatically an approved final mark.
+- `01-primary-wordmark-reference.jpeg`: authoritative horizontal uppercase PACHI on ivory.
+- `02-app-icon-reference.jpeg`: authoritative standalone architectural A on an ivory rounded tile.
+- `03-reversed-wordmark-reference.jpeg`: authoritative ivory wordmark on forest green.
 
-Included assets under `assets/` are **concept explorations for critique**, not immutable brand standards. Refine their optical spacing, exact geometry and small-size readability in the review PR.
+The A is a dominant solid triangular architectural mass extending above the other capitals, with open light building channels, two narrow side piers and a prominent copper central volume whose top slopes upward to the right. It has no conventional horizontal crossbar or small pentagonal doorway. Preserve the selected P/C curves, heavy H/I stems, spacing and baseline relationship. Do not substitute font text, older concept paths or a generic house icon.
 
-## 3. Proposed design tokens
+Reconstruct flat vector geometry only. Paper texture, relief, bevels, cast shadows and photographic lighting belong to the JPEG presentation and must not enter production SVGs. Primary/reversed/monochrome wordmarks use identical paths; standalone icon variants, favicon and app-icon source use identical icon paths. The actual standalone reference has a taller, centered inner aperture than the primary/reversed wordmarks; retain that supplied optical adaptation while preserving the same triangular mass, open channels, side piers and copper-building proportions. Do not pretend the reference apertures are mathematically identical. At small sizes retain these features rather than inventing another simplified symbol.
 
-These tokens are a **new proposal**, not a retrospective endorsement of the existing green/cream screenshots. Alter deliberately after rendered evaluation, and maintain contrast.
+Production SVGs are transparent paths, except the standalone app-icon tile. Light channels are negative space, appearing ivory on the primary ivory surface and forest on the reversed forest surface. No embedded bitmap, runtime font dependency, filters or presentation textures. Old `assets/*-concept.svg` and `pachi-brand-exploration.png` are historical explorations, not current logo authorities.
 
-| Token | Hex | Intent |
+## 3. Locked brand palette and supporting tokens
+
+These four colors are authoritative, not proposals:
+
+| Token | Hex | Use |
 |---|---|---|
-| `--p-ink` | `#142D30` | Core typography; logo; high-contrast UI |
-| `--p-teal` | `#08665B` | Primary actions, interactive controls |
-| `--p-teal-hover` | `#064D45` | Hover/active on light surfaces |
-| `--p-copper` | `#BE7651` | Sparse brand highlight, never broad CTA fill |
-| `--p-canvas` | `#F6F8F6` | Light neutral background |
-| `--p-surface` | `#FFFFFF` | Cards, forms, sheets |
-| `--p-mist` | `#E6EEEA` | Image fallback/soft section contrast |
-| `--p-muted` | `#516560` | Secondary legible copy |
-| `--p-border` | `#D8E2DD` | Lightweight dividers |
-| `--p-error` | `#9D352D` | Destructive/error states |
+| `--p-forest` | `#0E3B2E` | Primary typography, wordmark, actions, tabs and focus |
+| `--p-copper` | `#C47F56` | Architectural building volume and sparse decorative accents |
+| `--p-ivory` | `#F8F6EE` | Canvas, header, cards, forms, gallery controls and reversed lettering |
+| `--p-sage` | `#D6DECF` | Secondary surfaces, footer, soft state and nonessential dividers |
+| `--p-forest-hover` | `#092B21` | Darkened forest interaction state |
+| `--p-muted` | `#4D6257` | Accessible secondary text |
+| `--p-input-border` | `#718073` | Essential input/control boundary |
+| `--p-error` / `--p-error-surface` | `#9D352D` / `#F8EAE3` | Distinct semantic error text/background |
 
-Keep dark hero regions intentional rather than a blanket green background. Avoid beige+green everywhere, and avoid orange accent strips on every card. Verify contrast against WCAG 2.2 AA target, including focus and disabled states.
+Semantic aliases `--p-ink`, `--p-canvas`, `--p-surface`, `--p-mist` and `--p-border` resolve to forest, ivory, ivory, sage and sage. Marketplace legacy aliases resolve to the same system; unrelated account/staff styling is not redesigned by this task. Update existing declarations rather than layering new route overrides.
 
-**Type proposal:** `Manrope` for headings, numbers and the interface's geometric personality; `DM Sans` for comfortable body copy and controls. Choose licensed webfont sourcing or bundled permitted subsets through the project's normal asset workflow; never embed or distribute font files in this kit. Use robust fallback stacks, complete Latin/French diacritics, and avoid layout shift. The designed SVG wordmark does **not** depend on a downloaded font at runtime.
+Forest/ivory contrast is 11.53:1. Muted text has 6.06:1 on ivory and 4.75:1 on sage. Essential control borders use the neutral above, with 3.85:1 on ivory and 3.02:1 on sage. Sage/ivory alone is 1.28:1 and cannot identify an essential control boundary. Copper/ivory is 2.98:1 and copper/forest 3.87:1: copper is a logo/decorative accent, never the primary CTA or normal body/link text. Forest remains the primary action color, with ivory text. Keep semantic errors distinct, disabled controls readable, and photo-control focus visible through paired forest/ivory rings. Do not restrict all rendered pixels to four colors at the expense of accessibility.
 
-**Working scale:** 4/8 px base rhythm; body 16–17 px/1.5–1.65; meta 12–14 px with sufficient contrast; section heading ~30–42 px; desktop hero ~56–76 px; mobile hero ~38–48 px. Avoid giant headlines that squeeze search below the fold. Set container ~1320–1440 px with responsive 24–40 px desktop gutters, 16–20 px mobile gutters. Cards radius ~10–14 px, controls ~8–10 px. Prefer subtle borders and light tonal differentiation over stacked heavy shadows. Motion 140–220 ms and `prefers-reduced-motion` respected.
+**Type:** preserve locally bundled Manrope headings/numbers and DM Sans body/controls, robust fallbacks and French diacritics. Logo lettering is vector geometry from the supplied references, not these fonts.
+
+**Existing layout scale retained:** 4/8 px rhythm, 1320 px container, current desktop/mobile gutters, card/control geometry, responsive breakpoints and reduced motion. This branding correction does not reopen the Lovable-guided structural redesign.
 
 ## 4. Information architecture and page compositions
 
@@ -106,18 +108,18 @@ Any critical failure—privacy leakage, nonfunctional CTA, broken navigation, cl
 
 ## 8. References and skill use
 
-This document is Pachi's authoritative **proposed** design direction once approved. The repo-local skill `.agents/skills/pachi-premium-ui/SKILL.md` turns it into a repeatable implementation and critique workflow. Refer to `references/visual-review-checklist.md` inside that skill for review evidence. External inspiration (Sahibinden, Property Finder, Zillow and contemporary architectural portfolios) is for **interaction patterns only**, never copied branding, assets or layouts.
+The owner-selected references and four-color palette above are authoritative; the reconstructed vectors and rendered integration require final visual approval. The repo-local skill `.agents/skills/pachi-premium-ui/SKILL.md` turns it into a repeatable implementation and critique workflow. Refer to `references/visual-review-checklist.md` inside that skill for review evidence. External inspiration (Sahibinden, Property Finder, Zillow and contemporary architectural portfolios) is for **interaction patterns only**, never copied branding, assets or layouts.
 
 ## 9. Reviewable implementation assets
 
-The following vector candidates implement this proposal in G3-I1; they remain subject to owner visual approval:
+The following flat vector reconstructions implement the selected JPEG references; their fidelity and rendered integration await final owner inspection:
 
-- `apps/web/public/brand/pachi-wordmark.svg`: original geometric PACHI paths with an architectural A and copper doorway; no font dependency.
-- `apps/web/public/brand/pachi-wordmark-monochrome.svg` and `pachi-wordmark-reversed.svg`: ink and reversed variants.
-- `apps/web/public/brand/pachi-mark.svg` and `pachi-mark-light.svg`: small mark treatments; `apps/web/app/icon.svg` supplies the favicon.
+- `apps/web/public/brand/pachi-wordmark.svg`: PACHI letterforms reconstructed from the authoritative primary JPEG, with the triangular architectural A and prominent copper building volume.
+- `apps/web/public/brand/pachi-wordmark-monochrome.svg` and `pachi-wordmark-reversed.svg`: forest monochrome and ivory reversed variants, sharing the exact primary path geometry.
+- `apps/web/public/brand/pachi-mark.svg` and `pachi-mark-light.svg`: primary ivory-tile and reversed forest-tile icon treatments; `pachi-mark-monochrome.svg` is the one-color treatment. `pachi-symbol.svg` supplies the same bare architectural A for interface fallbacks. `apps/web/app/icon.svg` supplies the primary favicon.
 - `docs/design/assets/pachi-app-icon.svg`: scalable app-icon design source for review; no native app change is implied.
 
-Manrope and DM Sans are self-hosted using local variable fonts. Their unmodified sources, immutable upstream revision, hashes and SIL Open Font Licenses are recorded in `apps/web/app/fonts/`. The supplied concept assets remain intact for comparison. The SVG candidates are refined implementation proposals, not approved final brand standards.
+Manrope and DM Sans are self-hosted using local variable fonts. Their unmodified sources, immutable upstream revision, hashes and SIL Open Font Licenses are recorded in `apps/web/app/fonts/`. The old concept assets remain historical and unchanged; they are not the selected logo references. Do not declare the vector implementation final until the actual supplied-JPEG comparisons and interface captures are visually approved.
 
 ## 10. Lovable-guided structural refinement proposal
 
@@ -127,4 +129,4 @@ Lead detail with a responsive photographic mosaic, then a tightly grouped proper
 
 The current PublicListing projection supplies no provider identity/avatar, verification/authority badges, amenities, saved-state, recommendation ranking or confirmation timestamp. Their absence must not be filled with prototype facts or inert controls. Preserve existing account eligibility/contact, media delivery, block, private-location and review boundaries. Report element-by-element matches and remaining differences for all six references; numeric rubric scores alone are insufficient.
 
-The earlier runtime wordmark simplified P/C/H/I letter geometry and substituted a small house-shaped cutout in A; it diverged from the owner's original concept. The current runtime proposal now retains the original concept's letter outlines and architectural A, trims transparent viewBox margins for header legibility, and removes only the faint inner tint. Header, footer, fallback A, favicon and scale variants share that concept geometry. The original SVG remains unchanged for side-by-side inspection against the arrival runtime and this proposal at actual UI sizes. This is a review candidate, not a final owner-approved brand selection.
+The earlier concept-derived runtime SVGs are superseded for branding by the three exact owner-selected JPEGs and locked palette in sections 2–3. The latest Lovable-guided layout remains unchanged. Compare actual supplied JPEGs against the reconstructed wordmark at equivalent scale, the standalone icon at 16/32/48/160 px, and the reversed asset on forest. Retain desktop/tablet/mobile interface evidence and run focused visual checks plus normal exact-head CI. Reference JPEGs/archives remain ignored, and PR #51 remains draft and unmerged pending final owner visual approval.

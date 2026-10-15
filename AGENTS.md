@@ -26,7 +26,7 @@ Repository skills live in `.agents/skills` and allow normal automatic selection:
 - [pachi-ui-verification](.agents/skills/pachi-ui-verification/SKILL.md) for
   reproducing and checking web interactions with the existing browser tests.
 
-Use [$pachi-premium-ui](.agents/skills/pachi-premium-ui/SKILL.md) for all Pachi UI design work, including G3-I1; follow its proposed visual identity and rendered review gates.
+Use [$pachi-premium-ui](.agents/skills/pachi-premium-ui/SKILL.md) for all Pachi UI design work, including G3-I1. Follow the owner-selected logo reference and locked-palette guidance in [the visual identity](docs/design/pachi-visual-identity.md), preserving the latest Lovable-guided layouts and rendered review gates.
 
 They can also be invoked explicitly as `$pachi-runtime-debugging` or
 `$pachi-ui-verification`. Use them when relevant, not for every repository task.

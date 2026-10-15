@@ -27,11 +27,11 @@ export function listingMediaUrl(listing: Pick<PublicListing, 'id'>, media: Publi
 }
 
 export function HomeMark({ className = '' }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 128 130" aria-hidden="true" fill="currentColor"><path d="M1 130 54 0h19l53 130h-28L63.3 42 29 130Z" /><path d="M40 76h48v13H40zM51 130V102L64 90 78 102v28Z" /></svg>;
+  return <img className={`pachiSymbol ${className}`} src="/brand/pachi-symbol.svg" width="160" height="160" alt="" aria-hidden="true" />;
 }
 
 export function PachiWordmark() {
-  return <img className="pachiWordmark" src="/brand/pachi-wordmark.svg" width="566" height="146" alt="Pachi" />;
+  return <img className="pachiWordmark" src="/brand/pachi-wordmark.svg" width="752" height="208" alt="Pachi" />;
 }
 
 export function PropertyFactIcon({ kind }: { kind: 'bed' | 'bath' | 'area' | 'location' }) {

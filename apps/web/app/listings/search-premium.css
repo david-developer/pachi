@@ -10,7 +10,7 @@
 }
 
 .premiumSearchPage .searchBreadcrumb a:hover {
-  color: var(--p-teal);
+  color: var(--p-forest);
   text-decoration: underline;
 }
 
@@ -23,7 +23,7 @@
 
 .premiumSearchPage .searchEditorialHeading .eyebrow {
   margin: 0 0 8px;
-  color: var(--p-teal);
+  color: var(--p-forest);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .14em;
@@ -56,7 +56,7 @@
   border: 1px solid var(--p-border);
   border-radius: 12px;
   background: var(--p-surface);
-  box-shadow: 0 4px 18px #142d3004;
+  box-shadow: 0 4px 18px #0e3b2e04;
 }
 
 .premiumSearchPage .searchPrimary > .searchField {
@@ -92,8 +92,12 @@
   outline-offset: 3px;
 }
 
+.premiumSearchPage .searchField [aria-invalid='true'] {
+  border-color: var(--p-error);
+}
+
 .premiumSearchPage .searchPrimary :is(input, select):focus-visible {
-  outline: 2px solid var(--p-teal);
+  outline: 2px solid var(--p-forest);
   outline-offset: 3px;
 }
 
@@ -184,7 +188,7 @@
 .premiumSearchPage .searchFilterBody select {
   min-height: 44px;
   padding: 10px 11px;
-  border-color: #7d9189;
+  border-color: var(--p-input-border);
   border-radius: 8px;
   background-color: var(--p-surface);
   color: var(--p-ink);
@@ -236,6 +240,11 @@
   background: transparent;
 }
 
+.premiumSearchPage .searchReset:hover {
+  color: var(--p-forest);
+  background: var(--p-mist);
+}
+
 .premiumSearchPage .searchResultsHeader {
   min-height: 62px;
   align-items: start;
@@ -278,7 +287,7 @@
   max-width: 180px;
   min-height: 44px;
   padding: 9px 28px 9px 12px;
-  border-color: #7d9189;
+  border-color: var(--p-input-border);
   border-radius: 8px;
   background-color: var(--p-surface);
   color: var(--p-ink);
@@ -307,7 +316,7 @@
   padding: 6px 11px;
   border: 1px solid var(--p-border);
   border-radius: 5px;
-  color: var(--p-teal);
+  color: var(--p-forest);
   background: var(--p-mist);
   font-size: 11px;
   line-height: 1.5;
@@ -332,7 +341,7 @@
 
 .premiumSearchPage .searchFeedback[role='alert'] {
   margin-bottom: 22px;
-  border-color: #dec3bf;
+  border-color: var(--p-error);
 }
 
 .premiumSearchPage .searchFeedback h3 {

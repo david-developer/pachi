@@ -11,7 +11,7 @@ Read `../../../docs/design/pachi-visual-identity.md` (relative to this skill dir
 
 ## Mandate
 
-Make Pachi look and work like a **distinctive, trusted Cameroon property marketplace**. Functional correctness is required; it is not proof of premium design. The first G3-I1 attempt passed CI but was rejected visually. Do **not** repeat a standard green-and-cream card dashboard with a generic house symbol. Give the interface coherent architecture, real media hierarchy, refined typography and intentional mobile behavior.
+Make Pachi look and work like a **distinctive, trusted Cameroon property marketplace**. Functional correctness is required; it is not proof of premium design. The first G3-I1 attempt passed CI but was rejected visually. Do **not** substitute a generic card dashboard or generic house symbol for the selected identity and established photographic composition. The owner-locked palette below remains authoritative. Give the interface coherent architecture, real media hierarchy, refined typography and intentional mobile behavior.
 
 ## Design-build-review loop
 
@@ -25,7 +25,13 @@ Make Pachi look and work like a **distinctive, trusted Cameroon property marketp
 
 ## Current G3-I1 reference refinement
 
-For the owner-supplied Lovable iteration, the listing-detail screenshots are the primary visual reference. Read DESIGN-BRIEF and view every supplied image before editing; compare against the latest rendered G3-I1 candidate, not just the original rejected version. Keep supplied archives and screenshot references in ignored evidence. Preserve public contract capabilities: the prototype is not a dataset or authority for identities, verification, amenities, saved state, ranking or confirmation dates. Deliver a direct element-by-element reference comparison, full-gallery/media-count and contact evidence, and a side-by-side of the original logo concept, arrival runtime and coherent concept-derived proposal. Do not replace that comparison with self-awarded rubric scores.
+For the owner-supplied Lovable iteration, the listing-detail screenshots are the primary visual reference. Read DESIGN-BRIEF and view every supplied image before editing; compare against the latest rendered G3-I1 candidate, not just the original rejected version. Keep supplied archives and screenshot references in ignored evidence. Preserve public contract capabilities: the prototype is not a dataset or authority for identities, verification, amenities, saved state, ranking or confirmation dates. Deliver a direct element-by-element reference comparison, full-gallery/media-count and contact evidence, and actual owner-selected JPEG versus reconstructed SVG comparisons at equivalent scale, using the branding lock below. Do not replace that comparison with self-awarded rubric scores.
+
+## Owner-selected branding lock
+
+For the branding correction, the three actual JPEGs and BRAND-LOCK in ignored `.local-dev/pachi-approved-logo-references/` supersede the old exploration collage, concept SVGs and prior simplified runtime marks as logo authority. Read the lock and visually inspect all three actual images before edits; stop and report if any image is missing/unreadable. Reconstruct their flat underlying vector lettering, dominant triangular A, open light architectural channels, side piers and prominent sloping-top copper volume. Match primary/reversed/monochrome path geometry and the selected standalone icon's optical proportions; do not copy paper/relief/shadows or embed raster imagery. Preserve the current Lovable-guided page structure and all product contracts.
+
+The exact palette is Forest `#0E3B2E`, Copper `#C47F56`, Ivory `#F8F6EE`, Sage `#D6DECF`. Forest is the primary CTA, copper an accent; accessible neutrals and semantic colors are permitted. Replace competing marketplace colors in place. Deliver actual-JPEG-versus-rendered-SVG comparisons at equivalent scale, icon at 16/32/48/160 px, reversed on forest and desktop/mobile interface captures. Keep references ignored, remove the temporary root ZIP after verified extraction, and stop at final owner inspection with PR #51 unmerged.
 
 ## Nonnegotiable UX rules
 
