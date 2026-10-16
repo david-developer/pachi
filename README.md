@@ -12,6 +12,18 @@ not approved as Pachi's visual direction. Keep it isolated from functional
 marketplace/provider screens and native mobile work while the premium mobile
 housing direction is explored separately.
 
+The responsive public marketplace starts at `/`: search by rent, buy or short
+let, region and city, or open the latest listings returned by the public API.
+`/listings` keeps applied filters in a shareable URL; secondary filters expand on
+mobile, and pagination uses the applied search even while form edits are pending.
+Listing details use authorized media derivatives, coarse location, offering terms
+and eligible provider reputation. Contact retains sign-in, phone, CSRF and block
+checks. Account sign-in, phone verification and provider onboarding now live at
+`/account`; existing provider and organization workspaces link back there.
+Empty inventory and service failures have distinct feedback and recovery controls.
+Browser screenshot fixtures are labelled synthetic TEST inventory; their generated
+photograph lives only in `apps/web/tests/fixtures`, outside the public app.
+
 Start with [docs/README.md](docs/README.md). Replace the corresponding files in your repository's `docs/` directory, inspect the diff, preserve unrelated files and make a separate documentation commit. This package README is delivery guidance; merge any useful notes into the existing repository README rather than overwriting unrelated project instructions.
 
 See [reconciliation record](docs/archive/documentation-migration-record.md) for deliberate changes, resolved questions and remaining launch evidence. Historical source material is archived and is not a second implementation specification.
@@ -285,7 +297,7 @@ health checks alone do not prove browser login. Authentication diagnostics log
 stage, duration, generated request ID and API status without callback queries.
 
 The API is available at `http://localhost:3001/v1/health/live` and
-`http://localhost:3001/v1/health/ready`. The marketplace shell runs on
+`http://localhost:3001/v1/health/ready`. The marketplace web runs on
 port 3000, the separate staff shell on port 3002, and Expo starts the
 mobile development shell with `pnpm --filter @pachi/mobile start`.
 

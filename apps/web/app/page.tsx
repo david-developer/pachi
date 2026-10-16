@@ -1,72 +1,98 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import type { PublicListing, PublicListingPurpose, PublicListingSearchResponse } from '@pachi/contracts';
+import { HomeHeroMedia, HomeMark, ListingCard, ListingSkeletons, MarketplaceFooter, MarketplaceHeader, PropertyFactIcon } from './components/marketplace';
+import { emptyListingSearch, listingSearchParams, validateListingSearch } from '../lib/listing-search';
+import './lovable-home.css';
 
-type SessionState = { authenticated: boolean; expired?: boolean; userId?: string; accountState?: string; participationAllowed?: boolean; csrfToken?: string };
-type ProviderState = { provider: null } | { profile_id: string; account_id: string; provider_types: string[]; state: string; verification_status: string; display_name: string; bio: string | null; service_area: string | null };
-
-const copy = { title: 'Pachi marketplace', signedOut: 'Sign in to continue', signIn: 'Continue with Pachi', pending: 'Confirm your phone to unlock marketplace participation.', active: 'Your account is ready for marketplace participation.', phoneLabel: 'Cameroon phone number', phoneHint: '+237 690 000 001', request: 'Send verification code', confirm: 'Confirm phone', codeLabel: 'Six-digit code', logout: 'Sign out', logoutAll: 'Sign out everywhere' } as const;
-
-export default function MarketplaceShell() {
-  const [state, setState] = useState<SessionState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [challengeId, setChallengeId] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [provider, setProvider] = useState<ProviderState | null>(null);
-  const [providerTypes, setProviderTypes] = useState<string[]>([]);
-  const [displayName, setDisplayName] = useState('');
-  const [bio, setBio] = useState('');
-  const [serviceArea, setServiceArea] = useState('');
-  const [editingProvider, setEditingProvider] = useState(false);
+export default function MarketplaceHomePage() {
+  const router = useRouter();
+  const [purpose, setPurpose] = useState<PublicListingPurpose>('RENT');
+  const [region, setRegion] = useState('');
+  const [city, setCity] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [budget, setBudget] = useState('');
+  const [budgetError, setBudgetError] = useState('');
+  const [listings, setListings] = useState<PublicListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const requestOrder = useRef(0);
 
   useEffect(() => {
-    fetch('/api/session', { cache: 'no-store' }).then(async (response) => { if (!response.ok) throw new Error('session_failed'); return response.json() as Promise<SessionState>; }).then((nextState) => { setState(nextState); if (nextState.authenticated) fetch('/api/account/provider', { cache: 'no-store' }).then(async (response) => { if (response.status === 401) throw new Error('session_expired'); if (!response.ok) throw new Error('provider_failed'); return response.json() as Promise<ProviderState>; }).then(setProvider).catch((providerError: unknown) => setError(providerError instanceof Error && providerError.message === 'session_expired' ? 'Your sign-in session has expired. Sign in again.' : 'The provider profile could not be loaded. Refresh and try again.')); }).catch(() => setError('The session could not be checked. Refresh and try again.'));
-    const authError = new URLSearchParams(window.location.search).get('auth_error');
-    if (authError) setError(authError === 'configuration' ? 'Web authentication is not configured for this environment.' : 'Authentication could not be completed. Try again.');
-  }, []);
+    const controller = new AbortController();
+    const request = ++requestOrder.current;
+    setLoading(true); setError(false);
+    void fetch('/api/public/listings?sort=newest&limit=6', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) }).then(async (response) => {
+      if (!response.ok) throw new Error('Listings unavailable');
+      const result = await response.json() as PublicListingSearchResponse;
+      if (!Array.isArray(result.items)) throw new Error('Listings unavailable');
+      if (request === requestOrder.current && !controller.signal.aborted) setListings(result.items);
+    }).catch(() => {
+      if (request === requestOrder.current && !controller.signal.aborted) setError(true);
+    }).finally(() => {
+      if (request === requestOrder.current && !controller.signal.aborted) setLoading(false);
+    });
+    return () => { controller.abort(); };
+  }, [retry]);
 
-  async function submitPhone(event: FormEvent) {
+  function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!state?.csrfToken) return;
-    setBusy(true); setError(null);
-    try {
-      const path = challengeId ? '/api/account/phone/confirm' : '/api/account/phone/request';
-      const body = challengeId ? { phone, challenge_id: challengeId, code } : { phone };
-      const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': state.csrfToken }, body: JSON.stringify(body) });
-      const result = await response.json() as { challengeId?: string };
-      if (!response.ok) throw new Error('phone_failed');
-      if (challengeId) { setState({ ...state, accountState: 'ACTIVE', participationAllowed: true }); setChallengeId(''); setCode(''); }
-      else if (result.challengeId) setChallengeId(result.challengeId);
-    } catch { setError(challengeId ? 'That code is invalid, expired, or no longer usable. Request a new code and try again.' : 'We could not send a verification code. Check the number or wait before trying again.'); }
-    finally { setBusy(false); }
+    const checked = validateListingSearch(homeFilters);
+    if (checked.errors.max_price) { setBudgetError(checked.errors.max_price); return; }
+    setBudgetError('');
+    router.push(`/listings?${listingSearchParams(checked.filters).toString()}`);
   }
 
-  async function onboardProvider(event: FormEvent) { event.preventDefault(); if (!state?.csrfToken || !providerTypes.length) return; setBusy(true); setError(null); try { const response = await fetch('/api/account/provider', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': state.csrfToken }, body: JSON.stringify({ provider_types: providerTypes, display_name: displayName, bio, service_area: serviceArea }) }); const result = await response.json() as ProviderState & { error?: string }; if (!response.ok) throw new Error(result.error ?? 'provider_failed'); setProvider(result); setEditingProvider(false); } catch { setError('Provider profile could not be saved. Check the fields and your account status, then try again.'); } finally { setBusy(false); } }
+  const homeFilters = { ...emptyListingSearch, purpose, region, city, property_type: propertyType, max_price: budget };
+  const advancedSearch = `/listings?${listingSearchParams(homeFilters).toString()}`;
+  const heroListing = listings.find(listing => listing.media.some(media => media.widths.length > 0));
+  // Public inventory supplies approved coarse locations; this is not a city taxonomy.
+  const locations = loading || error ? [] : Array.from(new Map(listings
+    .filter(listing => ['Southwest', 'Littoral'].includes(listing.location.region) && listing.location.city.trim())
+    .map(listing => [`${listing.location.region}:${listing.location.city}`, listing.location] as const)).values()).slice(0, 6);
 
-  function editProvider(profile: Exclude<ProviderState, { provider: null }>) {
-    setProviderTypes(profile.provider_types);
-    setDisplayName(profile.display_name);
-    setBio(profile.bio ?? '');
-    setServiceArea(profile.service_area ?? '');
-    setEditingProvider(true);
-    setError(null);
-  }
-
-  async function logout(all: boolean) {
-    const csrfToken = state?.csrfToken;
-    if (!csrfToken) return;
-    const response = await fetch(`/api/auth/logout${all ? '?all=true' : ''}`, { method: 'POST', headers: { origin: window.location.origin, 'x-csrf-token': csrfToken } });
-    const result = await response.json() as { logout_url?: string };
-    window.location.href = result.logout_url ?? '/';
-  }
-
-  if (!state) return <main className="shell"><section className="panel"><p className="eyebrow">PACHI / MARKETPLACE</p><h1>Checking your session</h1><p className="muted">Authentication status is loading.</p></section></main>;
-  if (!state.authenticated) return <main className="shell"><section className="panel"><p className="eyebrow">PACHI / MARKETPLACE</p><h1>{copy.title}</h1><p className="muted">{copy.signedOut}. This is the development web authentication shell.</p>{error && <p className="error" role="alert">{error}</p>}<button className="primary" onClick={() => { window.location.href = '/api/auth/login?returnTo=/'; }}>{copy.signIn}</button></section></main>;
-  const existingProvider = provider && 'provider_types' in provider ? provider : null;
-  const canEditProvider = existingProvider && ['DRAFT', 'PENDING_VERIFICATION', 'ACTIVE'].includes(existingProvider.state);
-  const providerTypesLocked = existingProvider && (existingProvider.state === 'PENDING_VERIFICATION' || existingProvider.verification_status === 'VERIFIED');
-  return <main className="shell"><section className="panel"><div className="topline"><p className="eyebrow">PACHI / MARKETPLACE</p><button className="linkButton" onClick={() => { void logout(false); }}>{copy.logout}</button></div><h1>Welcome back</h1><a href="/organizations">Your organizations</a><p className="muted">Account state: <strong>{state.accountState}</strong></p>{error && <p className="error" role="alert">{error}</p>}{state.participationAllowed ? <div className="success"><h2>{copy.active}</h2><p>Participation permissions are checked by the backend on every request.</p><button className="secondary" onClick={() => { void logout(true); }}>{copy.logoutAll}</button></div> : <div className="verification"><h2>{copy.pending}</h2><p className="muted">Phone ownership is a separate claim from sign-in identity.</p><form onSubmit={(event) => { void submitPhone(event); }}><label>{copy.phoneLabel}<input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder={copy.phoneHint} autoComplete="tel" required /></label>{challengeId && <label>{copy.codeLabel}<input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required /></label>}<button className="primary" disabled={busy}>{busy ? 'Working…' : challengeId ? copy.confirm : copy.request}</button></form><p className="fineprint">Codes expire after five minutes. Resends are limited and cooldown-protected.</p></div>}{state.participationAllowed && <div className="verification"><h2>Provider profile</h2>{existingProvider && <><p className="muted">{existingProvider.display_name} · {existingProvider.provider_types.join(', ')} · {existingProvider.verification_status}</p><p className="muted">Profile state: {existingProvider.state}. Saving profile details does not activate the provider account; identity verification is reviewed separately.</p><a className="primary workspaceLink" href="/provider">Open provider workspace</a>{canEditProvider && !editingProvider && <button className="secondary" type="button" onClick={() => editProvider(existingProvider)}>Edit provider profile</button>}</>}{(!existingProvider || editingProvider) && <form onSubmit={(event) => { void onboardProvider(event); }}><label>Provider types<select multiple value={providerTypes} disabled={!!providerTypesLocked} onChange={(event) => setProviderTypes(Array.from(event.target.selectedOptions, (option) => option.value))}><option value="OWNER">Owner</option><option value="INDEPENDENT_AGENT">Independent agent</option><option value="PROPERTY_MANAGER">Property manager</option></select></label><label>Public provider name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} minLength={2} maxLength={120} required /></label><label>Provider bio<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={1000} /></label><label>Service area<input value={serviceArea} onChange={(event) => setServiceArea(event.target.value)} maxLength={240} placeholder="City or region" /></label><button className="primary" disabled={busy || !providerTypes.length}>{busy ? 'Saving…' : existingProvider ? 'Save provider profile' : 'Start provider onboarding'}</button>{existingProvider && <button className="secondary" type="button" onClick={() => setEditingProvider(false)}>Cancel</button>}</form>}</div>}</section></main>;
+  return <div className="marketplace-root premiumHomePage lovableHomePage">
+    <MarketplaceHeader active="home" />
+    <main id="main-content">
+      <section className="homeHero">
+        <div className="marketplaceContainer homeHeroGrid">
+          <div className="homeHeroCopy">
+            <p className="homeEyebrow">YOUR NEXT PLACE, IN CAMEROON</p>
+            <h1><span className="homeDesktopOnly">Good places.<br /><span>New beginnings.</span></span><span className="homeMobileOnly">A place for your next chapter.</span></h1>
+            <p className="homeHeroLead"><span className="homeDesktopOnly">Find a home, a space for your next idea, or a place to stay in Southwest and Littoral.</span><span className="homeMobileOnly">Discover homes and spaces across Southwest and Littoral.</span></p>
+            <p className="homeHeroRegion">Property in Cameroon <span aria-hidden="true">·</span> Prices in XAF</p>
+          </div>
+          <HomeHeroMedia listing={error ? undefined : heroListing} loading={loading} />
+          <form className="homeSearch" id="home-search" onSubmit={search}>
+            <div className="homePurpose" role="group" aria-label="Property purpose">
+              {([{ value: 'RENT', label: 'Rent' }, { value: 'SALE', label: 'Buy' }, { value: 'SHORT_LET', label: 'Short let' }] as const).map(option => <button key={option.value} type="button" aria-pressed={purpose === option.value} className={purpose === option.value ? 'isActive' : ''} onClick={() => setPurpose(option.value)}>{option.label}</button>)}
+            </div>
+            <div className="homeSearchFields">
+              <label className="homeRegionField"><span>Region</span><select name="region" value={region} onChange={event => setRegion(event.target.value)}><option value="">Southwest &amp; Littoral</option><option value="Southwest">Southwest</option><option value="Littoral">Littoral</option></select></label>
+              <label className="homeCityField"><span><span className="homeDesktopOnly">City or municipality</span><span className="homeMobileOnly">Where would you like to live?</span></span><span className="homeLocationInput"><PropertyFactIcon kind="location" /><input name="city" value={city} maxLength={120} onChange={event => setCity(event.target.value)} placeholder="Search city or municipality" autoComplete="address-level2" /></span></label>
+              <div className="homeSecondaryFilters homeMobileOnly">
+                <label><span>Property type</span><select name="property_type" value={propertyType} onChange={event => setPropertyType(event.target.value)}><option value="">Any type</option><option value="HOUSE">House</option><option value="APARTMENT">Apartment</option><option value="ROOM">Room</option><option value="LAND">Land</option><option value="COMMERCIAL">Commercial space</option></select></label>
+                <label><span>Budget <small>(max. XAF)</small></span><input name="max_price" aria-label="Budget (maximum XAF)" type="number" inputMode="numeric" min="0" step="1" max="9007199254740991" value={budget} onChange={event => { setBudget(event.target.value); setBudgetError(''); }} placeholder="Any price" aria-invalid={!!budgetError} aria-describedby={budgetError ? 'home-budget-error' : undefined} /></label>
+              </div>
+              {budgetError && <p className="homeBudgetError" id="home-budget-error" role="alert">{budgetError}</p>}
+              <button className="primary homeSearchSubmit" type="submit"><svg className="homeDesktopOnly" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.8" /><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg><span className="homeDesktopOnly">Search properties</span><span className="homeMobileOnly">Find a home</span><span aria-hidden="true">→</span></button>
+            </div>
+          </form>
+          <p className="homeSearchHint"><span className="homeDesktopOnly">Explore at your own pace.</span> <Link className="homeDesktopOnly" href="/listings">Explore all properties <span aria-hidden="true">↗</span></Link><Link className="homeMobileOnly" href={advancedSearch}>Region &amp; more filters <span aria-hidden="true">↗</span></Link></p>
+        </div>
+      </section>
+      {locations.length > 0 && <nav className="homeLocationShortcuts marketplaceContainer homeMobileOnly" aria-label="Explore Cameroon"><p className="sectionEyebrow">EXPLORE CAMEROON</p><div>{locations.map(location => <Link key={`${location.region}:${location.city}`} href={`/listings?${new URLSearchParams({ region: location.region, city: location.city }).toString()}`}><PropertyFactIcon kind="location" />{location.city}</Link>)}</div></nav>}
+      <section className="homeListings marketplaceContainer" aria-labelledby="home-listings-title">
+        <div className="sectionHeading"><div><p className="sectionEyebrow">ON THE MARKET</p><h2 id="home-listings-title"><span className="homeDesktopOnly">Find a place that fits.</span><span className="homeMobileOnly">Somewhere you’ll love coming home to.</span></h2><p>Explore the latest available properties.</p></div><Link className="textLink" href="/listings">View all properties <span aria-hidden="true">↗</span></Link></div>
+        {loading ? <ListingSkeletons /> : error ? <div className="marketplaceFeedback" role="alert"><HomeMark /><h3>We couldn’t load the latest listings.</h3><p>Please try again in a moment. You can still start a property search above.</p><button className="secondary" type="button" onClick={() => setRetry(current => current + 1)}>Try again</button></div> : listings.length ? <div className="listingGrid" aria-label="Latest public listings">{listings.map(listing => <ListingCard key={listing.id} listing={listing} />)}</div> : <div className="marketplaceFeedback"><HomeMark /><h3>New places will appear here.</h3><p>There are no available listings to show right now. Check back soon, or explore the marketplace.</p><Link className="secondary" href="/listings">Browse properties</Link></div>}
+      </section>
+      <section className="homeProvider marketplaceContainer"><div className="homeProviderInner"><div><p className="sectionEyebrow">FOR PROPERTY PROVIDERS</p><h2>Have a place to offer?</h2><p>Create your provider profile and manage your listings in one place.</p></div><Link className="providerCta" href="/account#provider-profile">Get started <span aria-hidden="true">↗</span></Link></div></section>
+    </main>
+    <MarketplaceFooter />
+  </div>;
 }

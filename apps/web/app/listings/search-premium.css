@@ -1,0 +1,658 @@
+/* Search composition stays scoped because App Router styles survive navigation. */
+.premiumSearchPage .searchIntro {
+  padding: 24px 0;
+}
+
+.premiumSearchPage .searchBreadcrumb {
+  margin-bottom: 20px;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.premiumSearchPage .searchBreadcrumb a:hover {
+  color: var(--p-forest);
+  text-decoration: underline;
+}
+
+.premiumSearchPage .searchEditorialHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 32px;
+}
+
+.premiumSearchPage .searchEditorialHeading .eyebrow {
+  margin: 0 0 8px;
+  color: var(--p-forest);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+
+.premiumSearchPage .searchEditorialHeading h1 {
+  max-width: none;
+  margin: 0;
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(32px, 3vw, 42px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -.05em;
+}
+
+.premiumSearchPage .searchEditorialHeading > p {
+  max-width: 40ch;
+  margin: 0 0 3px;
+  color: var(--p-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.premiumSearchPage .searchPrimary {
+  grid-template-columns: 1fr 1fr 1.35fr auto;
+  align-items: center;
+  gap: 0;
+  padding: 8px;
+  margin: 0 0 24px;
+  border: 1px solid var(--p-border);
+  border-radius: 12px;
+  background: var(--p-surface);
+  box-shadow: 0 4px 18px #0e3b2e04;
+}
+
+.premiumSearchPage .searchPrimary > .searchField {
+  display: grid;
+  gap: 2px;
+  padding: 5px 18px;
+  border-right: 1px solid var(--p-border);
+  color: var(--p-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.premiumSearchPage .searchPrimary input,
+.premiumSearchPage .searchPrimary select {
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 22px 4px 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--p-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.premiumSearchPage .searchPrimary input::placeholder {
+  color: var(--p-muted);
+  font-weight: 400;
+}
+
+.premiumSearchPage .searchPrimary [aria-invalid='true'] {
+  outline: 1px solid var(--p-error);
+  outline-offset: 3px;
+}
+
+.premiumSearchPage .searchField [aria-invalid='true'] {
+  border-color: var(--p-error);
+}
+
+.premiumSearchPage .searchPrimary :is(input, select):focus-visible {
+  outline: 2px solid var(--p-forest);
+  outline-offset: 3px;
+}
+
+.premiumSearchPage .searchPrimary .searchSubmit {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  width: auto;
+  min-height: 52px;
+  margin: 0 8px 0 20px;
+  padding: 12px 23px;
+  font-size: 13px;
+}
+
+.premiumSearchPage .searchSubmit svg {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.premiumSearchPage .searchWorkspace {
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 28px;
+  padding-bottom: 48px;
+}
+
+.premiumSearchPage .searchFilters {
+  padding: 0 18px 18px;
+  border: 1px solid var(--p-border);
+  border-radius: 10px;
+  background: var(--p-surface);
+}
+
+.premiumSearchPage .searchFilters > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-ink);
+  font-family: var(--font-heading), sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  list-style: none;
+}
+
+.premiumSearchPage .searchFilters > summary::-webkit-details-marker {
+  display: none;
+}
+
+.premiumSearchPage .searchFilterIcon {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.premiumSearchPage .searchFilterBody {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding: 18px 0 0;
+}
+
+.premiumSearchPage .searchFilterSection {
+  display: grid;
+  gap: 18px;
+}
+
+.premiumSearchPage .searchFilterBody .searchField {
+  display: grid;
+  gap: 8px;
+  color: var(--p-ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.premiumSearchPage .searchFilterBody input,
+.premiumSearchPage .searchFilterBody select {
+  min-height: 44px;
+  padding: 10px 11px;
+  border-color: var(--p-input-border);
+  border-radius: 8px;
+  background-color: var(--p-surface);
+  color: var(--p-ink);
+  font-size: 13px;
+}
+
+.premiumSearchPage .searchPriceRange {
+  gap: 10px;
+  padding: 16px 0 18px;
+  border: 0;
+  border-top: 1px solid var(--p-border);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.premiumSearchPage .searchPriceRange legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0;
+  color: var(--p-ink);
+  font-size: 13px;
+  font-weight: 600;
+  grid-column: 1 / -1;
+}
+
+.premiumSearchPage .searchFilterBody .searchNumericHelp {
+  color: var(--p-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.premiumSearchPage .searchActions {
+  grid-column: auto;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.premiumSearchPage .searchActions > button {
+  min-height: 44px;
+  margin: 0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.premiumSearchPage .searchReset {
+  border-color: var(--p-border);
+  color: var(--p-muted);
+  background: transparent;
+}
+
+.premiumSearchPage .searchReset:hover {
+  color: var(--p-forest);
+  background: var(--p-mist);
+}
+
+.premiumSearchPage .searchResultsHeader {
+  min-height: 62px;
+  align-items: start;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid var(--p-border);
+}
+
+.premiumSearchPage .searchResultsHeader > div h2 {
+  max-width: none;
+  margin-bottom: 5px;
+  color: var(--p-ink);
+  font-family: var(--font-heading), sans-serif;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+
+.premiumSearchPage .searchResultsHeader .resultCount {
+  max-width: none;
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.premiumSearchPage .searchResultsHeader .searchSort {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding-top: 3px;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.premiumSearchPage .searchSort select {
+  width: auto;
+  max-width: 180px;
+  min-height: 44px;
+  padding: 9px 28px 9px 12px;
+  border-color: var(--p-input-border);
+  border-radius: 8px;
+  background-color: var(--p-surface);
+  color: var(--p-ink);
+  font-size: 12px;
+}
+
+.premiumSearchPage .searchResults .listingGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px 22px;
+}
+
+.premiumSearchPage .searchResults .listingCardBody {
+  padding: 18px 20px 20px;
+}
+
+.premiumSearchPage .searchResults .listingPrice {
+  font-size: 22px;
+}
+
+.premiumSearchPage .searchAppliedFilters {
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+.premiumSearchPage .searchChip {
+  padding: 6px 11px;
+  border: 1px solid var(--p-border);
+  border-radius: 5px;
+  color: var(--p-forest);
+  background: var(--p-mist);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.premiumSearchPage .searchDraftHint {
+  margin-bottom: 20px;
+  padding: 12px 15px;
+  border-color: var(--p-border);
+  border-radius: 8px;
+  color: var(--p-ink);
+  background: var(--p-mist);
+  font-size: 12px;
+}
+
+.premiumSearchPage .searchFeedback {
+  padding: 46px 30px;
+  border: 1px solid var(--p-border);
+  border-radius: 12px;
+  background: var(--p-surface);
+}
+
+.premiumSearchPage .searchFeedback[role='alert'] {
+  margin-bottom: 22px;
+  border-color: var(--p-error);
+}
+
+.premiumSearchPage .searchFeedback h3 {
+  max-width: none;
+  font-family: var(--font-heading), sans-serif;
+  font-size: 25px;
+  letter-spacing: -.03em;
+}
+
+.premiumSearchPage .searchFeedback p {
+  max-width: 58ch;
+  color: var(--p-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.premiumSearchPage .searchFieldError {
+  color: var(--p-error);
+}
+
+.premiumSearchPage .searchLoadMore {
+  margin-top: 34px;
+}
+
+.premiumSearchPage .searchLoadMore > button {
+  min-height: 48px;
+  padding-inline: 28px;
+  border-color: var(--p-border);
+  background: var(--p-surface);
+}
+
+@media (max-width: 1250px) {
+  .premiumSearchPage .searchWorkspace {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 26px;
+  }
+
+  .premiumSearchPage .searchResults .listingGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+  }
+
+  .premiumSearchPage .searchEditorialHeading > p {
+    max-width: 34ch;
+    font-size: 13px;
+  }
+
+  .premiumSearchPage .searchPrimary > .searchField {
+    padding-inline: 14px;
+  }
+}
+
+@media (max-width: 899px) {
+  .premiumSearchPage .searchIntro {
+    padding-top: 24px;
+  }
+
+  .premiumSearchPage .searchBreadcrumb {
+    margin-bottom: 22px;
+  }
+
+  .premiumSearchPage .searchEditorialHeading {
+    display: block;
+  }
+
+  .premiumSearchPage .searchEditorialHeading > p {
+    max-width: none;
+    margin: 14px 0 0;
+    font-size: 14px;
+  }
+
+  .premiumSearchPage .searchDesktopBreak {
+    display: none;
+  }
+
+  .premiumSearchPage .searchPrimary {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 18px;
+  }
+
+  .premiumSearchPage .searchPrimary > .searchField {
+    padding: 8px 14px;
+  }
+
+  .premiumSearchPage .searchPrimary > .searchField:nth-child(2) {
+    border-right: 0;
+  }
+
+  .premiumSearchPage .searchPrimary > .searchField:nth-child(3) {
+    border-top: 1px solid var(--p-border);
+    border-right: 0;
+  }
+
+  .premiumSearchPage .searchPrimary .searchSubmit {
+    width: auto;
+    min-height: 48px;
+    margin: 8px 8px 8px 14px;
+  }
+
+  .premiumSearchPage .searchWorkspace {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .premiumSearchPage .searchFilters {
+    padding: 0 18px;
+    border: 1px solid var(--p-border);
+    border-radius: 10px;
+    background: var(--p-surface);
+  }
+
+  .premiumSearchPage .searchFilters > summary {
+    min-height: 54px;
+    padding: 12px 0;
+    border: 0;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .premiumSearchPage .searchFilters[open] > summary {
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .premiumSearchPage .searchFilterBody {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    padding: 20px 0;
+  }
+
+  .premiumSearchPage .searchPriceRange {
+    align-self: start;
+    padding: 0;
+    border: 0;
+  }
+
+  .premiumSearchPage .searchActions {
+    align-content: end;
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .premiumSearchPage .searchResultsHeader {
+    margin-bottom: 22px;
+  }
+}
+
+@media (max-width: 599px) {
+  .premiumSearchPage .searchIntro {
+    padding: 16px 0 18px;
+  }
+
+  .premiumSearchPage .searchBreadcrumb {
+    margin-bottom: 14px;
+    font-size: 11px;
+  }
+
+  .premiumSearchPage .searchEditorialHeading .eyebrow {
+    display: none;
+  }
+
+  .premiumSearchPage .searchEditorialHeading h1 {
+    font-size: clamp(28px, 8vw, 32px);
+  }
+
+  .premiumSearchPage .searchEditorialHeading > p {
+    max-width: 40ch;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .premiumSearchPage .searchPrimary {
+    padding: 6px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+  }
+
+  .premiumSearchPage .searchPrimary > .searchField {
+    padding: 7px 10px;
+    font-size: 10px;
+  }
+
+  .premiumSearchPage .searchPrimary input,
+  .premiumSearchPage .searchPrimary select {
+    min-height: 44px;
+    font-size: 12px;
+  }
+
+  .premiumSearchPage .searchPrimary .searchSubmit {
+    align-self: end;
+    gap: 6px;
+    min-height: 46px;
+    margin: 9px 4px 11px;
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .premiumSearchPage .searchSubmit svg {
+    flex-basis: 15px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .premiumSearchPage .searchWorkspace {
+    gap: 18px;
+    padding-bottom: 44px;
+  }
+
+  .premiumSearchPage .searchFilters {
+    padding-inline: 14px;
+  }
+
+  .premiumSearchPage .searchFilters > summary {
+    min-height: 48px;
+    padding-block: 10px;
+  }
+
+  .premiumSearchPage .searchFilterBody {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .premiumSearchPage .searchFilterSection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .premiumSearchPage .searchPriceRange {
+    padding-block: 18px;
+    border-top: 1px solid var(--p-border);
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .premiumSearchPage .searchActions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .premiumSearchPage .searchResultsHeader {
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .premiumSearchPage .searchResultsHeader > div {
+    min-width: 0;
+  }
+
+  .premiumSearchPage .searchResultsHeader > div h2 {
+    max-width: 14ch;
+    font-size: 19px;
+    line-height: 1.25;
+  }
+
+  .premiumSearchPage .searchResultsHeader .resultCount {
+    font-size: 11px;
+  }
+
+  .premiumSearchPage .searchResultsHeader .searchSort {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 4px;
+    padding-top: 0;
+    font-size: 10px;
+  }
+
+  .premiumSearchPage .searchSort select {
+    max-width: 148px;
+    min-height: 44px;
+    padding: 8px 22px 8px 9px;
+    font-size: 11px;
+  }
+
+  .premiumSearchPage .searchResults .listingGrid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .premiumSearchPage .searchResults .listingCardBody {
+    padding: 18px;
+  }
+
+  .premiumSearchPage .searchResults .listingPrice {
+    font-size: 24px;
+  }
+
+  .premiumSearchPage .searchAppliedFilters {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .premiumSearchPage .searchChip {
+    max-width: 100%;
+    border-radius: 6px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .premiumSearchPage .searchFeedback {
+    padding: 30px 22px;
+  }
+
+  .premiumSearchPage .searchFeedback h3 {
+    font-size: 22px;
+  }
+}
+
+/* Keep complete selected location labels readable on the narrowest phones. */
+@media (max-width: 359px) {
+  .premiumSearchPage .searchPrimary { grid-template-columns: minmax(0, 1fr); }
+  .premiumSearchPage .searchPrimary > .searchField { border-right: 0; }
+  .premiumSearchPage .searchPrimary > .searchField + .searchField { border-top: 1px solid var(--p-border); }
+  .premiumSearchPage .searchPrimary .searchSubmit { margin: 10px 6px 6px; }
+}

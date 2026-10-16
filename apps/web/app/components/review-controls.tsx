@@ -176,7 +176,7 @@ export function PublishedReviews({ endpoint, title, refreshVersion = 0 }: { endp
     <button disabled={busy} onClick={() => void load()}>Refresh {title.toLowerCase()}</button>
     {busy && <p role="status">Loading published reputation…</p>}{error && <p role="alert" className="error">{error}</p>}
     {data && <><p>{data.reputation.count} published {data.reputation.count === 1 ? 'review' : 'reviews'}</p>{data.reputation.count >= 3 && data.reputation.average !== null ? <p aria-label="Average review rating">Average rating: {data.reputation.average.toFixed(2)} / 5</p> : <p>A numerical average is available after 3 eligible published reviews.</p>}
-      {endpoint.startsWith('/api/public/') && <p>Public written feedback awaits moderation controls.</p>}
+      {endpoint.startsWith('/api/public/') && <p>This public summary includes ratings and review criteria.</p>}
       <ul aria-label={`${title} published reviews`}>{data.items.map(item => <li key={item.id}><article><p><strong>{item.author_display_name}</strong> · {item.author_role} · {reviewDate(item.date)}</p><p>Validated completed viewing · {item.rating} / 5</p>{item.provider_identity_verified && <p>Provider identity verified</p>}{item.text && !endpoint.startsWith('/api/public/') && <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.text}</p>}<CriterionScores scores={item.criteria}/><button disabled={sending || !!pending} onClick={() => void openReport(item.id)}>Report this review</button></article></li>)}</ul>
       {data.next_cursor && <button disabled={busy} onClick={() => void load(data.next_cursor!)}>Load more published reviews</button>}
     </>}
