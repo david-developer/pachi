@@ -1,0 +1,1 @@
+Unmodified Manrope and DM Sans variable TTFs and SIL Open Font Licenses copied from `apps/web/app/fonts/`. The canonical upstream provenance and SHA256 hashes remain in that directory. Native and Expo web load these locally through expo-font; no remote font request is required.

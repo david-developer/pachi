@@ -1,1 +1,16 @@
-{ "extends": "@pachi/typescript-config/react-native.json", "compilerOptions": { "moduleResolution": "Bundler", "resolveJsonModule": true }, "include": ["app/**/*.ts", "app/**/*.tsx", "expo-env.d.ts"] }
+{
+  "extends": "@pachi/typescript-config/react-native.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "types": ["node", "react"]
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

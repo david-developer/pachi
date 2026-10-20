@@ -48,5 +48,20 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm --filter @pachi/web exec playwright install --with-deps chromium --only-shell
+      - name: Export isolated native TEST browser preview
+        run: pnpm --filter @pachi/mobile exec expo export --clear --platform web --output-dir dist-test
+        env:
+          EXPO_PUBLIC_API_URL: http://localhost:8085/v1
+          EXPO_PUBLIC_REVIEW_MODE: synthetic-test
+      - run: pnpm --filter @pachi/mobile test:browser
+        env:
+          PACHI_MOBILE_EXPORT_DIRECTORY: ./dist-test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-discovery-test-browser
+          path: .local-dev/g3i2-native-browser/
+          if-no-files-found: ignore
+          retention-days: 7
       - run: pnpm --filter @pachi/web test:browser
       - run: pnpm --filter @pachi/admin test:browser
