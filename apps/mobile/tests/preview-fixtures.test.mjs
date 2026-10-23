@@ -60,6 +60,47 @@ test("synthetic search filters and stable pagination demonstrate real public que
   );
 });
 
+test("synthetic location filters match the API's exact case-insensitive comparison", () => {
+  const listing = testListings[0];
+  for (const [key, exact, partial] of [
+    ["city", " dOuAlA ", "Doua"],
+    ["neighborhood", " aKwA ", "kwa"],
+  ]) {
+    assert.deepEqual(
+      searchFixture(new URLSearchParams({ [key]: exact }), [listing]).items,
+      [listing],
+      `${key} accepts a complete label regardless of case or surrounding spaces`,
+    );
+    assert.deepEqual(
+      searchFixture(new URLSearchParams({ [key]: partial }), [listing]).items,
+      [],
+      `${key} rejects a substring of the approved label`,
+    );
+  }
+});
+
+test("synthetic availability includes dates on or after the API's requested lower bound", () => {
+  const listing = testListings[0];
+  for (const [available_from, expected] of [
+    ["2026-10-19", [listing]],
+    ["2026-10-20", [listing]],
+    ["2026-10-21", []],
+  ]) {
+    assert.deepEqual(
+      searchFixture(new URLSearchParams({ available_from }), [listing]).items,
+      expected,
+      `Availability ${listing.available_from} compared with ${available_from}`,
+    );
+  }
+  assert.deepEqual(
+    searchFixture(new URLSearchParams({ available_from: "2026-10-20" }), [
+      { ...listing, available_from: null },
+    ]).items,
+    [],
+    "Missing availability does not satisfy a date filter",
+  );
+});
+
 test("loopback synthetic server serves ordinary navigation, public fixtures and denies mutations", async () => {
   const directory = await mkdtemp(join(tmpdir(), "pachi-native-preview-"));
   await writeFile(join(directory, "index.html"), "<main>SYNTHETIC TEST</main>");

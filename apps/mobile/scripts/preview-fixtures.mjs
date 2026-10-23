@@ -39,12 +39,12 @@ export function searchFixture(parameters, items = testListings) {
   }));
   for (const key of ['city', 'neighborhood']) {
     const value = parameters.get(key)?.trim().toLocaleLowerCase();
-    if (value) matches = matches.filter(item => item.location[key]?.toLocaleLowerCase().includes(value));
+    if (value) matches = matches.filter(item => item.location[key]?.toLocaleLowerCase() === value);
   }
   for (const [key, compare] of [['min_price', (item, value) => item.price.amount_minor >= value], ['max_price', (item, value) => item.price.amount_minor <= value], ['min_bedrooms', (item, value) => (item.property.bedrooms ?? -1) >= value], ['min_bathrooms', (item, value) => (item.property.bathrooms ?? -1) >= value]]) {
     if (parameters.has(key)) matches = matches.filter(item => compare(item, Number(parameters.get(key))));
   }
-  if (parameters.has('available_from')) matches = matches.filter(item => item.available_from && item.available_from <= parameters.get('available_from'));
+  if (parameters.has('available_from')) matches = matches.filter(item => item.available_from && item.available_from >= parameters.get('available_from'));
   const sort = parameters.get('sort');
   if (sort === 'price_asc') matches = [...matches].sort((a, b) => a.price.amount_minor - b.price.amount_minor);
   if (sort === 'price_desc') matches = [...matches].sort((a, b) => b.price.amount_minor - a.price.amount_minor);

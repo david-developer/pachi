@@ -246,13 +246,17 @@ try {
     await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await expect(page.getByText('Enter a whole, non-negative number.', { exact: true }).last()).toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+    // Modal dismissal commits asynchronously; await removal before using page controls.
+    await expect(page.getByRole('dialog', { includeHidden: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Remove filter: Douala', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Make room for your needs.', exact: true })).toBeVisible();
     await expect(page.getByLabel('Maximum price (XAF)', { exact: true })).toHaveValue('1.5');
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(page.getByRole('dialog', { includeHidden: true })).toHaveCount(0);
     assert.equal(preview.requests.slice(before).filter(request => request.path === '/v1/public/listings').length, 0, 'Invalid sort/chip actions do not issue discovery');
     await expect(page.getByRole('heading', { name: 'Check your filters', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(page).toHaveURL(`${base}/listings`);
     await expect(cardLinks(page)).toHaveCount(2);
   });
   await check('narrow 320px screens retain connected touch navigation', 320, 'normal', async page => {
