@@ -22,3 +22,6 @@ overrides:
   'metro@0.83.3': 0.83.8
   # Exact CLI consumer verified by security-dependency-compatibility.test.mjs.
   '@expo/cli@55.0.11>zod': 4.6.6
+  # Exact Nest/Express consumers covered by security-http-compatibility.test.mjs.
+  'express@5.2.1>body-parser': 2.4.0
+  '@nestjs/platform-express@11.2.6>multer': 2.5.0
