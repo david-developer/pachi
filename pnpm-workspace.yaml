@@ -20,3 +20,5 @@ overrides:
   'image-size@1.2.1': 2.0.3
   # Metro 0.83.8 adapts filename inputs to the patched image-size v2 API.
   'metro@0.83.3': 0.83.8
+  # Exact CLI consumer verified by security-dependency-compatibility.test.mjs.
+  '@expo/cli@55.0.11>zod': 4.6.6
