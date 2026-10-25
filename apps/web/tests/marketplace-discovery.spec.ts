@@ -37,7 +37,11 @@ test('pagination uses applied filters while edits stay unsent and new searches r
   await page.getByRole('button', { name: 'Apply filters' }).click();
   await expect(page).toHaveURL(/city=Buea/);
   await expect(page.getByRole('heading', { name: testListings[1]!.title })).toHaveCount(0);
+  // The URL and cleared results can update before the new fetch reaches the route.
+  await expect.poll(() => requests.at(-1)?.searchParams.get('city')).toBe('Buea');
+  expect(requests.at(-1)?.searchParams.get('purpose')).toBe('RENT');
   expect(requests.at(-1)?.searchParams.has('cursor')).toBe(false);
+  await expect(page.getByRole('heading', { name: testListing.title })).toBeVisible();
   await page.goBack();
   await expect(page.getByLabel('City', { exact: true })).toHaveValue('Douala');
   await page.goForward();
