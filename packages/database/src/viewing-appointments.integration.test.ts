@@ -20,11 +20,12 @@ async function fixture(){
   const {client}=createDatabase(url!);await client`SET client_min_messages TO warning`;await client`TRUNCATE users RESTART IDENTITY CASCADE`;await client`UPDATE region_publication_controls SET enabled=true`;
   return {...await viewingFixture(client),client,store:new ViewingAppointmentStore(client,true),async close(){await client`UPDATE region_publication_controls SET enabled=true`;await client`TRUNCATE users RESTART IDENTITY CASCADE`;await client.end();}};
 }
-async function schedule(f:Fixture,hours=72){
+async function schedule(f:Fixture,hours=72,beforeFinalConfirmation?:()=>Promise<void>){
   const time=(await f.client<{start:Date;end:Date}[]>`SELECT statement_timestamp()+${hours}*interval '1 hour' AS start,statement_timestamp()+${hours+1}*interval '1 hour' AS end`)[0]!;
   let v=(await f.store.create(f.actors.seeker,f.interaction.interaction_id,{...f.input,proposed_start:new Date(time.start).toISOString(),proposed_end:new Date(time.end).toISOString()},f.command())).viewing;
   v=(await f.store.accept(f.actors.provider,v.id,{...expected(v),scheduled_start:v.proposed_start,scheduled_end:v.proposed_end,private_instructions:guidance},f.command())).viewing;
   v=(await f.store.confirm(f.actors.seeker,v.id,expected(v),f.command())).viewing;
+  await beforeFinalConfirmation?.();
   return (await f.store.confirm(f.actors.provider,v.id,expected(v),f.command())).viewing;
 }
 const replacement=(v:Viewing)=>({...expected(v),proposed_start:new Date(Date.parse(v.scheduled_start!)+24*3600000).toISOString(),proposed_end:new Date(Date.parse(v.scheduled_end!)+24*3600000).toISOString()});
@@ -235,7 +236,20 @@ void integration('G3-F2 organization notices target stable ProviderAccount and r
 });
 
 void integration('G3-F2 reminder worker batch bounds reject invalid limits and do not fabricate external delivery',async()=>{
-  const f=await fixture();try{const v=await schedule(f);await assert.rejects(f.store.appointmentsOnce(0),{code:'INVALID_INPUT'});await assert.rejects(f.store.appointmentsOnce(101),{code:'INVALID_INPUT'});await f.store.appointmentsOnce(1);assert.ok((await f.client`SELECT id FROM viewing_scheduled_actions WHERE action_type LIKE 'REMINDER_%' AND attempts>0`).length<=1);assert.equal((await f.store.reminderStatus(f.actors.seeker,v.id)).external_state,'NOT_ENABLED');}finally{await f.close();}
+  const f=await fixture();try{
+    // Analyze the single expiry action before confirmation adds both reminders.
+    // This valid stale-statistics plan exposed rescans of the locking subquery.
+    const v=await schedule(f,72,async()=>{await f.client`ANALYZE viewing_scheduled_actions`;});
+    const before=await f.client`SELECT id,attempts FROM viewing_scheduled_actions WHERE action_type LIKE 'REMINDER_%' ORDER BY id`;
+    assert.equal(before.length,2);assert.ok(before.every(row=>row.attempts===0));
+    await assert.rejects(f.store.appointmentsOnce(0),{code:'INVALID_INPUT'});
+    await assert.rejects(f.store.appointmentsOnce(101),{code:'INVALID_INPUT'});
+    assert.deepEqual(await f.client`SELECT id,attempts FROM viewing_scheduled_actions WHERE action_type LIKE 'REMINDER_%' ORDER BY id`,before);
+    await f.store.appointmentsOnce(1);
+    const claimed=await f.client`SELECT id FROM viewing_scheduled_actions WHERE action_type LIKE 'REMINDER_%' AND attempts>0`;
+    assert.ok(claimed.length<=1);assert.equal(claimed.length,1);
+    assert.equal((await f.store.reminderStatus(f.actors.seeker,v.id)).external_state,'NOT_ENABLED');
+  }finally{await f.close();}
 });
 
 function dedicated(){const c=postgres(url!,{max:1,prepare:false});drizzle(c);return c;}
