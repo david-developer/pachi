@@ -62,7 +62,7 @@ const en = {
     "Based on validated completed viewings. Reviews do not establish ownership or confirm a rental or purchase.",
   browsing: "Explore with confidence",
   browsingNote:
-    "Public browsing is available without an account. Contact and account actions are not available in this native discovery release.",
+    "Browse without an account. Contact continues on Pachi web when a web address is configured; sign-in and participation checks apply there.",
   gallery: "Property photos",
   openGallery: "Open full-screen photo gallery",
   closeGallery: "Close photo gallery",
@@ -143,7 +143,7 @@ const fr: DetailCopy = {
     "Avis issus de visites effectuées et validées. Ils ne prouvent ni la propriété du bien ni la conclusion d’une location ou d’un achat.",
   browsing: "Explorez en toute confiance",
   browsingNote:
-    "La consultation publique ne nécessite aucun compte. Le contact et les actions du compte ne sont pas disponibles dans cette version native de découverte.",
+    "Consultez sans compte. Le contact continue sur Pachi web si une adresse web est configurée ; la connexion et les conditions de participation y sont vérifiées.",
   gallery: "Photos du bien",
   openGallery: "Ouvrir la galerie photo en plein écran",
   closeGallery: "Fermer la galerie photo",

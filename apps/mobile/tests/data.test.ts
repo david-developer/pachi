@@ -62,6 +62,31 @@ const clientFor = (value: unknown) =>
 const code = (expected: string) => (error: unknown) =>
   error instanceof MarketplaceError && error.code === expected;
 
+void test("detail provider context is optional, validated and stripped of private fields", async () => {
+  const old = await clientFor(listing).detail(id);
+  assert.equal(old.provider, undefined);
+  assert.equal(old.last_confirmed_at, undefined);
+  const provider = { display_name: "TEST · Fako Living", identity_verified: true, authority_declared: true };
+  const confirmed = "2026-10-25T12:00:00Z";
+  const detail = await clientFor({ ...listing, provider: { ...provider, email: "PRIVATE_CANARY", phone_number: "PRIVATE_CANARY", provider_profile_id: "PRIVATE_CANARY", verification_case_id: "PRIVATE_CANARY", property_authority_verified: true }, last_confirmed_at: confirmed }).detail(id);
+  assert.deepEqual(detail.provider, provider);
+  assert.equal(detail.last_confirmed_at, confirmed);
+  assert.ok(!JSON.stringify(detail).includes("PRIVATE_CANARY"));
+  assert.ok(!JSON.stringify(detail).includes("property_authority_verified"));
+  const noClaims = await clientFor({ ...listing, provider: { ...provider, identity_verified: false, authority_declared: false }, last_confirmed_at: null }).detail(id);
+  assert.equal(noClaims.provider?.identity_verified, false);
+  assert.equal(noClaims.provider?.authority_declared, false);
+  assert.equal(noClaims.last_confirmed_at, null);
+  const multiline = await clientFor({ ...listing, provider: { ...provider, display_name: "Fako\nLiving" } }).detail(id);
+  assert.equal(multiline.provider?.display_name, "Fako Living");
+  for (const invalid of [null, {}, { ...provider, display_name: " " }, { ...provider, display_name: "a".repeat(121) }, { ...provider, identity_verified: "true" }, { ...provider, authority_declared: 1 }]) {
+    await assert.rejects(clientFor({ ...listing, provider: invalid }).detail(id), code("unavailable"));
+  }
+  for (const invalid of ["yesterday", "2026-02-30T12:00:00Z", "2026-10-25", 1]) {
+    await assert.rejects(clientFor({ ...listing, last_confirmed_at: invalid }).detail(id), code("unavailable"));
+  }
+});
+
 void test("query validation uses supported filters, safe whole XAF, and defaults", () => {
   const input = {
     purpose: "RENT",

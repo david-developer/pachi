@@ -53,6 +53,7 @@ jobs:
         env:
           EXPO_PUBLIC_API_URL: http://localhost:8085/v1
           EXPO_PUBLIC_REVIEW_MODE: synthetic-test
+          EXPO_PUBLIC_WEB_URL: https://pachi-web.example.test
       - run: pnpm --filter @pachi/mobile test:browser
         env:
           PACHI_MOBILE_EXPORT_DIRECTORY: ./dist-test

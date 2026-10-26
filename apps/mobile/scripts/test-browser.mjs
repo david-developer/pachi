@@ -77,7 +77,7 @@ async function capture(page, filename) {
   }
 }
 
-async function check(name, width, scenario, action) {
+async function check(name, width, scenario, action, { requestInterception = false } = {}) {
   preview.setScenario(scenario);
   const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 1000 }, reducedMotion: 'reduce', locale: 'en-GB' });
   const page = await context.newPage();
@@ -100,15 +100,63 @@ async function check(name, width, scenario, action) {
     await expect(page.getByText(privateAddressCanary, { exact: false })).toHaveCount(0);
     await expect(page.getByText('SYNTHETIC_INTERNAL_ERROR_DO_NOT_RENDER', { exact: false })).toHaveCount(0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'No horizontal overflow');
-    receipts.push({ name, width, scenario, status: 'PASS', browser: 'Chromium / Expo web', context: 'fresh', request_interception: false, browser_errors: errors, application_console_errors: consoleErrors.filter(message => !/^Failed to load resource:/.test(message)) });
+    receipts.push({ name, width, scenario, status: 'PASS', browser: 'Chromium / Expo web', context: 'fresh', request_interception: requestInterception, browser_errors: errors, application_console_errors: consoleErrors.filter(message => !/^Failed to load resource:/.test(message)) });
     process.stdout.write(`PASS ${width}px ${name}\n`);
   } catch (error) {
     const file = `${name.replace(/[^a-z0-9]+/gi, '-')}-${width}-failure.png`;
     await page.screenshot({ path: resolve(evidenceDirectory, file), fullPage: true }).catch(() => undefined);
-    receipts.push({ name, width, scenario, status: 'FAIL', error: String(error), browser_errors: errors, console_errors: consoleErrors, http_failures: responseFailures, screenshot: file });
+    receipts.push({ name, width, scenario, status: 'FAIL', request_interception: requestInterception, error: String(error), browser_errors: errors, console_errors: consoleErrors, http_failures: responseFailures, screenshot: file });
     process.stderr.write(`FAIL ${width}px ${name}: ${error}\n`);
   } finally {
     await context.close();
+  }
+}
+
+const inquiryCopy = {
+  en: {
+    provider: 'Fako Living', role: 'Property provider', unavailable: 'Provider details unavailable',
+    identity: 'Provider identity verified', authority: 'Property authority declared',
+    disclaimer: 'Identity verification is not proof of ownership.',
+    viewing: 'Request a viewing', message: 'Message provider',
+    safety: 'Meet first. Never send money before seeing a property and checking the details.',
+    sample: 'Sample provider · Interactive design preview',
+    handoff: 'Continue on Pachi web to sign in and contact this provider. Arrange a viewing from your conversation.',
+    confirmed: 'Confirmed',
+  },
+  fr: {
+    provider: 'Fako Living', role: 'Prestataire immobilier', unavailable: 'Informations du prestataire indisponibles',
+    identity: 'Identité du prestataire vérifiée', authority: 'Autorité sur le bien déclarée',
+    disclaimer: 'La vérification d’identité ne prouve pas la propriété du bien.',
+    viewing: 'Demander une visite', message: 'Contacter le prestataire',
+    safety: 'Rencontrez le prestataire. N’envoyez jamais d’argent avant d’avoir visité le bien et vérifié les détails.',
+    sample: 'Prestataire fictif · Aperçu interactif du design',
+    handoff: 'Continuez sur Pachi web pour vous connecter et contacter ce prestataire. Organisez une visite depuis votre conversation.',
+    confirmed: 'Confirmé le',
+  },
+};
+
+async function inquiryPanelFits(card) {
+  await card.page().evaluate(() => document.fonts.ready);
+  const presentation = await card.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const clippedText = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent.trim() || node.parentElement?.closest('svg')) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if ([...range.getClientRects()].some(rect => rect.left < box.left - 1 || rect.right > box.right + 1 || rect.top < box.top - 1 || rect.bottom > box.bottom + 1)) clippedText.push(node.textContent);
+    }
+    return { clippedText, withinViewport: box.left >= 0 && box.right <= innerWidth };
+  });
+  assert.deepEqual(presentation.clippedText, [], 'Provider, trust, contact and safety text all fit inside the panel');
+  assert.ok(presentation.withinViewport, 'The complete inquiry panel fits the viewport');
+  for (const testID of ['listing-request-viewing', 'listing-message-provider']) {
+    const button = card.getByTestId(testID);
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    assert.ok(box && box.width >= 44 && box.height >= 44, `${testID} meets the 44px touch target`);
   }
 }
 
@@ -225,6 +273,20 @@ try {
           await expect(period).toBeVisible();
           await expect(card.getByText(locale === 'fr' ? 'Prix négociable' : 'Price negotiable', { exact: true })).toHaveCount(example.negotiable ? 1 : 0);
           await expect(card.getByText(locale === 'fr' ? 'Disponible' : 'Available', { exact: true })).toBeVisible();
+          const inquiry = inquiryCopy[locale];
+          await expect(card.getByTestId('listing-provider-name')).toHaveText(inquiry.provider);
+          await expect(card.getByText(inquiry.role, { exact: true })).toBeVisible();
+          await expect(card.getByTestId('listing-provider-identity')).toHaveText(inquiry.identity);
+          await expect(card.getByTestId('listing-provider-authority')).toHaveText(inquiry.authority);
+          await expect(card.getByText(inquiry.disclaimer, { exact: true })).toBeVisible();
+          const confirmedDate = new Intl.DateTimeFormat(locale === 'fr' ? 'fr-CM' : 'en-CM', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date('2026-10-25T12:00:00.000Z'));
+          await expect(card.getByTestId('listing-card-availability')).toContainText(`${inquiry.confirmed} ${confirmedDate}`);
+          await expect(card.getByRole('button', { name: inquiry.viewing, exact: true })).toBeEnabled();
+          await expect(card.getByRole('button', { name: inquiry.message, exact: true })).toBeEnabled();
+          await expect(card.getByText(inquiry.handoff, { exact: true })).toBeVisible();
+          await expect(card.getByText(inquiry.safety, { exact: true })).toBeVisible();
+          await expect(card.getByText(inquiry.sample, { exact: true })).toBeVisible();
+          await inquiryPanelFits(card);
           await page.evaluate(() => document.fonts.ready);
           await card.scrollIntoViewIfNeeded();
           const presentation = await card.evaluate(element => {
@@ -257,6 +319,90 @@ try {
         }
       });
     }
+  }
+  for (const { width, locale } of [{ width: 390, locale: 'en' }, { width: 320, locale: 'fr' }]) {
+    for (const scenario of ['no-provider', 'unverified-provider']) {
+      await check(`provider panel keeps missing or unverified information honest (${locale}; ${scenario})`, width, scenario, async page => {
+        await page.goto(`${base}/listings/${firstListingId}`);
+        if (locale === 'fr') await frenchToggle(page).click();
+        const card = page.getByTestId('listing-price-card');
+        const inquiry = inquiryCopy[locale];
+        await expect(card.getByTestId('listing-provider-name')).toHaveText(scenario === 'no-provider' ? inquiry.unavailable : inquiry.provider);
+        await expect(card.getByTestId('listing-provider-identity')).toHaveCount(0);
+        await expect(card.getByTestId('listing-provider-authority')).toHaveCount(0);
+        await expect(card.getByText(inquiry.disclaimer, { exact: true })).toHaveCount(0);
+        if (scenario === 'no-provider') await expect(card.getByTestId('listing-card-availability')).not.toContainText(inquiry.confirmed);
+        await expect(card.getByText(locale === 'fr' ? 'Disponible' : 'Available', { exact: true })).toBeVisible();
+        await expect(card.getByTestId('listing-price-amount')).toHaveText(`${new Intl.NumberFormat(locale === 'fr' ? 'fr-CM' : 'en-CM', { maximumFractionDigits: 0 }).format(200000)} XAF`);
+        await expect(card.getByText(inquiry.safety, { exact: true })).toBeVisible();
+        await expect(card.getByText(inquiry.handoff, { exact: true })).toBeVisible();
+        await inquiryPanelFits(card);
+        await card.screenshot({ path: resolve(evidenceDirectory, `inquiry-${scenario}-${width}-${locale}.png`), animations: 'disabled' });
+      });
+    }
+  }
+  for (const locale of ['en', 'fr']) {
+    await check(`long public provider name wraps without losing contact controls (${locale})`, 320, 'long-provider', async page => {
+      await page.goto(`${base}/listings/${firstListingId}`);
+      if (locale === 'fr') await frenchToggle(page).click();
+      const card = page.getByTestId('listing-price-card');
+      const name = card.getByTestId('listing-provider-name');
+      await expect(name).toContainText('TEST');
+      const fullName = await name.textContent();
+      assert.ok(fullName.length >= 100, 'The fixture exercises an expanded public provider name');
+      const namePresentation = await name.evaluate(element => ({ height: element.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(element).lineHeight), clipped: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1 }));
+      assert.ok(namePresentation.height > namePresentation.lineHeight * 1.5, 'The long name wraps onto multiple lines');
+      assert.equal(namePresentation.clipped, false, 'The complete name is readable without an ellipsis or clipping');
+      const inquiry = inquiryCopy[locale];
+      await expect(card.getByRole('button', { name: inquiry.viewing, exact: true })).toBeEnabled();
+      await expect(card.getByRole('button', { name: inquiry.message, exact: true })).toBeEnabled();
+      await expect(card.getByText(inquiry.safety, { exact: true })).toBeVisible();
+      await inquiryPanelFits(card);
+      await card.screenshot({ path: resolve(evidenceDirectory, `inquiry-long-provider-320-${locale}.png`), animations: 'disabled' });
+    });
+  }
+  for (const { width, locale } of [{ width: 390, locale: 'en' }, { width: 320, locale: 'fr' }]) {
+    await check(`viewing and message continue to the exact web listing without submitting (${locale})`, width, 'normal', async (page, context) => {
+      const destination = `https://pachi-web.example.test/listings/${firstListingId}`;
+      const webReads = [], forbidden = [];
+      context.on('request', request => {
+        const url = new URL(request.url());
+        if (/\/(?:account|auth|session|inquir)/.test(url.pathname) || !['GET', 'HEAD'].includes(request.method())) forbidden.push({ origin: url.origin, path: url.pathname, method: request.method() });
+      });
+      // This reserved TEST origin stands in for the existing authenticated web
+      // application. The native public API and every core journey remain live.
+      await context.route('https://pachi-web.example.test/**', async route => {
+        const request = route.request();
+        webReads.push({ url: request.url(), method: request.method() });
+        await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html lang="en"><meta charset="utf-8"><title>TEST handoff</title><h1>TEST · Pachi web handoff</h1><p>Synthetic destination only. No account or inquiry action.</p></html>' });
+      });
+      await page.goto(`${base}/listings/${firstListingId}`);
+      if (locale === 'fr') await frenchToggle(page).click();
+      const original = page.url();
+      const card = page.getByTestId('listing-price-card');
+      const inquiry = inquiryCopy[locale];
+      await expect(card.getByText(inquiry.handoff, { exact: true })).toBeVisible();
+      for (const [index, label] of [inquiry.viewing, inquiry.message].entries()) {
+        const button = card.getByRole('button', { name: label, exact: true });
+        await expect(button).toBeEnabled();
+        await button.focus();
+        await expect(button).toBeFocused();
+        await expect.poll(() => button.evaluate(element => ({ width: parseFloat(getComputedStyle(element).outlineWidth), color: getComputedStyle(element).outlineColor }))).toEqual({ width: 2, color: 'rgb(14, 59, 46)' });
+        const newPage = context.waitForEvent('page');
+        if (index === 0) await page.keyboard.press('Enter');
+        else await button.click();
+        const popup = await newPage;
+        await expect(popup).toHaveURL(destination);
+        await expect(popup.getByRole('heading', { name: 'TEST · Pachi web handoff', exact: true })).toBeVisible();
+        await expect(page).toHaveURL(original);
+        await expect(card.getByTestId('listing-provider-name')).toHaveText(inquiry.provider);
+        await popup.close();
+      }
+      assert.deepEqual(webReads, [{ url: destination, method: 'GET' }, { url: destination, method: 'GET' }], 'Both contact choices open only the configured safe web listing');
+      assert.deepEqual(forbidden, [], 'A handoff never submits a contact/viewing request or calls account/session endpoints');
+      await inquiryPanelFits(card);
+      await card.screenshot({ path: resolve(evidenceDirectory, `inquiry-web-handoff-${width}-${locale}.png`), animations: 'disabled' });
+    }, { requestInterception: true });
   }
   await check('search network failure recovers without leaking server error', 390, 'fail-once', async page => {
     await page.goto(`${base}/listings`);
@@ -442,7 +588,7 @@ try {
 } finally {
   await browser.close();
   await preview.close();
-  const receipt = { provenance: 'isolated synthetic TEST inventory; Expo web exported React Native screens', native_device_acceptance: 'NOT RUN', database: 'not connected', browser_request_interception: false, checks: receipts, passed: receipts.filter(item => item.status === 'PASS').length, failed: receipts.filter(item => item.status === 'FAIL').length };
+  const receipt = { provenance: 'isolated synthetic TEST inventory; Expo web exported React Native screens', native_device_acceptance: 'NOT RUN', database: 'not connected', browser_request_interception: receipts.some(item => item.request_interception), request_interception_scope: 'Only the reserved pachi-web.example.test handoff destination; public discovery and the other checks are not intercepted.', checks: receipts, passed: receipts.filter(item => item.status === 'PASS').length, failed: receipts.filter(item => item.status === 'FAIL').length };
   await writeFile(resolve(evidenceDirectory, 'browser-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
 }
 if (receipts.some(item => item.status === 'FAIL')) process.exitCode = 1;

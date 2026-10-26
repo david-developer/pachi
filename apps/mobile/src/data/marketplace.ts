@@ -421,6 +421,26 @@ function projectListing(value: unknown): PublicListing {
   )
     malformed();
   if (!Array.isArray(row.media)) malformed();
+  let provider: PublicListing["provider"];
+  if (row.provider !== undefined) {
+    const context = record(row.provider);
+    const rawName = text(context.display_name);
+    const name = rawName.replace(/[\u0000-\u0020\u007f]+/g, " ").trim();
+    if (name.length < 2 || rawName.length > 120) malformed();
+    provider = {
+      display_name: name,
+      identity_verified: bool(context.identity_verified),
+      authority_declared: bool(context.authority_declared),
+    };
+  }
+  let confirmed: string | null | undefined;
+  if (row.last_confirmed_at !== undefined) {
+    confirmed = nullableText(row.last_confirmed_at);
+    if (confirmed !== null && (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(confirmed) ||
+      !isDate(confirmed.slice(0, 10)) || !Number.isFinite(Date.parse(confirmed))
+    )) malformed();
+  }
   const media = (row.media as unknown[]).map((value): PublicListingMedia => {
     const item = record(value);
     if (
@@ -483,6 +503,8 @@ function projectListing(value: unknown): PublicListing {
     available_from: dateOrNull(row.available_from),
     expires_at: expiry,
     media: dedupeMedia(media),
+    ...(provider === undefined ? {} : { provider }),
+    ...(confirmed === undefined ? {} : { last_confirmed_at: confirmed }),
   };
 }
 

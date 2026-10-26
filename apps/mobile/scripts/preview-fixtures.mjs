@@ -30,7 +30,7 @@ export const testListings = snapshot.map((item, index) => ({
 }));
 const photographs = ['synthetic-apartment.jpg', 'synthetic-bedroom.jpg', 'synthetic-kitchen.jpg'];
 const mediaFiles = new Map(testListings.flatMap((listing, index) => listing.media.map((media, offset) => [media.id, photographs[(snapshot[index].photo + offset) % photographs.length]])));
-const scenarios = new Set(['normal', 'empty', 'fail-once', 'page-fail-once', 'unavailable', 'slow-douala', 'broken-images', 'missing-photos', 'detail-fail-once', 'reviews-unavailable']);
+const scenarios = new Set(['normal', 'empty', 'fail-once', 'page-fail-once', 'unavailable', 'slow-douala', 'broken-images', 'missing-photos', 'detail-fail-once', 'reviews-unavailable', 'no-provider', 'unverified-provider', 'long-provider']);
 
 export function searchFixture(parameters, items = testListings) {
   let matches = items.filter(item => ['purpose', 'property_type', 'furnishing', 'region'].every(key => {
@@ -96,7 +96,11 @@ export async function startPreview({ port = 8085, fixturePort = 8086, directory 
         if (match[2] === '/reviews') return reply(request, response, currentScenario === 'reviews-unavailable' ? 503 : 200, currentScenario === 'reviews-unavailable' ? { code: 'SYNTHETIC_INTERNAL_ERROR_DO_NOT_RENDER' } : { items: [], next_cursor: null, reputation: { count: 0, average: null } });
         if (match[2] === '') {
           if (currentScenario === 'detail-fail-once' && failures++ === 0) return reply(request, response, 503, { code: 'SYNTHETIC_INTERNAL_ERROR_DO_NOT_RENDER' });
-          return reply(request, response, 200, { ...listing, ...(currentScenario === 'missing-photos' ? { media: [] } : {}), location: { ...listing.location, private_address: privateAddressCanary } });
+          const provider = currentScenario === 'no-provider' ? {} : {
+            provider: { display_name: currentScenario === 'long-provider' ? 'TEST · Prestataire immobilier du Littoral et du Sud-Ouest avec un nom public particulièrement long à Buea' : 'Fako Living', identity_verified: currentScenario !== 'unverified-provider', authority_declared: currentScenario !== 'unverified-provider', phone_number: privateAddressCanary, verification_case_id: privateAddressCanary },
+            last_confirmed_at: '2026-10-25T12:00:00Z',
+          };
+          return reply(request, response, 200, { ...listing, ...provider, ...(currentScenario === 'missing-photos' ? { media: [] } : {}), location: { ...listing.location, private_address: privateAddressCanary } });
         }
         const media = match[2].match(/^\/media\/([^/]+)\/variants\/(320|640|1280|1920)$/);
         const photograph = media && listing.media.some(item => item.id === media[1]) && mediaFiles.get(media[1]);

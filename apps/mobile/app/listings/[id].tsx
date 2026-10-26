@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   StyleSheet,
   Text,
   View,
@@ -14,6 +15,8 @@ import {
 import { useMarketplace } from "../../src/api";
 import { Gallery } from "../../src/components/Gallery";
 import { DiscoveryHeader } from "../../src/components/DiscoveryParts";
+import { ListingInquiryCard } from "../../src/components/ListingInquiryCard";
+import { webListingUrl } from "../../src/contact-handoff";
 import { MarketplaceError } from "../../src/data/marketplace";
 import { detailCopy } from "../../src/detail-copy";
 import { offeringFacts, type DetailFact } from "../../src/detail-presentation";
@@ -21,11 +24,11 @@ import {
   furnishingLabel,
   locationLabel,
   marketLabel,
-  pricePeriod,
   propertyLabel,
   purposeLabel,
 } from "../../src/format";
 import { useLocale } from "../../src/locale";
+import { inquiryCardCopy } from "../../src/inquiry-card-copy";
 import { safeReturnTo } from "../../src/navigation";
 import { Button, Icon, Notice, Screen, colors } from "../../src/ui";
 
@@ -45,28 +48,32 @@ function Facts({ facts }: { facts: DetailFact[] }) {
   );
 }
 
-function PriceCard({ listing }: { listing: PublicListing }) {
-  const { locale, money } = useLocale();
-  const copy = detailCopy(locale);
+function PriceCard({ listing, currentId }: { listing: PublicListing; currentId: string }) {
+  const { locale } = useLocale();
+  const { webOrigin, isTestPreview } = useMarketplace();
+  const copy = inquiryCardCopy(locale);
+  const [failed, setFailed] = useState(false);
+  const url = listing.id === currentId ? webListingUrl(webOrigin, listing.id) : null;
+  const openContact = url ? () => {
+    setFailed(false);
+    void Linking.openURL(url).catch(() => setFailed(true));
+  } : undefined;
   return (
-    <View testID="listing-price-card" style={styles.priceCard}>
-      <Text style={styles.priceLabel}>{copy.price}</Text>
-      <Text testID="listing-price-amount" style={styles.price}>
-        {money(listing.price.amount_minor)}
-        <Text testID="listing-price-currency" style={styles.priceCurrency}>
-          {" "}XAF
-        </Text>
-      </Text>
-      <Text style={styles.pricePeriod}>
-        {pricePeriod(listing.price, locale)}
-      </Text>
-      {listing.price.negotiable && (
-        <Text style={styles.priceNote}>{copy.negotiable}</Text>
-      )}
-      <View style={styles.priceDivider} />
-      <Text style={styles.market}>
-        {marketLabel(listing.market_status, locale)}
-      </Text>
+    <View>
+      <ListingInquiryCard
+        listing={listing}
+        provider={listing.provider ? {
+          displayName: listing.provider.display_name,
+          identityVerified: listing.provider.identity_verified,
+          authorityDeclared: listing.provider.authority_declared,
+          lastConfirmedAt: listing.last_confirmed_at ?? null,
+        } : null}
+        onViewing={openContact}
+        onMessage={openContact}
+        contactNote={url ? copy.webHandoff : copy.contactUnavailable}
+        samplePreview={isTestPreview}
+      />
+      {failed && <Text accessibilityRole="alert" style={styles.note}>{copy.contactError}</Text>}
     </View>
   );
 }
@@ -193,9 +200,6 @@ export default function ListingDetail() {
           </View>
           <View style={[styles.layout, wide && styles.wideLayout]}>
             <View style={[styles.main, wide && styles.wideMain]}>
-              {!wide && (
-                <PriceCard listing={listing} />
-              )}
               <View style={styles.metrics}>
                 {listing.property.bedrooms !== null && (
                   <View style={styles.metric}>
@@ -223,6 +227,9 @@ export default function ListingDetail() {
                   </View>
                 )}
               </View>
+              {!wide && (
+                <PriceCard key={listing.id} listing={listing} currentId={id} />
+              )}
               <View style={styles.section}>
                 <Text accessibilityRole="header" style={styles.heading}>
                   {copy.about}
@@ -365,7 +372,7 @@ export default function ListingDetail() {
             </View>
             {wide && (
               <View style={styles.sidebar}>
-                <PriceCard listing={listing} />
+                <PriceCard key={listing.id} listing={listing} currentId={id} />
                 <View style={styles.browsingNote}>
                   <Text style={styles.browsingHeading}>{copy.browsing}</Text>
                   <Text style={styles.note}>{copy.browsingNote}</Text>
@@ -435,60 +442,6 @@ const styles = StyleSheet.create({
   },
   metricLabel: { fontFamily: "DMSans", fontSize: 12, color: colors.muted },
   squareMetres: { fontSize: 15 },
-  priceCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.sage,
-    backgroundColor: colors.white,
-    padding: 24,
-    gap: 7,
-  },
-  priceLabel: {
-    fontFamily: "DMSans",
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted,
-    letterSpacing: 0.5,
-  },
-  price: {
-    fontFamily: "Manrope",
-    color: colors.forest,
-    fontSize: 30,
-    lineHeight: 39,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-  },
-  priceCurrency: {
-    fontFamily: "DMSans",
-    fontSize: 12,
-    fontWeight: "400",
-    letterSpacing: 0,
-  },
-  pricePeriod: {
-    fontFamily: "DMSans",
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 21,
-  },
-  priceNote: {
-    fontFamily: "DMSans",
-    fontSize: 13,
-    lineHeight: 21,
-    color: colors.muted,
-    marginTop: 3,
-  },
-  priceDivider: {
-    height: 1,
-    backgroundColor: colors.sage,
-    marginVertical: 12,
-  },
-  market: {
-    fontFamily: "DMSans",
-    color: colors.forest,
-    fontSize: 13,
-    lineHeight: 21,
-    fontWeight: "600",
-  },
   section: { gap: 17 },
   heading: {
     fontFamily: "Manrope",

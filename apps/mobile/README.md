@@ -1,10 +1,18 @@
 # Native seeker discovery (G3-I2)
 
 Expo / React Native / Expo Router homepage, public search and listing details.
-No account, saved-listing, offline synchronization, contact or provider actions
+No native account, saved-listing, offline synchronization or provider mutations
 are implemented in this slice. The server owns publication, freshness,
-verification and media eligibility. Public requests omit credentials; only the
-existing coarse-location and public reputation projections are displayed.
+verification and media eligibility. Public requests omit credentials. Listing
+details show the public provider name, narrow current claims and confirmation
+date when supplied by the API; older responses remain supported.
+
+Set `EXPO_PUBLIC_WEB_URL` to the trusted marketplace web origin to enable the
+disclosed viewing/message handoff. HTTPS is required except for loopback HTTP;
+credentials, paths, queries and fragments are rejected. The existing web flow
+retains sign-in, phone, CSRF, idempotency and block checks; viewing requests start
+from its conversation. No inquiry or viewing is submitted by the mobile card.
+Without valid configuration, the controls are disabled with an explanation.
 
 ## Interactive synthetic TEST review
 

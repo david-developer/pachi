@@ -6,6 +6,7 @@ const value = {
   client,
   configured: client.configured,
   isTestPreview: process.env.EXPO_PUBLIC_REVIEW_MODE === "synthetic-test",
+  webOrigin: process.env.EXPO_PUBLIC_WEB_URL,
 };
 const MarketplaceContext = createContext(value);
 export function MarketplaceProvider({ children }: { children: ReactNode }) {
