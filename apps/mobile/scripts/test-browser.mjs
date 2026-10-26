@@ -204,6 +204,60 @@ try {
       await expect(frenchToggle(page)).toBeVisible();
     });
   }
+  for (const width of [320, 390, 768, 899, 900, 1440]) {
+    for (const locale of ['en', 'fr']) {
+      await check(`pricing card preserves localized rent sale and short-let terms (${locale})`, width, 'normal', async page => {
+        const examples = [
+          { id: firstListingId, purpose: 'rent', amount: 200000, period: ['per month', 'par mois'], negotiable: false },
+          { id: '00000000-0000-4000-8000-000000000171', purpose: 'sale', amount: 65000000, period: ['total price', 'prix total'], negotiable: true },
+          { id: '00000000-0000-4000-8000-000000000161', purpose: 'short-let', amount: 35000, period: ['per night', 'par nuit'], negotiable: false },
+        ];
+        for (const example of examples) {
+          await page.goto(`${base}/listings/${example.id}`);
+          if (locale === 'fr') await frenchToggle(page).click();
+          const card = page.getByTestId('listing-price-card');
+          await expect(card).toHaveCount(1);
+          await expect(card.getByText(locale === 'fr' ? 'Prix demandé' : 'Asking price', { exact: true })).toBeVisible();
+          const amount = card.getByTestId('listing-price-amount');
+          const formatted = new Intl.NumberFormat(locale === 'fr' ? 'fr-CM' : 'en-CM', { maximumFractionDigits: 0 }).format(example.amount);
+          await expect(amount).toHaveText(`${formatted} XAF`);
+          const period = card.getByText(example.period[locale === 'fr' ? 1 : 0], { exact: true });
+          await expect(period).toBeVisible();
+          await expect(card.getByText(locale === 'fr' ? 'Prix négociable' : 'Price negotiable', { exact: true })).toHaveCount(example.negotiable ? 1 : 0);
+          await expect(card.getByText(locale === 'fr' ? 'Disponible' : 'Available', { exact: true })).toBeVisible();
+          await page.evaluate(() => document.fonts.ready);
+          await card.scrollIntoViewIfNeeded();
+          const presentation = await card.evaluate(element => {
+            const amountElement = element.querySelector('[data-testid="listing-price-amount"]');
+            const currency = element.querySelector('[data-testid="listing-price-currency"]');
+            const cardBox = element.getBoundingClientRect();
+            const amountStyle = getComputedStyle(amountElement), currencyStyle = getComputedStyle(currency);
+            const range = document.createRange(); range.selectNodeContents(amountElement);
+            return {
+              background: getComputedStyle(element).backgroundColor,
+              amountSize: parseFloat(amountStyle.fontSize), currencySize: parseFloat(currencyStyle.fontSize),
+              currencyText: currency.textContent, currencyColor: currencyStyle.color,
+              unclipped: amountElement.scrollWidth <= amountElement.clientWidth + 1 && [...range.getClientRects()].every(rect => rect.left >= cardBox.left && rect.right <= cardBox.right),
+              withinViewport: cardBox.left >= 0 && cardBox.right <= innerWidth,
+            };
+          });
+          assert.equal(presentation.background, 'rgb(255, 255, 255)', 'Reference pricing card has a light surface');
+          assert.ok(presentation.currencySize < presentation.amountSize / 2, 'Currency is secondary to the amount');
+          assert.equal(presentation.currencyText.trim(), 'XAF');
+          assert.equal(presentation.currencyColor, 'rgb(14, 59, 46)', 'Currency remains readable on the light surface');
+          assert.ok(presentation.unclipped && presentation.withinViewport, 'Complete localized amount fits without clipping or horizontal overflow');
+          const periodSize = await period.evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+          assert.ok(periodSize < presentation.amountSize, 'Billing period is visually secondary');
+          const cardBox = await card.boundingBox();
+          const headingBox = await page.getByRole('heading', { name: locale === 'fr' ? 'Découvrez ce bien' : 'A closer look', exact: true }).boundingBox();
+          assert.ok(cardBox && headingBox);
+          assert.ok(width >= 900 ? cardBox.x > headingBox.x + 100 : Math.abs(cardBox.x - headingBox.x) < 2, 'Pricing retains the mobile column and wide sidebar placement');
+          await card.screenshot({ path: resolve(evidenceDirectory, `pricing-${example.purpose}-${width}-${locale}.png`), animations: 'disabled' });
+          await page.screenshot({ path: resolve(evidenceDirectory, `detail-pricing-${example.purpose}-${width}-${locale}.png`), animations: 'disabled' });
+        }
+      });
+    }
+  }
   await check('search network failure recovers without leaking server error', 390, 'fail-once', async page => {
     await page.goto(`${base}/listings`);
     await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();

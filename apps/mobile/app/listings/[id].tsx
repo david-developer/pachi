@@ -16,11 +16,7 @@ import { Gallery } from "../../src/components/Gallery";
 import { DiscoveryHeader } from "../../src/components/DiscoveryParts";
 import { MarketplaceError } from "../../src/data/marketplace";
 import { detailCopy } from "../../src/detail-copy";
-import {
-  detailAmount,
-  offeringFacts,
-  type DetailFact,
-} from "../../src/detail-presentation";
+import { offeringFacts, type DetailFact } from "../../src/detail-presentation";
 import {
   furnishingLabel,
   locationLabel,
@@ -45,6 +41,32 @@ function Facts({ facts }: { facts: DetailFact[] }) {
             <Text style={styles.factValue}>{fact.value}</Text>
           </View>
         ))}
+    </View>
+  );
+}
+
+function PriceCard({ listing }: { listing: PublicListing }) {
+  const { locale, money } = useLocale();
+  const copy = detailCopy(locale);
+  return (
+    <View testID="listing-price-card" style={styles.priceCard}>
+      <Text style={styles.priceLabel}>{copy.price}</Text>
+      <Text testID="listing-price-amount" style={styles.price}>
+        {money(listing.price.amount_minor)}
+        <Text testID="listing-price-currency" style={styles.priceCurrency}>
+          {" "}XAF
+        </Text>
+      </Text>
+      <Text style={styles.pricePeriod}>
+        {pricePeriod(listing.price, locale)}
+      </Text>
+      {listing.price.negotiable && (
+        <Text style={styles.priceNote}>{copy.negotiable}</Text>
+      )}
+      <View style={styles.priceDivider} />
+      <Text style={styles.market}>
+        {marketLabel(listing.market_status, locale)}
+      </Text>
     </View>
   );
 }
@@ -172,22 +194,7 @@ export default function ListingDetail() {
           <View style={[styles.layout, wide && styles.wideLayout]}>
             <View style={[styles.main, wide && styles.wideMain]}>
               {!wide && (
-                <View style={styles.priceCard}>
-                  <Text style={styles.priceLabel}>{copy.price}</Text>
-                  <Text style={styles.price}>
-                    {detailAmount(listing.price.amount_minor, money)}
-                  </Text>
-                  <Text style={styles.pricePeriod}>
-                    {pricePeriod(listing.price, locale)}
-                  </Text>
-                  {listing.price.negotiable && (
-                    <Text style={styles.priceNote}>{copy.negotiable}</Text>
-                  )}
-                  <View style={styles.priceDivider} />
-                  <Text style={styles.market}>
-                    {marketLabel(listing.market_status, locale)}
-                  </Text>
-                </View>
+                <PriceCard listing={listing} />
               )}
               <View style={styles.metrics}>
                 {listing.property.bedrooms !== null && (
@@ -358,22 +365,7 @@ export default function ListingDetail() {
             </View>
             {wide && (
               <View style={styles.sidebar}>
-                <View style={styles.priceCard}>
-                  <Text style={styles.priceLabel}>{copy.price}</Text>
-                  <Text style={styles.price}>
-                    {detailAmount(listing.price.amount_minor, money)}
-                  </Text>
-                  <Text style={styles.pricePeriod}>
-                    {pricePeriod(listing.price, locale)}
-                  </Text>
-                  {listing.price.negotiable && (
-                    <Text style={styles.priceNote}>{copy.negotiable}</Text>
-                  )}
-                  <View style={styles.priceDivider} />
-                  <Text style={styles.market}>
-                    {marketLabel(listing.market_status, locale)}
-                  </Text>
-                </View>
+                <PriceCard listing={listing} />
                 <View style={styles.browsingNote}>
                   <Text style={styles.browsingHeading}>{copy.browsing}</Text>
                   <Text style={styles.note}>{copy.browsingNote}</Text>
@@ -444,47 +436,57 @@ const styles = StyleSheet.create({
   metricLabel: { fontFamily: "DMSans", fontSize: 12, color: colors.muted },
   squareMetres: { fontSize: 15 },
   priceCard: {
-    borderRadius: 22,
-    backgroundColor: colors.forest,
-    padding: 25,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.sage,
+    backgroundColor: colors.white,
+    padding: 24,
     gap: 7,
   },
   priceLabel: {
     fontFamily: "DMSans",
     fontSize: 12,
-    color: colors.sage,
+    lineHeight: 18,
+    color: colors.muted,
     letterSpacing: 0.5,
   },
   price: {
     fontFamily: "Manrope",
-    color: colors.ivory,
+    color: colors.forest,
     fontSize: 30,
     lineHeight: 39,
     fontWeight: "700",
     letterSpacing: -0.6,
   },
+  priceCurrency: {
+    fontFamily: "DMSans",
+    fontSize: 12,
+    fontWeight: "400",
+    letterSpacing: 0,
+  },
   pricePeriod: {
     fontFamily: "DMSans",
-    color: colors.ivory,
-    fontSize: 14,
+    color: colors.muted,
+    fontSize: 13,
     lineHeight: 21,
   },
   priceNote: {
     fontFamily: "DMSans",
     fontSize: 13,
-    color: colors.ivory,
+    lineHeight: 21,
+    color: colors.muted,
     marginTop: 3,
   },
   priceDivider: {
     height: 1,
     backgroundColor: colors.sage,
-    opacity: 0.3,
     marginVertical: 12,
   },
   market: {
     fontFamily: "DMSans",
-    color: colors.ivory,
-    fontSize: 14,
+    color: colors.forest,
+    fontSize: 13,
+    lineHeight: 21,
     fontWeight: "600",
   },
   section: { gap: 17 },
