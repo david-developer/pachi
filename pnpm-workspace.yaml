@@ -7,16 +7,15 @@ allowBuilds:
 audit:
   level: low
   ignore:
-    - GHSA-86w9-cpqp-85rv
-    - GHSA-vfj7-8cjw-p6xm
-    - GHSA-hp3w-g68c-fv3c
+    - GHSA-g3hv-75wg-m249
+    - GHSA-c859-jr93-m5j4
 # Security fixes for transitive packages pinned by upstream tooling.
 overrides:
   'path-to-regexp@>=8.0.0 <8.4.0': 8.4.0
   'postcss@<8.5.23': 8.5.23
   'esbuild@0.18.20': 0.25.12
   'xcode>uuid': 11.1.1
-  'decode-uri-component@0.2.2': 0.5.0
+  'decode-uri-component@0.2.2': 0.5.1
   'image-size@1.2.1': 2.0.3
   # Metro 0.83.8 adapts filename inputs to the patched image-size v2 API.
   'metro@0.83.3': 0.83.8
@@ -25,3 +24,29 @@ overrides:
   # Exact Nest/Express consumers covered by security-http-compatibility.test.mjs.
   'express@5.2.1>body-parser': 2.4.0
   '@nestjs/platform-express@11.2.6>multer': 2.5.0
+  'express@5.2.1>qs': 6.16.2
+  'body-parser@2.4.0>qs': 6.16.2
+  # Released Forge patch stays within both Expo consumers' ^1.3.3 range.
+  '@expo/cli@55.0.11>node-forge': 1.4.3
+  '@expo/code-signing-certificates@0.0.6>node-forge': 1.4.3
+  # Complete Expo #52602 backports remove the only deepmerge imports.
+  '@expo/config@12.0.14>deepmerge': '-'
+  '@expo/config@55.0.21>deepmerge': '-'
+  # Expo SDK55 upstream glob14 adoption, evaluated against actual consumer patterns.
+  '@expo/cli@55.0.11>glob': 14.0.6
+  '@expo/config@12.0.14>glob': 14.0.6
+  '@expo/config@55.0.21>glob': 14.0.6
+  '@expo/config-plugins@54.0.5>glob': 14.0.6
+  '@expo/config-plugins@55.0.11>glob': 14.0.6
+  '@expo/metro-config@55.0.8>glob': 14.0.6
+  # Expo #53091 filesystem discovery backport removes this import.
+  '@expo/fingerprint@0.16.5>glob': '-'
+  # Compatible logger-redaction fix; all 16 installed parent ranges verified.
+  '@smithy/core@3.35.0': 3.38.1
+  # Actual project-service matcher API verified; no makeRe consumer in this parent.
+  '@typescript-eslint/typescript-estree@8.44.0>minimatch': 11.0.8
+patchedDependencies:
+  '@expo/config@12.0.14': patches/@expo__config@12.0.14.patch
+  '@expo/config@55.0.21': patches/@expo__config@55.0.21.patch
+  '@expo/fingerprint@0.16.5': patches/@expo__fingerprint@0.16.5.patch
+  query-string@7.1.3: patches/query-string@7.1.3.patch

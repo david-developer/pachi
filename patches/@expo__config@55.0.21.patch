@@ -1,0 +1,187 @@
+diff --git a/build/Config.js b/build/Config.js
+index feeccbfa13859348efea5db841cfdebddac4052a..5ac7e4c8f7dfe4f66c22c9568f0c40d9c9bd40cb 100644
+--- a/build/Config.js
++++ b/build/Config.js
+@@ -37,11 +37,9 @@ function _requireUtils() {
+   };
+   return data;
+ }
+-function _deepmerge() {
+-  const data = _interopRequireDefault(require("deepmerge"));
+-  _deepmerge = function () {
+-    return data;
+-  };
++function _mergeConfig() {
++  const data = require("./mergeConfig");
++  _mergeConfig = function () { return data; };
+   return data;
+ }
+ function _fs() {
+@@ -388,7 +386,7 @@ async function modifyConfigAsync(projectRoot, modifications, readOptions = {}, w
+   }
+ 
+   // Attempt to write to a function-like dynamic config, when used with a static config
+-  if (config.staticConfigPath && config.dynamicConfigObjectType === 'function' && !modifications.hasOwnProperty('plugins') // We don't know what plugins are in dynamic configs
++  if (config.staticConfigPath && config.dynamicConfigObjectType === 'function' && !Object.hasOwn(modifications, 'plugins') // We don't know what plugins are in dynamic configs
+   ) {
+     const outputConfig = mergeConfigModifications(config, modifications);
+     if (isDryRun) {
+@@ -436,7 +434,7 @@ function mergeConfigModifications(config, {
+   plugins,
+   ...modifications
+ }) {
+-  const modifiedExpoConfig = !config.rootConfig.expo ? (0, _deepmerge().default)(config.rootConfig, modifications) : (0, _deepmerge().default)(config.rootConfig.expo, modifications);
++  const modifiedExpoConfig = !config.rootConfig.expo ? (0, _mergeConfig().mergeConfig)(config.rootConfig, modifications) : (0, _mergeConfig().mergeConfig)(config.rootConfig.expo, modifications);
+   if (plugins?.length) {
+     // When adding plugins, ensure the config has a plugin list
+     if (!modifiedExpoConfig.plugins) {
+@@ -452,7 +450,7 @@ function mergeConfigModifications(config, {
+       if (!pluginName) continue;
+ 
+       // Add the plugin if it doesn't exist yet, including its properties
+-      if (!(pluginName in existingPlugins)) {
++      if (!(Object.hasOwn(existingPlugins, pluginName))) {
+         modifiedExpoConfig.plugins.push(plugin);
+         continue;
+       }
+@@ -474,7 +472,7 @@ function mergeConfigModifications(config, {
+ 
+           // Merge the props to the existing plugin properties
+           if (Array.isArray(existingPlugin) && existingPlugin[0]) {
+-            return [existingPlugin[0], (0, _deepmerge().default)(existingPlugin[1] ?? {}, pluginProps)];
++            return [existingPlugin[0], (0, _mergeConfig().mergeConfig)(existingPlugin[1] ?? {}, pluginProps)];
+           }
+           return existingPlugin;
+         });
+@@ -492,7 +490,7 @@ function mergeConfigModifications(config, {
+ }
+ function isMatchingObject(expectedValues, actualValues) {
+   for (const key in expectedValues) {
+-    if (!expectedValues.hasOwnProperty(key)) {
++    if (!Object.hasOwn(expectedValues, key)) {
+       continue;
+     }
+     if (typeof expectedValues[key] === 'object' && actualValues[key] !== null) {
+@@ -655,4 +653,3 @@ function getProjectConfigDescriptionWithPaths(projectRoot, projectConfig) {
+   // If a config doesn't exist, our tooling will generate a static app.json
+   return 'app.json';
+ }
+-//# sourceMappingURL=Config.js.map
+\ No newline at end of file
+diff --git a/build/Serialize.js b/build/Serialize.js
+index 75d683c23d359ef497d93ff524822cddae37f6af..fe7b905d1d22e040b1a7e0edead1c18d66d5cba8 100644
+--- a/build/Serialize.js
++++ b/build/Serialize.js
+@@ -22,7 +22,7 @@ function serializeAndEvaluate(val) {
+   } else if (typeof val === 'object') {
+     const output = {};
+     for (const property in val) {
+-      if (val.hasOwnProperty(property)) {
++      if (property !== '__proto__' && Object.hasOwn(val, property)) {
+         output[property] = serializeAndEvaluate(val[property]);
+       }
+     }
+@@ -35,7 +35,7 @@ function serializeSkippingMods(val) {
+   if (typeof val === 'object' && !Array.isArray(val)) {
+     const output = {};
+     for (const property in val) {
+-      if (val.hasOwnProperty(property)) {
++      if (property !== '__proto__' && Object.hasOwn(val, property)) {
+         if (property === 'mods' || property === 'plugins') {
+           // Don't serialize mods or plugins
+           output[property] = val[property];
+@@ -58,7 +58,7 @@ function serializeAndEvaluatePlugin(val) {
+   } else if (typeof val === 'object') {
+     const output = {};
+     for (const property in val) {
+-      if (val.hasOwnProperty(property)) {
++      if (property !== '__proto__' && Object.hasOwn(val, property)) {
+         output[property] = serializeAndEvaluatePlugin(val[property]);
+       }
+     }
+@@ -71,7 +71,7 @@ function serializeAfterStaticPlugins(val) {
+   if (typeof val === 'object' && !Array.isArray(val)) {
+     const output = {};
+     for (const property in val) {
+-      if (val.hasOwnProperty(property)) {
++      if (property !== '__proto__' && Object.hasOwn(val, property)) {
+         if (property === 'mods') {
+           // Don't serialize mods
+           output[property] = val[property];
+@@ -87,4 +87,3 @@ function serializeAfterStaticPlugins(val) {
+   }
+   return serializeAndEvaluate(val);
+ }
+-//# sourceMappingURL=Serialize.js.map
+\ No newline at end of file
+diff --git abuild/mergeConfig.js b/build/mergeConfig.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e5641eaa8b04e2ce78f418ae9809ecfb538bc7e
+--- /dev/null
++++ b/build/mergeConfig.js
+@@ -0,0 +1,65 @@
++"use strict";
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.mergeConfig = mergeConfig;
++const Errors_1 = require("./Errors");
++function isMergeable(value) {
++    if (value === null || typeof value !== 'object') {
++        return false;
++    }
++    const tag = Object.prototype.toString.call(value);
++    return (tag !== '[object Date]' &&
++        tag !== '[object RegExp]' &&
++        value.$$typeof !== Symbol.for('react.element'));
++}
++function getEnumerableKeys(value) {
++    // NOTE(@kitten): Exclude __proto__ from both inputs so assignments cannot change the result's prototype.
++    return [
++        ...Object.keys(value).filter((key) => key !== '__proto__'),
++        ...Object.getOwnPropertySymbols(value).filter((key) => Object.prototype.propertyIsEnumerable.call(value, key)),
++    ];
++}
++function mergeConfig(target, source, arrayMerge) {
++    // NOTE(@kitten): Track active clones only; shared objects in separate branches are valid.
++    const ancestors = new WeakSet();
++    function clone(value) {
++        if (!isMergeable(value)) {
++            return value;
++        }
++        if (ancestors.has(value)) {
++            throw new Errors_1.ConfigError('Cannot merge the Expo config because it contains a circular reference. Remove circular references from the config and its modifications.', 'INVALID_CONFIG');
++        }
++        ancestors.add(value);
++        try {
++            return merge(Array.isArray(value) ? [] : Object.create(null), value);
++        }
++        finally {
++            ancestors.delete(value);
++        }
++    }
++    function merge(target, source) {
++        if (Array.isArray(target) !== Array.isArray(source)) {
++            return clone(source);
++        }
++        if (Array.isArray(source)) {
++            return arrayMerge ? arrayMerge(target, source) : target.concat(source).map(clone);
++        }
++        const result = {};
++        if (isMergeable(target)) {
++            for (const key of getEnumerableKeys(target)) {
++                result[key] = clone(target[key]);
++            }
++        }
++        for (const key of getEnumerableKeys(source)) {
++            // NOTE(@kitten): Treat inherited target values as absent so own data keys are not dropped or merged into prototypes.
++            const hasOwnValue = target != null &&
++                Object.hasOwn(target, key) &&
++                Object.prototype.propertyIsEnumerable.call(target, key);
++            result[key] =
++                hasOwnValue && isMergeable(source[key])
++                    ? merge(target[key], source[key])
++                    : clone(source[key]);
++        }
++        return result;
++    }
++    return merge(target, source);
++}

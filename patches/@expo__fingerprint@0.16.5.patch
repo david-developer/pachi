@@ -1,0 +1,56 @@
+diff --git a/build/ProjectWorkflow.js b/build/ProjectWorkflow.js
+index 5f7da677be11972ea8a5b573f9cd1e6af7214c4c..1fb994936a8bb6284feabcebaacd95e43d4668cd 100644
+--- a/build/ProjectWorkflow.js
++++ b/build/ProjectWorkflow.js
+@@ -7,7 +7,6 @@ exports.resolveProjectWorkflowAsync = resolveProjectWorkflowAsync;
+ exports.resolveProjectWorkflowPerPlatformAsync = resolveProjectWorkflowPerPlatformAsync;
+ const spawn_async_1 = __importDefault(require("@expo/spawn-async"));
+ const promises_1 = __importDefault(require("fs/promises"));
+-const glob_1 = require("glob");
+ const ignore_1 = __importDefault(require("ignore"));
+ const path_1 = __importDefault(require("path"));
+ const ExpoResolver_1 = require("./ExpoResolver");
+@@ -135,13 +134,8 @@ class Ignore {
+         this.rootDir = rootDir;
+     }
+     async initIgnoreAsync() {
+-        const ignoreFilePaths = (await (0, glob_1.glob)(`**/${GITIGNORE_FILENAME}`, {
+-            cwd: this.rootDir,
+-            ignore: ['node_modules'],
+-            follow: false,
+-        }))
+-            // ensure that parent dir is before child directories
+-            .sort((a, b) => a.length - b.length && a.localeCompare(b));
++        const ignoreFilePaths = await findIgnoreFilesAsync(this.rootDir);
++        ignoreFilePaths.sort((a, b) => a.length - b.length || a.localeCompare(b));
+         const ignoreMapping = await Promise.all(ignoreFilePaths.map(async (filePath) => {
+             return [
+                 filePath.slice(0, filePath.length - GITIGNORE_FILENAME.length),
+@@ -160,4 +154,25 @@ class Ignore {
+     }
+ }
+ //#endregion - a copy of vcs client and ignore handler from expo-updates
+-//# sourceMappingURL=ProjectWorkflow.js.map
+\ No newline at end of file
++
++async function findIgnoreFilesAsync(root) {
++    const files = [];
++    const directories = [''];
++    for (const directory of directories) {
++        const entries = await promises_1.default
++            .readdir(path_1.default.join(root, directory), { withFileTypes: true })
++            .catch(() => []);
++        for (const entry of entries) {
++            const file = path_1.default.join(directory, entry.name);
++            if (entry.isDirectory()) {
++                if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
++                    directories.push(file);
++                }
++            }
++            else if (entry.name === GITIGNORE_FILENAME) {
++                files.push(file);
++            }
++        }
++    }
++    return files;
++}
