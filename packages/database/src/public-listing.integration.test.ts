@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { AuthorityRiskStore } from './authority-risk.js';
 import { createDatabase } from './client.js';
 import { ListingSubmissionStore } from './listing-submission.js';
@@ -9,6 +11,12 @@ import { PublicListingStore } from './public-listing.js';
 import { readPublicListingVisibilities } from './listing-visibility.js';
 
 const integration = process.env.DATABASE_TEST_URL ? test : test.skip;
+if (process.env.DATABASE_TEST_URL) {
+  const url = new URL(process.env.DATABASE_TEST_URL);
+  assert.equal(url.hostname, 'localhost');
+  assert.equal(url.port, '5433');
+  assert.equal(url.pathname, '/pachi_test');
+}
 
 void integration('public search and detail share the current visibility policy and safe projection', async () => {
   const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
@@ -63,6 +71,195 @@ void integration('public filter and cursor validation is bounded and determinist
   } finally {
     await client`TRUNCATE users RESTART IDENTITY CASCADE`;
     await client.end();
+  }
+});
+
+void integration('public detail exposes only the matching provider identity, declaration and server confirmation', async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  try {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const first = await createPublishedFixture(client);
+    const other = await createPublishedFixture(client);
+    await client`UPDATE provider_profiles SET display_name='Fako Living' WHERE id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${first.accountId})`;
+    await client`UPDATE provider_profiles SET display_name='Other public provider' WHERE id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${other.accountId})`;
+    await client`UPDATE users SET display_name='PRIVATE_LEGAL_NAME_CANARY'`;
+    const confirmed = (await client<{last_confirmed_at: Date}[]>`UPDATE listings SET last_confirmed_at=statement_timestamp()-interval '1 day' WHERE id=${first.listingId} RETURNING last_confirmed_at`)[0]!.last_confirmed_at;
+    await new AuthorityRiskStore(client).evaluate(first.relationshipId);
+    await new AuthorityRiskStore(client).evaluate(other.relationshipId);
+    const store = new PublicListingStore(client, true);
+    const detail = await store.detail(first.listingId);
+    assert.deepEqual(detail.provider, { display_name: 'Fako Living', identity_verified: true, authority_declared: true });
+    assert.equal(detail.last_confirmed_at, new Date(confirmed).toISOString());
+    assert.deepEqual((await store.detail(other.listingId)).provider, { display_name: 'Other public provider', identity_verified: true, authority_declared: true });
+    const serialized = JSON.stringify(detail);
+    for (const privateValue of [first.accountId, first.relationshipId, first.storageReference, 'PRIVATE_LEGAL_NAME_CANARY', 'Other public provider'])
+      assert.equal(serialized.includes(privateValue), false, privateValue);
+    for (const field of ['provider_profile_id', 'provider_account_id', 'provider_property_relationship_id', 'phone_number', 'email', 'verification_case_id', 'authority_risk_case_id', 'authority_risk_evaluation_id', 'authority_verified'])
+      assert.equal(serialized.includes(field), false, field);
+    for (const listing of (await store.search({})).items) {
+      assert.equal(Object.hasOwn(listing, 'provider'), false);
+      assert.equal(Object.hasOwn(listing, 'last_confirmed_at'), false);
+    }
+    await client`UPDATE provider_profiles SET display_name=E'Fako\nLiving' WHERE id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${first.accountId})`;
+    assert.equal((await store.detail(first.listingId)).provider?.display_name, 'Fako Living');
+    await client`UPDATE provider_profiles SET display_name=E'\t\n' WHERE id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${first.accountId})`;
+    const unnamed = await store.detail(first.listingId);
+    assert.equal(Object.hasOwn(unnamed, 'provider'), false);
+    assert.equal(unnamed.id, first.listingId);
+  } finally { await client`TRUNCATE users RESTART IDENTITY CASCADE`; await client.end(); }
+});
+
+void integration('public provider context rejects revoked, expired, future and invalid source claims', async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  try {
+    for (const loss of ['revoked', 'expired', 'future', 'source-case', 'source-profile', 'source-applicant'] as const) {
+      await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+      const fixture = await createPublishedFixture(client);
+      const store = new PublicListingStore(client, true);
+      assert.equal((await store.detail(fixture.listingId)).provider?.identity_verified, true);
+      if (loss === 'source-profile' || loss === 'source-applicant') {
+        const other = (await client<{id:string}[]>`INSERT INTO users(account_state) VALUES ('ACTIVE') RETURNING id`)[0]!;
+        const subject = (await client<{profile_id:string;user_id:string}[]>`SELECT pp.id AS profile_id,pp.user_id FROM provider_accounts pa JOIN provider_profiles pp ON pp.id=pa.provider_profile_id WHERE pa.id=${fixture.accountId}`)[0]!;
+        let profileId = subject.profile_id;
+        if (loss === 'source-profile') {
+          const profile = (await client<{id:string}[]>`INSERT INTO provider_profiles(user_id,provider_types,display_name,state) VALUES (${other.id},ARRAY['OWNER'],'Other identity subject','ACTIVE') RETURNING id`)[0]!;
+          profileId = profile.id;
+        }
+        // Source-case snapshots are immutable. Seed a distinct mismatched
+        // source, then exercise the claim FK's missing subject constraint.
+        const source = (await client<{id:string}[]>`INSERT INTO verification_cases(provider_profile_id,applicant_user_id,verification_type,state,policy_version,idempotency_key,submitted_at,valid_until)
+          VALUES (${profileId},${loss === 'source-applicant' ? other.id : subject.user_id},'PROVIDER_IDENTITY','VERIFIED','provider-identity-synthetic-v1',${randomUUID()},statement_timestamp(),statement_timestamp()+interval '1 year') RETURNING id`)[0]!;
+        await client`UPDATE verification_claims SET source_case_id=${source.id} WHERE provider_profile_id=${subject.profile_id}`;
+      } else if (loss === 'source-case')
+        await client`UPDATE verification_cases SET state='REVOKED' WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+      else if (loss === 'revoked')
+        await client`UPDATE verification_claims SET revoked_at=statement_timestamp() WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+      else if (loss === 'expired')
+        await client`UPDATE verification_claims SET valid_until=statement_timestamp()-interval '1 second' WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+      else
+        await client`UPDATE verification_claims SET valid_from=statement_timestamp()+interval '1 day' WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+      await assert.rejects(store.detail(fixture.listingId), { code: 'PUBLIC_LISTING_NOT_FOUND' }, loss);
+    }
+  } finally { await client`TRUNCATE users RESTART IDENTITY CASCADE`; await client.end(); }
+});
+
+for (const loss of ['identity', 'relationship'] as const) void integration(`public provider context rejects ${loss} revoked after the final visibility snapshot`, async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  const writer = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false });
+  drizzle(writer);
+  try {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const fixture = await createPublishedFixture(client);
+    let visibilityReads = 0;
+    const store = new PublicListingStore(client, true, async (sql, ids, options) => {
+      const snapshot = await readPublicListingVisibilities(sql, ids, options);
+      assert.equal(snapshot.get(fixture.listingId)?.visible, true);
+      if (++visibilityReads === 2) {
+        // Commit on an independent connection after the last shared check has
+        // produced its eligible snapshot, immediately before context projection.
+        if (loss === 'identity')
+          await writer`UPDATE verification_claims SET revoked_at=statement_timestamp() WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+        else
+          await writer`UPDATE provider_property_relationships SET authorization_status='REVOKED' WHERE id=${fixture.relationshipId}`;
+      }
+      return snapshot;
+    });
+    await assert.rejects(store.detail(fixture.listingId), { code: 'PUBLIC_LISTING_NOT_FOUND' });
+    assert.equal(visibilityReads, 2, 'the final producing context query rejects the committed loss');
+  } finally {
+    await writer.end();
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`; await client.end();
+  }
+});
+
+for (const loss of ['identity', 'relationship'] as const) void integration(`public provider context checks ${loss} expiry at the producing statement`, async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  const writer = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false });
+  drizzle(writer);
+  try {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const fixture = await createPublishedFixture(client);
+    let reads = 0;
+    const store = new PublicListingStore(client, true, async (sql, ids, options) => {
+      const snapshot = await readPublicListingVisibilities(sql, ids, options);
+      assert.equal(snapshot.get(fixture.listingId)?.visible, true);
+      if (++reads === 2) {
+        // Keep PostgreSQL microseconds: a transaction-time now() check would
+        // accept this boundary, but the later producing statement must deny.
+        const expiry = (await sql<{boundary:string}[]>`SELECT (transaction_timestamp()+interval '1 microsecond')::text AS boundary`)[0]!.boundary;
+        if (loss === 'identity')
+          await writer`UPDATE verification_claims SET valid_until=${expiry}::timestamptz WHERE provider_profile_id=(SELECT provider_profile_id FROM provider_accounts WHERE id=${fixture.accountId})`;
+        else
+          await writer`UPDATE provider_property_relationships SET valid_until=${expiry}::timestamptz WHERE id=${fixture.relationshipId}`;
+      }
+      return snapshot;
+    });
+    await assert.rejects(store.detail(fixture.listingId), { code: 'PUBLIC_LISTING_NOT_FOUND' });
+    assert.equal(reads, 2);
+  } finally {
+    await writer.end();
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`; await client.end();
+  }
+});
+
+void integration('public provider context remains readable during a pending identity renewal decision', async () => {
+  const { client } = createDatabase(process.env.DATABASE_TEST_URL!);
+  const reader = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false });
+  const writer = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false });
+  drizzle(reader); drizzle(writer);
+  let release = () => {};
+  let abort = (_error: Error) => {};
+  let write: Promise<unknown> | undefined;
+  let read: Promise<unknown> | undefined;
+  try {
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`;
+    const fixture = await createPublishedFixture(client);
+    const subject = (await client<{id:string;user_id:string;source_case_id:string}[]>`SELECT pp.id,pp.user_id,vc.source_case_id FROM provider_accounts pa JOIN provider_profiles pp ON pp.id=pa.provider_profile_id JOIN verification_claims vc ON vc.provider_profile_id=pp.id WHERE pa.id=${fixture.accountId}`)[0]!;
+    await client`UPDATE verification_claims SET valid_until=statement_timestamp()+interval '10 days' WHERE provider_profile_id=${subject.id}`;
+    await client`UPDATE verification_cases SET valid_until=statement_timestamp()+interval '10 days' WHERE id=${subject.source_case_id}`;
+    const renewal = (await client<{id:string}[]>`INSERT INTO verification_cases(provider_profile_id,applicant_user_id,previous_case_id,verification_type,state,policy_version,idempotency_key,submitted_at)
+      VALUES (${subject.id},${subject.user_id},${subject.source_case_id},'PROVIDER_IDENTITY','PENDING','provider-identity-synthetic-v1',${randomUUID()},statement_timestamp()) RETURNING id`)[0]!;
+    const readerPid = (await reader<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+    const writerPid = (await writer<{pid:number}[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+    let acquired = () => {};
+    const held = new Promise<void>(resolve => { acquired = resolve; });
+    const gate = new Promise<void>((resolve, reject) => { release = resolve; abort = reject; });
+    // Match the existing verification decision's case -> claim -> profile ->
+    // account write order, pausing while the old committed claim remains valid.
+    write = writer.begin(async tx => {
+      await tx`UPDATE verification_cases SET state='VERIFIED',version=version+1,valid_until=statement_timestamp()+interval '1 year' WHERE id=${renewal.id}`;
+      await tx`UPDATE verification_claims SET source_case_id=${renewal.id},valid_from=statement_timestamp(),valid_until=statement_timestamp()+interval '1 year' WHERE provider_profile_id=${subject.id}`;
+      acquired();
+      await gate;
+      await tx`UPDATE provider_profiles SET verification_status='VERIFIED' WHERE id=${subject.id}`;
+      await tx`UPDATE provider_accounts SET updated_at=statement_timestamp() WHERE id=${fixture.accountId}`;
+    });
+    await Promise.race([held, write.then(() => { throw Error('Renewal exited before its barrier'); })]);
+    let settled = false;
+    read = new PublicListingStore(reader, true).detail(fixture.listingId).then(
+      value => { settled = true; return { value, error: null }; },
+      error => { settled = true; return { value: null, error }; },
+    );
+    let blocked = false;
+    const deadline = Date.now() + 5000;
+    while (!settled && Date.now() < deadline) {
+      if ((await client`SELECT pid FROM pg_stat_activity WHERE pid=${readerPid} AND wait_event_type='Lock' AND ${writerPid}=ANY(pg_blocking_pids(${readerPid}))`)[0]) { blocked = true; break; }
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
+    if (blocked || !settled) abort(new Error('Read-only provider context waited on identity renewal'));
+    assert.equal(blocked, false, 'read-only context adds no renewal row-lock dependency');
+    assert.equal(settled, true, 'current committed provider information remains readable');
+    const result = await read as {value:{provider?:{identity_verified:boolean}} | null;error:unknown};
+    assert.equal(result.error, null);
+    assert.equal(result.value?.provider?.identity_verified, true);
+    release();
+    await write;
+    assert.equal((await client<{source_case_id:string}[]>`SELECT source_case_id FROM verification_claims WHERE provider_profile_id=${subject.id}`)[0]!.source_case_id, renewal.id);
+  } finally {
+    abort(new Error('Release bounded renewal fixture'));
+    await write?.catch(() => {}); await read?.catch(() => {});
+    await reader.end(); await writer.end();
+    await client`TRUNCATE users RESTART IDENTITY CASCADE`; await client.end();
   }
 });
 

@@ -267,9 +267,13 @@ export class ViewingAppointmentStore extends ViewingStore {
     const prepared=await this.prepareRemindersOnce(limit),notices=await this.backfillNoticesOnce(limit),token=randomUUID();
     // Revalidate future work fairly as well as processing due jobs: loss of
     // participation invalidates intent, rather than reviving it on later recovery.
-    const jobs=await this.client.begin(async tx=>tx<{id:string;viewing_id:string}[]>`UPDATE viewing_scheduled_actions SET state='LEASED',lease_token=${token},lease_until=statement_timestamp()+interval '1 minute',attempts=attempts+1
-      WHERE id IN (SELECT id FROM viewing_scheduled_actions WHERE action_type IN ('EXPIRE_RESCHEDULE','REMINDER_24H','REMINDER_2H') AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
-        ORDER BY (due_at<=statement_timestamp()) DESC,last_checked_at NULLS FIRST,due_at,id LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id,viewing_id`);
+    // Freeze the bounded locking selection once; a rescanned IN subquery can
+    // otherwise claim fresh rows as earlier candidates become leased.
+    const jobs=await this.client.begin(async tx=>tx<{id:string;viewing_id:string}[]>`WITH candidates AS MATERIALIZED (
+      SELECT id FROM viewing_scheduled_actions WHERE action_type IN ('EXPIRE_RESCHEDULE','REMINDER_24H','REMINDER_2H') AND (state='PENDING' OR (state='LEASED' AND lease_until<=statement_timestamp()))
+        ORDER BY (due_at<=statement_timestamp()) DESC,last_checked_at NULLS FIRST,due_at,id LIMIT ${limit} FOR UPDATE SKIP LOCKED
+      ) UPDATE viewing_scheduled_actions SET state='LEASED',lease_token=${token},lease_until=statement_timestamp()+interval '1 minute',attempts=attempts+1
+      WHERE id IN (SELECT id FROM candidates) RETURNING id,viewing_id`);
     let processed=0,skipped=0;
     for(const job of jobs) {
       try {

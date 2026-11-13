@@ -65,10 +65,19 @@ void integration('G3-G1 v2 opens at exact persisted completion and stores seven 
   }finally{await f.close();}
 });
 void integration('G3-G1 UTC calendar duration and reminders remain exact across a session daylight-saving transition',async()=>{
-  const f=await fixture();try{await clock(f);await f.client`UPDATE g1_test_clock SET value='2026-10-22T12:00:00.123Z'::timestamptz`;await f.client`SET TIME ZONE 'Europe/Paris'`;await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');const done=await completed(f);
+  const f=await fixture();try{await clock(f);await f.client`UPDATE g1_test_clock SET value='2026-10-22T12:00:00.123Z'::timestamptz`;
+    // The clock rewinds while the provider fixture was created at wall time.
+    // Keep its synthetic identity current at the frozen completion/reminder,
+    // including when CI runs after the fixed October 26 reminder instant.
+    await f.client`UPDATE verification_claims SET valid_from=statement_timestamp(),valid_until=statement_timestamp()+interval '1 year'
+      WHERE provider_profile_id IN(SELECT id FROM provider_profiles WHERE user_id=${f.providerUserId})`;
+    await f.client`SET TIME ZONE 'Europe/Paris'`;await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT public.statement_timestamp()');const done=await completed(f);
     assert.ok((await f.client`SELECT extract(epoch FROM e.closes_at-e.opens_at)=604800 AS duration,e.opens_at=a.finalized_at AS anchor FROM viewing_review_eligibilities e JOIN viewing_attendance_outcomes a ON a.viewing_id=e.viewing_id WHERE e.viewing_id=${done.viewing.id}`).every(e=>e.duration&&e.anchor));
     assert.ok((await f.client`SELECT extract(epoch FROM e.closes_at-j.due_at)=CASE j.action_type WHEN 'REMINDER_3D' THEN 259200 WHEN 'REMINDER_1D' THEN 86400 ELSE 0 END AS exact FROM review_scheduled_actions j JOIN viewing_review_eligibilities e ON e.id=j.eligibility_id`).every(j=>j.exact));
-    await f.client`UPDATE g1_test_clock SET value=review_utc_days_before((SELECT closes_at FROM viewing_review_eligibilities LIMIT 1),3)`;await f.reviews.reviewsOnce();assert.equal((await f.client`SELECT id FROM viewing_notices WHERE event_type='review_reminder_3d'`).length,2);
+    assert.ok((await f.client`SELECT extract(timezone FROM opens_at)=7200 AND extract(timezone FROM closes_at)=3600 AS crosses_dst FROM viewing_review_eligibilities`).every(e=>e.crosses_dst));
+    await f.client`UPDATE g1_test_clock SET value=review_utc_days_before((SELECT closes_at FROM viewing_review_eligibilities LIMIT 1),3)`;
+    assert.equal((await f.client<{eligible:boolean}[]>`SELECT review_context_valid(${done.viewing.interaction_id}) AS eligible`)[0]!.eligible,true,'the frozen reminder retains current provider identity');
+    await f.reviews.reviewsOnce();assert.equal((await f.client`SELECT id FROM viewing_notices WHERE event_type='review_reminder_3d'`).length,2);
   }finally{await f.client.unsafe('ALTER TABLE viewing_attendance_claims ALTER COLUMN claimed_at SET DEFAULT pg_catalog.statement_timestamp()');await f.client`SET TIME ZONE 'UTC'`;await f.close();}
 });
 void integration('G3-G1 empty seven-day window expires once without publication',async()=>{

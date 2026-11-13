@@ -1220,6 +1220,15 @@ components:
         id: { type: string, format: uuid }
         is_cover: { type: boolean }
         widths: { type: array, items: { type: integer, enum: [320, 640, 1280, 1920] } }
+    PublicListingProvider:
+      type: object
+      additionalProperties: false
+      required: [display_name, identity_verified, authority_declared]
+      description: Current public listing-detail context. A declaration does not verify property authority or ownership.
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 120 }
+        identity_verified: { type: boolean }
+        authority_declared: { type: boolean }
     PublicListing:
       type: object
       required: [id, purpose, title, description, price, terms, property, location, market_status, available_from, expires_at, media]
@@ -1271,6 +1280,8 @@ components:
         available_from: { type: [string, 'null'], format: date }
         expires_at: { type: string, format: date-time }
         media: { type: array, items: { $ref: '#/components/schemas/PublicListingMedia' } }
+        provider: { $ref: '#/components/schemas/PublicListingProvider', description: Optional detail-only context; omitted from search results. }
+        last_confirmed_at: { type: [string, 'null'], format: date-time, description: Optional detail-only server confirmation timestamp. }
     PublicListingSearchResponse:
       type: object
       required: [items, filters, next_cursor, has_more]

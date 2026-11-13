@@ -851,15 +851,15 @@ CI runs all three as ordinary failing steps (no `continue-on-error`).
   exact historical synthetic-test finding fingerprints are ignored; reasons are
   beside them in `.gitleaksignore`. No file/directory blanket exclusions.
 - [pnpm audit](https://pnpm.io/cli/audit) checks production AND development
-  dependencies at severity `low` and above; registry errors also fail. There are
-  exactly three temporary advisory exceptions, enforced by the policy checker:
-  `GHSA-86w9-cpqp-85rv` (node-forge), `GHSA-vfj7-8cjw-p6xm` (braces), and
-  `GHSA-hp3w-g68c-fv3c` (sprintf-js). All remain unfixed. The October 14 owner
-  decision accepts these exact risks once for development/CI only, with original
-  creation dates and risk history preserved. The maximum review window is 30 days
-  from the pinned October 14 assessment; all three block beginning **November 13,
-  2026 at 00:00 UTC**. No automatic extension or production deployment approval
-  is authorized; sensitive runtime exposure must be resolved separately.
+  dependencies at severity `low` and above; registry errors also fail. Only GHSA-g3hv-75wg-m249 and GHSA-c859-jr93-m5j4 are accepted for
+  development/CI through the exact fingerprint0.16.5→minimatch10.2.6 path,
+  expiring2026-11-20T00:00:00Z with no automatic renewal. Production deployment
+  remains blocked; the validator enforces exact graph and deadline controls. Deepmerge was eliminated from both Expo config consumers
+  by reviewed upstream backports; its expired November 4 record is preserved as
+  retired history. The withdrawn braces/sprintf-js records retain their original
+  approval dates and November 13 deadlines. Forge remains patched at 1.4.3.
+  Strict-low findings and registry errors remain blocking; see the readiness
+  checklist and engineering handoff for remaining findings and validation.
   Source-map-js is remediated by its compatible
   1.2.2 lockfile resolution and is not excepted. Scoped overrides in
   `pnpm-workspace.yaml` fix upstream transitive pins. Metro 0.83.8 is required with image-size 2.0.3 because the old

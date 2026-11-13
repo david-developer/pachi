@@ -17,6 +17,7 @@ type PublicRow = {
   public_location_mode: string; market_status: string; expires_at: Date;
 };
 type MediaRow = { listing_id?: string; id: string; is_cover: boolean; derivative_manifest: Record<string, { width: number; height: number; bytes: number; mime: string }> };
+type ProviderContextRow = { display_name: string; last_confirmed_at: Date | null };
 export type PublicListingFilters = {
   purpose?: 'RENT' | 'SALE' | 'SHORT_LET'; region?: 'Southwest' | 'Littoral'; city?: string; neighborhood?: string;
   propertyType?: string; minPrice?: number; maxPrice?: number; minBedrooms?: number; minBathrooms?: number;
@@ -31,6 +32,8 @@ export type PublicListing = {
   property: { property_type: string; bedrooms: number | null; bathrooms: number | null; size_sqm: string | null; furnishing: string | null };
   location: { region: string; city: string; neighborhood?: string };
   market_status: string; available_from: string | null; expires_at: string; media: PublicListingMedia[];
+  provider?: { display_name: string; identity_verified: boolean; authority_declared: boolean };
+  last_confirmed_at?: string | null;
 };
 export type PublicListingSearch = { items: PublicListing[]; filters: PublicListingFilters; next_cursor: string | null; has_more: boolean };
 export type PublicMediaSource = { storageReference: string; mime: string };
@@ -74,12 +77,19 @@ export class PublicListingStore {
 
   public async detail(listingId: string): Promise<PublicListing> {
     return this.client.begin(async (tx) => {
-      const visibility = await readPublicListingVisibility(tx, listingId, { allowSyntheticVerification: this.allowSyntheticVerification });
-      if (!visibility.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
+      const visibility = await this.visibilityReader(tx, [listingId], { allowSyntheticVerification: this.allowSyntheticVerification });
+      if (!visibility.get(listingId)?.visible) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
       const rows = await tx<PublicRow[]>`SELECT l.id,l.purpose,r.title,r.description,ov.currency,ov.amount_minor,ov.pricing_period,ov.negotiable,ov.deposit_amount_minor,ov.advance_months,ov.minimum_lease_months,ov.utilities_included,ov.service_charge_amount_minor,ov.weekly_amount_minor,ov.minimum_nights,ov.guest_limit,ov.check_in_time::text,ov.check_out_time::text,ov.cleaning_fee_minor, p.region,p.city,p.neighborhood,p.property_type,p.bedrooms,p.bathrooms,p.size_sqm::text,p.furnishing,l.public_location_mode,l.market_status,ov.available_from::text,l.expires_at FROM listings l JOIN listing_revisions r ON r.id=l.current_revision_id JOIN offerings o ON o.listing_id=l.id JOIN offering_versions ov ON ov.id=o.current_version_id JOIN properties p ON p.id=l.property_id WHERE l.id=${listingId}`;
       const row = rows[0];
       if (!row) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
       const media = await tx<MediaRow[]>`SELECT lm.id,lm.is_cover,ma.derivative_manifest FROM listing_media lm JOIN media_assets ma ON ma.id=lm.media_asset_id WHERE lm.listing_id=${listingId} AND lm.removed_at IS NULL AND ma.classification='PUBLIC_MARKETPLACE' AND ma.lifecycle='READY' AND lm.review_status='APPROVED' AND EXISTS (SELECT 1 FROM listing_submissions s,jsonb_array_elements(s.media_snapshot) snap WHERE s.id=(SELECT approved_submission_id FROM listings WHERE id=${listingId}) AND snap->>'listing_media_id'=lm.id::text AND snap->>'media_asset_id'=lm.media_asset_id::text) ORDER BY lm.display_order,lm.id`;
+      // Recheck the shared publication policy, then produce the new public
+      // claims together from one final statement-time snapshot. Contact actions
+      // still reload their own authority; a display read grants no capability.
+      if (!(await this.visibilityReader(tx, [listingId], { allowSyntheticVerification: this.allowSyntheticVerification })).get(listingId)?.visible)
+        throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
+      const provider = await this.providerContext(tx, listingId);
+      const displayName = provider.display_name.replace(/[\u0000-\u0020\u007f]+/g, ' ').trim();
       return {
       id: row.id, purpose: row.purpose, title: row.title, description: row.description,
       price: { amount_minor: Number(row.amount_minor), currency: 'XAF', pricing_period: row.pricing_period, negotiable: row.negotiable },
@@ -87,9 +97,31 @@ export class PublicListingStore {
       property: { property_type: row.property_type, bedrooms: row.bedrooms, bathrooms: row.bathrooms, size_sqm: row.size_sqm, furnishing: row.furnishing },
       location: row.public_location_mode === 'HIDDEN' ? { region: row.region, city: row.city } : { region: row.region, city: row.city, neighborhood: row.neighborhood },
       market_status: row.market_status, available_from: row.available_from, expires_at: new Date(row.expires_at).toISOString(),
+      ...(displayName.length >= 2 && displayName.length <= 120 ? { provider: { display_name: displayName, identity_verified: true, authority_declared: true } } : {}),
+      last_confirmed_at: provider.last_confirmed_at ? new Date(provider.last_confirmed_at).toISOString() : null,
       media: media.map((item) => ({ id: item.id, is_cover: item.is_cover, widths: Object.keys(item.derivative_manifest).map(Number).filter((width) => [320, 640, 1280, 1920].includes(width)).sort((a,b) => a-b) }))
       };
     });
+  }
+
+  private async providerContext(tx: postgres.TransactionSql, listingId: string): Promise<ProviderContextRow> {
+    const context = (await tx<ProviderContextRow[]>`SELECT pp.display_name,l.last_confirmed_at
+      FROM listings l JOIN provider_accounts pa ON pa.id=l.provider_account_id
+      JOIN provider_profiles pp ON pp.id=pa.provider_profile_id
+      JOIN users u ON u.id=pp.user_id
+      JOIN provider_property_relationships r ON r.id=l.provider_property_relationship_id AND r.provider_account_id=pa.id AND r.property_id=l.property_id
+      JOIN verification_claims vc ON vc.provider_profile_id=pp.id
+      JOIN verification_cases c ON c.id=vc.source_case_id AND c.provider_profile_id=pp.id AND c.applicant_user_id=u.id
+      WHERE l.id=${listingId} AND l.publication_status='PUBLISHED' AND l.moderation_status='APPROVED'
+        AND l.current_revision_id=l.approved_revision_id AND l.initial_provider_account_id=pa.id AND l.expires_at>statement_timestamp()
+        AND u.account_state='ACTIVE' AND pp.state='ACTIVE' AND pa.state='ACTIVE'
+        AND EXISTS (SELECT 1 FROM phone_contacts pc WHERE pc.user_id=u.id AND pc.verified_at IS NOT NULL AND pc.replaced_at IS NULL)
+        AND r.authorization_status IN ('DECLARED','VERIFIED') AND (r.valid_from IS NULL OR r.valid_from<=statement_timestamp()) AND (r.valid_until IS NULL OR r.valid_until>statement_timestamp())
+        AND vc.claim_type='PROVIDER_IDENTITY' AND vc.status='VERIFIED' AND vc.revoked_at IS NULL
+        AND vc.valid_from<=statement_timestamp() AND vc.valid_until>statement_timestamp() AND c.state='VERIFIED'
+        AND (c.policy_version<>'provider-identity-synthetic-v1' OR ${this.allowSyntheticVerification})`)[0];
+    if (!context) throw new IdentityError('PUBLIC_LISTING_NOT_FOUND', 'Listing is not available');
+    return context;
   }
 
   public async media(listingId: string, mediaId: string, width: number): Promise<PublicMediaSource> {

@@ -56,10 +56,16 @@ void integration('anonymous public search, detail and guarded media use safe vis
     for (const forbidden of ['provider_account_id','provider_profile_id','provider_property_relationship_id','phone_number','email','verification_case_id','authority_risk_case_id','authority_risk_evaluation_id','staff_user_id','audit_events','storage_reference','landmark','coordinates','private_address']) assert.equal(serializedSearch.includes(forbidden),false,forbidden);
     const detail = await fetch(`${base}/${draft.id}`);
     assert.equal(detail.status,200);
-    const detailBody = await detail.json() as {id:string;location:{neighborhood?:string};media:Array<{id:string}>};
+    const detailBody = await detail.json() as {id:string;location:{neighborhood?:string};media:Array<{id:string}>;provider:{display_name:string;identity_verified:boolean;authority_declared:boolean};last_confirmed_at:string};
     assert.equal(detailBody.id,draft.id);
     assert.equal(detailBody.location.neighborhood,'Akwa');
+    assert.equal(detail.headers.get('cache-control'),'no-store');
+    assert.deepEqual(detailBody.provider,{display_name:'HTTP public owner',identity_verified:true,authority_declared:true});
+    assert.ok(Number.isFinite(Date.parse(detailBody.last_confirmed_at)));
+    assert.equal(Object.hasOwn(searchBody.items[0]!, 'provider'),false);
+    assert.equal(Object.hasOwn(searchBody.items[0]!, 'last_confirmed_at'),false);
     const serializedDetail = JSON.stringify(detailBody);
+    assert.equal(serializedDetail.includes('authority_verified'),false);
     for (const forbidden of ['provider_account_id','provider_profile_id','provider_property_relationship_id','phone_number','email','verification_case_id','authority_risk_case_id','authority_risk_evaluation_id','staff_user_id','audit_events','storage_reference','landmark','coordinates','private_address']) assert.equal(serializedDetail.includes(forbidden),false,forbidden);
     const mediaResponse = await fetch(`${base}/${draft.id}/media/${media[0]!.id}/variants/640`);
     assert.equal(mediaResponse.status,200);
